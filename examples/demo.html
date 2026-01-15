@@ -765,6 +765,7 @@ const geodesic = relH.integrateGeodesic(x0, p0, 0.1, 1000);
         let currentModel = 'grand';
         let simulationData = [];
         let animationId = null;
+        let currentProjection = ['k1', 'omega'];
         
         // Parameters
         let params = {
@@ -1049,6 +1050,18 @@ const geodesic = relH.integrateGeodesic(x0, p0, 0.1, 1000);
         // Simulation Control
         // ========================================
         
+        function chooseProjection(hamiltonianType, model) {
+            if (hamiltonianType === 'thermodynamic') {
+                return ['S', 'T'];
+            }
+
+            if (model === 'holographic') {
+                return ['t', 'omega'];
+            }
+
+            return ['q1', 'k1'];
+        }
+
         function runSimulation() {
             if (animationId) {
                 cancelAnimationFrame(animationId);
@@ -1056,6 +1069,7 @@ const geodesic = relH.integrateGeodesic(x0, p0, 0.1, 1000);
             
             const hType = document.getElementById('hamiltonianType').value;
             const H = hamiltonians[hType] || hamiltonians.dispersion;
+            currentProjection = chooseProjection(hType, currentModel);
             
             // Manifold structure
             const manifold = {
@@ -1098,7 +1112,7 @@ const geodesic = relH.integrateGeodesic(x0, p0, 0.1, 1000);
             }
             
             // Draw result
-            drawPhaseSpace(simulationData);
+            drawPhaseSpace(simulationData, currentProjection);
             
             // Update output
             const finalPt = simulationData[simulationData.length - 1];
@@ -1171,7 +1185,7 @@ const geodesic = relH.integrateGeodesic(x0, p0, 0.1, 1000);
         
         window.addEventListener('resize', () => {
             if (simulationData.length > 0) {
-                drawPhaseSpace(simulationData);
+                drawPhaseSpace(simulationData, currentProjection);
             } else {
                 resetSimulation();
             }

@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Contact Thermodynamics — 3D Phase Space</title>
+    <style>
+        :root {
+            --bg: #0b0f16;
+            --panel: #121826;
+            --text: #e6edf7;
+            --muted: #9aa4b2;
+            --accent: #4da6ff;
+            --accent-2: #50fa7b;
+        }
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
+        header {
+            padding: 18px 22px;
+            border-bottom: 1px solid #1f2837;
+            background: linear-gradient(180deg, #101726 0%, #0b0f16 100%);
+        }
+        h1 {
+            font-size: 18px;
+            margin: 0 0 6px 0;
+        }
+        .sub {
+            color: var(--muted);
+            font-size: 13px;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: 16px;
+            padding: 16px;
+        }
+        .canvas-wrap {
+            background: var(--panel);
+            border: 1px solid #1f2837;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        .panel {
+            background: var(--panel);
+            border: 1px solid #1f2837;
+            border-radius: 10px;
+            padding: 14px;
+        }
+        .row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 10px 0;
+            gap: 12px;
+        }
+        label {
+            font-size: 13px;
+            color: var(--muted);
+        }
+        select, input {
+            background: #0f1420;
+            color: var(--text);
+            border: 1px solid #253048;
+            border-radius: 6px;
+            padding: 6px 8px;
+            font-size: 13px;
+        }
+        button {
+            background: var(--accent);
+            color: #051020;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        button.secondary {
+            background: transparent;
+            color: var(--text);
+            border: 1px solid #2a3650;
+        }
+        .legend {
+            position: absolute;
+            left: 12px;
+            bottom: 10px;
+            font-size: 12px;
+            color: var(--muted);
+        }
+        .legend span {
+            color: var(--accent);
+        }
+        .hint {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 8px;
+            line-height: 1.4;
+        }
+        .output {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 12px;
+            background: #0f1420;
+            border-radius: 8px;
+            padding: 10px;
+            color: #cbd5e1;
+            min-height: 120px;
+            white-space: pre-wrap;
+        }
+        @media (max-width: 980px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>3D Phase Space Visualization</h1>
+        <div class="sub">Interactive contact Hamiltonian trajectories in 3D (drag to rotate, wheel to zoom).</div>
+        <div class="sub" style="margin-top: 6px;">
+            Contact dynamics evolve on an extended phase space with an extra coordinate <strong>A</strong> (action / potential).
+            Unlike symplectic flows, <em>H need not be conserved</em>.
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="canvas-wrap">
+            <canvas id="view"></canvas>
+            <div class="legend">
+                Axes: <span id="axisLabel">q1, k1, A</span> &nbsp;|&nbsp;
+                <span style="color:#ff6b6b;">X</span>=<span id="axisX">q1</span>,
+                <span style="color:#4da6ff;">Y</span>=<span id="axisY">k1</span>,
+                <span style="color:#50fa7b;">Z</span>=<span id="axisZ">A</span>
+                &nbsp;|&nbsp; <span style="color:#50fa7b;">Start</span> → <span style="color:#ffb86c;">End</span>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="row">
+                <label>Hamiltonian</label>
+                <select id="hamiltonian">
+                    <option value="dispersion">Dispersion: H = ω − c|k|</option>
+                    <option value="massive">Massive: H = ω − √(c²|k|² + m²c⁴)</option>
+                    <option value="thermodynamic">Thermodynamic: H = ½T − TS</option>
+                    <option value="harmonic">Harmonic: H = ½(k₁² + q₁²)</option>
+                </select>
+            </div>
+            <div class="row">
+                <label>Axes</label>
+                <select id="axes">
+                    <option value="q1,k1,A">q1, k1, A</option>
+                    <option value="q1,k1,omega">q1, k1, ω</option>
+                    <option value="S,T,A">S, T, A</option>
+                    <option value="t,omega,A">t, ω, A</option>
+                </select>
+            </div>
+            <div class="row">
+                <label>Normalize axes</label>
+                <input id="normalize" type="checkbox" checked />
+            </div>
+            <div class="row">
+                <label>Steps</label>
+                <input id="steps" type="number" min="50" max="3000" step="50" value="600" />
+            </div>
+            <div class="row">
+                <label>dt</label>
+                <input id="dt" type="number" min="0.01" max="0.2" step="0.01" value="0.05" />
+            </div>
+            <div class="row">
+                <label>Mass m</label>
+                <input id="mass" type="number" min="0" max="3" step="0.1" value="1" />
+            </div>
+            <div class="row">
+                <label>Speed c</label>
+                <input id="speed" type="number" min="0.1" max="3" step="0.1" value="1" />
+            </div>
+            <div class="row">
+                <button id="run">Run</button>
+                <button id="reset" class="secondary">Reset</button>
+            </div>
+            <div class="row">
+                <button id="fit" class="secondary">Reset camera</button>
+            </div>
+            <div class="hint">
+                Drag to rotate, wheel to zoom, shift-drag to pan.
+            </div>
+            <div class="hint" id="axesHint"></div>
+            <div class="output" id="output">Ready.</div>
+        </div>
+    </div>
+
+    <script>
+        // -------------------- Simulation core --------------------
+        const EPS = 1e-12;
+
+        class ContactPoint {
+            constructor(coords) { this.coords = { ...coords }; }
+            get(key) { return this.coords[key] ?? 0; }
+            set(key, val) { this.coords[key] = val; return this; }
+            clone() { return new ContactPoint({ ...this.coords }); }
+            add(tangent, dt = 1) {
+                const next = this.clone();
+                for (const k in tangent) {
+                    if (next.coords[k] !== undefined) {
+                        next.coords[k] += tangent[k] * dt;
+                    }
+                }
+                return next;
+            }
+        }
+
+        const hamiltonians = {
+            dispersion: (coords, p) => {
+                const { k1 = 0, k2 = 0, k3 = 0, omega = 0 } = coords;
+                const kMag = Math.sqrt(k1*k1 + k2*k2 + k3*k3);
+                return omega - p.speed * kMag;
+            },
+            massive: (coords, p) => {
+                const { k1 = 0, k2 = 0, k3 = 0, omega = 0 } = coords;
+                const kSq = k1*k1 + k2*k2 + k3*k3;
+                const c = p.speed;
+                const m = p.mass;
+                return omega - Math.sqrt(c*c*kSq + m*m*c*c*c*c);
+            },
+            thermodynamic: (coords) => {
+                const { T = 1, S = 0 } = coords;
+                return 0.5 * T - T * S;
+            },
+            harmonic: (coords) => 0.5 * ((coords.k1 || 0) ** 2 + (coords.q1 || 0) ** 2)
+        };
+
+        function gradient(H, coords, p, h = 1e-7) {
+            const grad = {};
+            const keys = Object.keys(coords);
+            for (const key of keys) {
+                const plus = { ...coords, [key]: coords[key] + h };
+                const minus = { ...coords, [key]: coords[key] - h };
+                grad[key] = (H(plus, p) - H(minus, p)) / (2 * h);
+            }
+            return grad;
+        }
+
+        function contactVectorField(H, pt, p, manifold) {
+            const coords = pt.coords;
+            const grad = gradient(H, coords, p);
+            const RH = grad.A || 0;
+            const Hval = H(coords, p);
+            const X = {};
+
+            const base = manifold.base;
+            const mom = manifold.momenta;
+
+            for (let i = 0; i < base.length; i++) {
+                X[base[i]] = grad[mom[i]] || 0;
+            }
+            for (let i = 0; i < mom.length; i++) {
+                const pVal = coords[mom[i]] || 0;
+                X[mom[i]] = -(grad[base[i]] || 0) - pVal * RH;
+            }
+
+            let pDot = 0;
+            for (let i = 0; i < mom.length; i++) {
+                pDot += (coords[mom[i]] || 0) * (grad[mom[i]] || 0);
+            }
+            X.A = pDot - Hval;
+            return X;
+        }
+
+        function flowRK4(H, pt, dt, p, manifold) {
+            const k1 = contactVectorField(H, pt, p, manifold);
+            const k2 = contactVectorField(H, pt.add(k1, dt/2), p, manifold);
+            const k3 = contactVectorField(H, pt.add(k2, dt/2), p, manifold);
+            const k4 = contactVectorField(H, pt.add(k3, dt), p, manifold);
+            const comb = {};
+            for (const key of Object.keys(k1)) {
+                comb[key] = (k1[key] + 2*k2[key] + 2*k3[key] + k4[key]) / 6;
+            }
+            return pt.add(comb, dt);
+        }
+
+        function simulate(options) {
+            const manifold = {
+                base: ['q1','q2','q3','t','ell','S'],
+                momenta: ['k1','k2','k3','omega','Delta','T']
+            };
+
+            const initial = {
+                q1: 0, q2: 0, q3: 0,
+                t: 0, ell: 0, S: 1,
+                k1: 0.7, k2: 0.2, k3: 0,
+                omega: 1, Delta: 0, T: 1,
+                A: 0
+            };
+
+            const H = hamiltonians[options.hType] || hamiltonians.dispersion;
+            const params = { mass: options.mass, speed: options.speed };
+
+            let pt = new ContactPoint(initial);
+            const traj = [pt.clone()];
+
+            for (let i = 0; i < options.steps; i++) {
+                pt = flowRK4(H, pt, options.dt, params, manifold);
+                traj.push(pt.clone());
+            }
+            return { traj, H };
+        }
+
+        // -------------------- 3D Viewer --------------------
+        const canvas = document.getElementById('view');
+        const ctx = canvas.getContext('2d');
+        const axisLabel = document.getElementById('axisLabel');
+        const axisX = document.getElementById('axisX');
+        const axisY = document.getElementById('axisY');
+        const axisZ = document.getElementById('axisZ');
+        let points = [];
+        let ranges = null;
+
+        let width = 0, height = 0;
+        let rotation = { x: -0.7, y: 0.8 };
+        let zoom = 1.0;
+        let pan = { x: 0, y: 0 };
+        let isDragging = false;
+        let last = { x: 0, y: 0 };
+        let isPanning = false;
+
+        function resize() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            width = canvas.width;
+            height = canvas.height;
+            render();
+        }
+
+        function project3D(x, y, z) {
+            // Rotate
+            let cy = Math.cos(rotation.y), sy = Math.sin(rotation.y);
+            let cx = Math.cos(rotation.x), sx = Math.sin(rotation.x);
+
+            let xz = x * cy + z * sy;
+            let zz = -x * sy + z * cy;
+
+            let yz = y * cx - zz * sx;
+            let zz2 = y * sx + zz * cx;
+
+            // Perspective
+            const dist = 5;
+            const scale = 1 / (1 + zz2 / dist);
+            const px = xz * scale;
+            const py = yz * scale;
+
+            return [
+                width / 2 + px * 120 * zoom + pan.x,
+                height / 2 - py * 120 * zoom + pan.y,
+                scale
+            ];
+        }
+
+        function render() {
+            ctx.clearRect(0, 0, width, height);
+            ctx.fillStyle = '#0b0f16';
+            ctx.fillRect(0, 0, width, height);
+
+            if (points.length === 0) {
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = '14px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Run simulation to render trajectory', width / 2, height / 2);
+                return;
+            }
+
+            // Draw axes
+            const axes = [
+                { v: [1, 0, 0], c: '#ff6b6b' },
+                { v: [0, 1, 0], c: '#4da6ff' },
+                { v: [0, 0, 1], c: '#50fa7b' }
+            ];
+            for (const a of axes) {
+                const [x1, y1] = project3D(0,0,0);
+                const [x2, y2] = project3D(a.v[0], a.v[1], a.v[2]);
+                ctx.strokeStyle = a.c;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+            }
+
+            // Axis tips labels
+            ctx.font = '12px sans-serif';
+            ctx.textAlign = 'left';
+            const [axX, ayX] = project3D(1, 0, 0);
+            ctx.fillStyle = '#ff6b6b';
+            ctx.fillText(axisX.textContent, axX + 6, ayX);
+
+            const [axY, ayY] = project3D(0, 1, 0);
+            ctx.fillStyle = '#4da6ff';
+            ctx.fillText(axisY.textContent, axY + 6, ayY);
+
+            const [axZ, ayZ] = project3D(0, 0, 1);
+            ctx.fillStyle = '#50fa7b';
+            ctx.fillText(axisZ.textContent, axZ + 6, ayZ);
+
+            // Draw trajectory
+            ctx.strokeStyle = '#4da6ff';
+            ctx.lineWidth = 1.7;
+            ctx.beginPath();
+            for (let i = 0; i < points.length; i++) {
+                const [x, y] = project3D(points[i][0], points[i][1], points[i][2]);
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            // Start / end markers
+            const [sx, sy] = project3D(points[0][0], points[0][1], points[0][2]);
+            ctx.fillStyle = '#50fa7b';
+            ctx.beginPath();
+            ctx.arc(sx, sy, 5, 0, Math.PI * 2);
+            ctx.fill();
+
+            const [ex, ey] = project3D(points[points.length - 1][0], points[points.length - 1][1], points[points.length - 1][2]);
+            ctx.fillStyle = '#ffb86c';
+            ctx.beginPath();
+            ctx.arc(ex, ey, 4, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function normalizePoints(raw) {
+            let min = [Infinity, Infinity, Infinity];
+            let max = [-Infinity, -Infinity, -Infinity];
+            for (const p of raw) {
+                for (let i = 0; i < 3; i++) {
+                    min[i] = Math.min(min[i], p[i]);
+                    max[i] = Math.max(max[i], p[i]);
+                }
+            }
+            const scale = max.map((v, i) => (v - min[i]) || 1);
+            ranges = { min, max };
+            return raw.map(p => [
+                (p[0] - min[0]) / scale[0] - 0.5,
+                (p[1] - min[1]) / scale[1] - 0.5,
+                (p[2] - min[2]) / scale[2] - 0.5
+            ]);
+        }
+
+        function rawPoints(raw) {
+            let min = [Infinity, Infinity, Infinity];
+            let max = [-Infinity, -Infinity, -Infinity];
+            for (const p of raw) {
+                for (let i = 0; i < 3; i++) {
+                    min[i] = Math.min(min[i], p[i]);
+                    max[i] = Math.max(max[i], p[i]);
+                }
+            }
+            ranges = { min, max };
+            return raw;
+        }
+
+        // -------------------- UI --------------------
+        const hamiltonianSel = document.getElementById('hamiltonian');
+        const axesSel = document.getElementById('axes');
+        const stepsInput = document.getElementById('steps');
+        const dtInput = document.getElementById('dt');
+        const massInput = document.getElementById('mass');
+        const speedInput = document.getElementById('speed');
+        const normalizeInput = document.getElementById('normalize');
+        const axesHint = document.getElementById('axesHint');
+        const output = document.getElementById('output');
+        const fitBtn = document.getElementById('fit');
+
+        function updateAxesLabels(axes) {
+            axisLabel.textContent = axes.join(', ');
+            axisX.textContent = axes[0];
+            axisY.textContent = axes[1];
+            axisZ.textContent = axes[2];
+        }
+
+        function autoAxesForHamiltonian(hType) {
+            if (hType === 'thermodynamic') return 'S,T,A';
+            if (hType === 'harmonic') return 'q1,k1,A';
+            return 'q1,k1,omega';
+        }
+
+        function updateHamiltonianUI(hType) {
+            const usesParams = hType === 'dispersion' || hType === 'massive';
+            massInput.disabled = !usesParams;
+            speedInput.disabled = !usesParams;
+            const hint = hType === 'thermodynamic'
+                ? 'Tip: thermodynamic flow is easiest to see in S–T–A.'
+                : hType === 'massive'
+                    ? 'Tip: dispersion shows clearer motion in q1–k1–ω.'
+                    : 'Tip: try q1–k1–A for phase space motion.';
+            axesHint.textContent = hint;
+        }
+
+        function run() {
+            const hType = hamiltonianSel.value;
+            const steps = Math.max(50, parseInt(stepsInput.value || '600', 10));
+            const dt = Math.max(0.01, parseFloat(dtInput.value || '0.05'));
+            const mass = Math.max(0, parseFloat(massInput.value || '1'));
+            const speed = Math.max(0.1, parseFloat(speedInput.value || '1'));
+            const axes = axesSel.value.split(',');
+            updateAxesLabels(axes);
+
+            const { traj, H } = simulate({ hType, steps, dt, mass, speed });
+
+            const raw = traj.map(pt => [pt.get(axes[0]), pt.get(axes[1]), pt.get(axes[2])]);
+            points = normalizeInput.checked ? normalizePoints(raw) : rawPoints(raw);
+            render();
+
+            const H0 = H(traj[0].coords, { mass, speed });
+            const H1 = H(traj[traj.length - 1].coords, { mass, speed });
+            const rangeText = ranges
+                ? `Ranges: ${axes[0]}[${ranges.min[0].toFixed(2)}, ${ranges.max[0].toFixed(2)}], ` +
+                  `${axes[1]}[${ranges.min[1].toFixed(2)}, ${ranges.max[1].toFixed(2)}], ` +
+                  `${axes[2]}[${ranges.min[2].toFixed(2)}, ${ranges.max[2].toFixed(2)}]`
+                : '';
+            output.textContent = [
+                `Simulation: ${steps} steps, dt=${dt}`,
+                `Hamiltonian: ${hType}`,
+                `H(0) = ${H0.toFixed(4)}`,
+                `H(T) = ${H1.toFixed(4)}`,
+                rangeText
+            ].join('\n');
+        }
+
+        function reset() {
+            points = [];
+            output.textContent = 'Ready.';
+            render();
+        }
+
+        document.getElementById('run').addEventListener('click', run);
+        document.getElementById('reset').addEventListener('click', reset);
+
+        axesSel.addEventListener('change', () => {
+            if (points.length) run();
+        });
+
+        normalizeInput.addEventListener('change', () => {
+            if (points.length) run();
+        });
+
+        hamiltonianSel.addEventListener('change', () => {
+            const hType = hamiltonianSel.value;
+            axesSel.value = autoAxesForHamiltonian(hType);
+            updateHamiltonianUI(hType);
+            if (points.length) run();
+        });
+
+        fitBtn.addEventListener('click', () => {
+            rotation = { x: -0.7, y: 0.8 };
+            zoom = 1.0;
+            pan = { x: 0, y: 0 };
+            render();
+        });
+
+        // Interaction
+        canvas.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            isPanning = e.shiftKey;
+            last = { x: e.clientX, y: e.clientY };
+        });
+        window.addEventListener('mouseup', () => { isDragging = false; isPanning = false; });
+        window.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            const dx = e.clientX - last.x;
+            const dy = e.clientY - last.y;
+            last = { x: e.clientX, y: e.clientY };
+            if (isPanning) {
+                pan.x += dx;
+                pan.y += dy;
+            } else {
+                rotation.y += dx * 0.01;
+                rotation.x += dy * 0.01;
+            }
+            render();
+        });
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            zoom *= Math.exp(-e.deltaY * 0.001);
+            zoom = Math.max(0.4, Math.min(3, zoom));
+            render();
+        }, { passive: false });
+
+        window.addEventListener('resize', resize);
+        axesSel.value = autoAxesForHamiltonian(hamiltonianSel.value);
+        updateHamiltonianUI(hamiltonianSel.value);
+        updateAxesLabels(axesSel.value.split(','));
+        resize();
+    </script>
+</body>
+</html>

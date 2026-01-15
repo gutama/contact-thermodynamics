@@ -1,0 +1,1181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extended Thermodynamics: Contact Geometry Demo</title>
+    <style>
+        :root {
+            --bg-primary: #0a0e14;
+            --bg-secondary: #1a1f2e;
+            --bg-tertiary: #252b3d;
+            --text-primary: #e6e8eb;
+            --text-secondary: #8a94a6;
+            --accent-blue: #4da6ff;
+            --accent-green: #50fa7b;
+            --accent-orange: #ffb86c;
+            --accent-purple: #bd93f9;
+            --accent-red: #ff5555;
+            --border: #3d4663;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            padding: 30px 0;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            font-size: 2.2em;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1em;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        @media (max-width: 900px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+        
+        .panel {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid var(--border);
+        }
+        
+        .panel h2 {
+            color: var(--accent-blue);
+            font-size: 1.3em;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .panel h3 {
+            color: var(--accent-orange);
+            font-size: 1.1em;
+            margin: 15px 0 10px;
+        }
+        
+        .math-display {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+            overflow-x: auto;
+            border-left: 3px solid var(--accent-purple);
+        }
+        
+        .math-display.highlight {
+            border-left-color: var(--accent-green);
+        }
+        
+        .coord-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px;
+            margin: 10px 0;
+        }
+        
+        .coord-item {
+            background: var(--bg-tertiary);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.9em;
+        }
+        
+        .coord-item .label {
+            color: var(--accent-green);
+            font-weight: bold;
+        }
+        
+        .coord-item .desc {
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        
+        .controls {
+            background: var(--bg-tertiary);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        
+        .control-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin: 10px 0;
+            flex-wrap: wrap;
+        }
+        
+        label {
+            color: var(--text-secondary);
+            min-width: 100px;
+        }
+        
+        input[type="range"] {
+            flex: 1;
+            min-width: 150px;
+            accent-color: var(--accent-blue);
+        }
+        
+        input[type="number"] {
+            width: 80px;
+            padding: 5px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-primary);
+        }
+        
+        button {
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.2s, opacity 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            opacity: 0.9;
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        select {
+            padding: 8px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-primary);
+        }
+        
+        canvas {
+            background: var(--bg-primary);
+            border-radius: 8px;
+            width: 100%;
+            height: 300px;
+        }
+        
+        .output {
+            background: var(--bg-primary);
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        
+        .output .line {
+            margin: 2px 0;
+        }
+        
+        .output .highlight-value {
+            color: var(--accent-green);
+        }
+        
+        .output .highlight-label {
+            color: var(--accent-blue);
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        th {
+            background: var(--bg-tertiary);
+            color: var(--accent-blue);
+        }
+        
+        tr:hover {
+            background: var(--bg-tertiary);
+        }
+        
+        .tab-container {
+            margin: 15px 0;
+        }
+        
+        .tab-buttons {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+        }
+        
+        .tab-btn {
+            background: var(--bg-tertiary);
+            padding: 8px 16px;
+            border-radius: 6px 6px 0 0;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            border-bottom: none;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+        
+        .tab-btn.active {
+            background: var(--bg-secondary);
+            color: var(--accent-blue);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+        
+        .status.success { background: rgba(80, 250, 123, 0.2); color: var(--accent-green); }
+        .status.info { background: rgba(77, 166, 255, 0.2); color: var(--accent-blue); }
+        
+        .phase-space {
+            position: relative;
+            height: 350px;
+        }
+        
+        #phaseCanvas {
+            height: 350px;
+        }
+        
+        .legend {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Geometric Mechanics of Extended Thermodynamics</h1>
+            <p class="subtitle">Contact Geometry / 1-Jet Bundles Framework</p>
+            <p style="margin-top: 10px; color: var(--text-secondary);">
+                <span class="status success">✓ Validated</span>
+                &nbsp; Definitions Package
+            </p>
+        </header>
+
+        <div class="grid">
+            <!-- Left Column: Theory -->
+            <div class="panel">
+                <h2>📐 Canonical Structure</h2>
+                
+                <h3>I. Preamble</h3>
+                <p style="color: var(--text-secondary); margin-bottom: 10px;">
+                    Let Q be a configuration manifold of dimension n. The theory is constructed on the 1-jet bundle:
+                </p>
+                
+                <div class="math-display">
+                    M := J¹(Q),&nbsp;&nbsp;&nbsp;dim M = 2n + 1
+                </div>
+                
+                <div class="math-display highlight">
+                    α = du − p<sub>a</sub> dx<sup>a</sup>
+                </div>
+                
+                <p style="color: var(--text-secondary); font-size: 0.9em; margin-top: 10px;">
+                    • x<sup>a</sup>: base configuration coordinates (dim n)<br>
+                    • u: fiber coordinate (generating potential / action / phase)<br>
+                    • p<sub>a</sub>: conjugate momenta coordinates
+                </p>
+
+                <h3>II. Dimensionality Theorem</h3>
+                <div class="math-display">
+                    dim M = 2n + 1
+                </div>
+                <p style="color: var(--text-secondary); font-size: 0.9em;">
+                    • Grand model: n = 6 → dim M = 13<br>
+                    • Holographic model: n = 3 → dim M = 7
+                </p>
+
+                <h3>III. Contact Condition</h3>
+                <div class="math-display highlight">
+                    α ∧ (dα)<sup>n</sup> ≠ 0&nbsp;&nbsp;everywhere on M
+                </div>
+            </div>
+
+            <!-- Right Column: Models Selection -->
+            <div class="panel">
+                <h2>🌐 Manifold Selection</h2>
+                
+                <div class="tab-container">
+                    <div class="tab-buttons">
+                        <div class="tab-btn active" onclick="selectModel('grand')">Grand M₁₃</div>
+                        <div class="tab-btn" onclick="selectModel('holographic')">Holographic M₇</div>
+                        <div class="tab-btn" onclick="selectModel('gauge')">Gauge-Extended M₁₅</div>
+                    </div>
+                    
+                    <div id="grand-tab" class="tab-content active">
+                        <h3>Grand Contact Manifold M₁₃ = J¹(Q₆)</h3>
+                        <p style="color: var(--text-secondary); margin-bottom: 15px;">
+                            Full extended phase space with all variables independent.
+                        </p>
+                        
+                        <h4 style="color: var(--accent-orange); margin: 10px 0;">Base Configuration Q₆:</h4>
+                        <div class="math-display">
+                            x<sup>a</sup> = (q¹, q², q³, t, ℓ, S),&nbsp;&nbsp;ℓ := log λ
+                        </div>
+                        
+                        <h4 style="color: var(--accent-orange); margin: 10px 0;">Conjugate Momenta:</h4>
+                        <div class="math-display">
+                            p<sub>a</sub> = (k₁, k₂, k₃, ω, Δ, T)
+                        </div>
+                        
+                        <div class="coord-grid">
+                            <div class="coord-item"><span class="label">k<sub>i</sub></span><br><span class="desc">wavenumber ↔ q<sup>i</sup></span></div>
+                            <div class="coord-item"><span class="label">ω</span><br><span class="desc">frequency ↔ t</span></div>
+                            <div class="coord-item"><span class="label">Δ</span><br><span class="desc">dilatation ↔ ℓ</span></div>
+                            <div class="coord-item"><span class="label">T</span><br><span class="desc">temperature ↔ S</span></div>
+                        </div>
+                        
+                        <h4 style="color: var(--accent-orange); margin: 10px 0;">Contact Form:</h4>
+                        <div class="math-display highlight">
+                            α = dA − k<sub>i</sub> dq<sup>i</sup> − ω dt − Δ dℓ − T dS
+                        </div>
+                    </div>
+                    
+                    <div id="holographic-tab" class="tab-content">
+                        <h3>Holographic Contact Manifold M₇ = J¹(Q₃)</h3>
+                        <p style="color: var(--text-secondary); margin-bottom: 15px;">
+                            Space demoted to dependent fields (emergent).
+                        </p>
+                        
+                        <h4 style="color: var(--accent-orange); margin: 10px 0;">Base Configuration Q₃:</h4>
+                        <div class="math-display">
+                            x<sup>a</sup> = (t, ℓ, S),&nbsp;&nbsp;ℓ := log λ
+                        </div>
+                        
+                        <h4 style="color: var(--accent-orange); margin: 10px 0;">Conjugate Momenta:</h4>
+                        <div class="math-display">
+                            p<sub>a</sub> = (ω, Δ, T)
+                        </div>
+                        
+                        <h4 style="color: var(--accent-orange); margin: 10px 0;">Contact Form:</h4>
+                        <div class="math-display highlight">
+                            α = dA − ω dt − Δ dℓ − T dS
+                        </div>
+                        
+                        <h4 style="color: var(--accent-orange); margin: 10px 0;">Emergent Space:</h4>
+                        <div class="math-display">
+                            q<sup>i</sup> = q<sup>i</sup>(t, ℓ, S)&nbsp;&nbsp;(scalar fields on Q₃)
+                        </div>
+                    </div>
+                    
+                    <div id="gauge-tab" class="tab-content">
+                        <h3>Gauge-Extended Manifold M₁₅</h3>
+                        <p style="color: var(--text-secondary); margin-bottom: 15px;">
+                            Grand model + gauge coordinate pair.
+                        </p>
+                        
+                        <h4 style="color: var(--accent-orange); margin: 10px 0;">Extended Base Q₇:</h4>
+                        <div class="math-display">
+                            x<sup>a</sup> = (q¹, q², q³, t, ℓ, S, φ)
+                        </div>
+                        
+                        <h4 style="color: var(--accent-orange); margin: 10px 0;">Extended Momenta:</h4>
+                        <div class="math-display">
+                            p<sub>a</sub> = (k₁, k₂, k₃, ω, Δ, T, I)
+                        </div>
+                        
+                        <div class="coord-grid">
+                            <div class="coord-item"><span class="label">φ</span><br><span class="desc">gauge phase</span></div>
+                            <div class="coord-item"><span class="label">I</span><br><span class="desc">gauge flux/current</span></div>
+                        </div>
+                        
+                        <h4 style="color: var(--accent-orange); margin: 10px 0;">Contact Form:</h4>
+                        <div class="math-display highlight">
+                            α = dA − k<sub>i</sub> dq<sup>i</sup> − ω dt − Δ dℓ − T dS − I dφ
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dynamics Section -->
+        <div class="panel" style="margin-top: 20px;">
+            <h2>⚡ Contact Hamiltonian Dynamics</h2>
+            
+            <div class="grid">
+                <div>
+                    <h3>Reeb Vector Field R</h3>
+                    <div class="math-display">
+                        α(R) = 1,&nbsp;&nbsp;&nbsp;dα(R, ·) = 0
+                    </div>
+                    <p style="color: var(--text-secondary); margin: 10px 0;">
+                        For canonical α: R = ∂/∂u (derivative along fiber)
+                    </p>
+                    
+                    <h3>Contact Hamiltonian Vector Field X<sub>H</sub></h3>
+                    <div class="math-display">
+                        ι<sub>X<sub>H</sub></sub>α = −H<br>
+                        ι<sub>X<sub>H</sub></sub>dα = dH − (RH)α
+                    </div>
+                    
+                    <h3>Hamilton's Equations (Contact)</h3>
+                    <div class="math-display highlight">
+                        ẋ<sup>a</sup> = ∂H/∂p<sub>a</sub><br>
+                        ṗ<sub>a</sub> = −∂H/∂x<sup>a</sup> − p<sub>a</sub> · ∂H/∂u<br>
+                        u̇ = p<sub>a</sub> · ∂H/∂p<sub>a</sub> − H
+                    </div>
+                </div>
+                
+                <div>
+                    <h3>Hamilton-Jacobi / Legendrian Constraint</h3>
+                    <p style="color: var(--text-secondary); margin-bottom: 10px;">
+                        A generating function A(x) defines a Legendrian submanifold:
+                    </p>
+                    <div class="math-display">
+                        u = A(x),&nbsp;&nbsp;&nbsp;p<sub>a</sub> = ∂<sub>a</sub>A(x)
+                    </div>
+                    <div class="math-display highlight">
+                        H(x, A(x), ∂A(x)) = 0
+                    </div>
+                    
+                    <h3>Physical Interpretation</h3>
+                    <p style="color: var(--text-secondary); font-size: 0.9em;">
+                        Physical histories are 1D integral curves of X<sub>H</sub>.<br>
+                        The Legendrian condition α|<sub>L</sub> = 0 generalizes the classical relation p = ∂S/∂q.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Interactive Simulation -->
+        <div class="panel" style="margin-top: 20px;">
+            <h2>🎮 Interactive Simulation</h2>
+            
+            <div class="controls">
+                <div class="control-row">
+                    <label>Hamiltonian:</label>
+                    <select id="hamiltonianType" onchange="updateHamiltonian()">
+                        <option value="dispersion">Dispersion Relation: H = ω − c|k|</option>
+                        <option value="massive">Massive: H = ω − √(c²|k|² + m²)</option>
+                        <option value="thermodynamic">Thermodynamic: H = ½T − TS</option>
+                        <option value="custom">Custom (edit below)</option>
+                    </select>
+                </div>
+                
+                <div class="control-row">
+                    <label>Mass m:</label>
+                    <input type="range" id="massSlider" min="0" max="2" step="0.1" value="1" oninput="updateParams()">
+                    <input type="number" id="massValue" value="1" step="0.1" onchange="updateParams()">
+                </div>
+                
+                <div class="control-row">
+                    <label>Speed c:</label>
+                    <input type="range" id="speedSlider" min="0.1" max="2" step="0.1" value="1" oninput="updateParams()">
+                    <input type="number" id="speedValue" value="1" step="0.1" onchange="updateParams()">
+                </div>
+                
+                <div class="control-row">
+                    <label>Temperature T₀:</label>
+                    <input type="range" id="tempSlider" min="0.1" max="5" step="0.1" value="1" oninput="updateParams()">
+                    <input type="number" id="tempValue" value="1" step="0.1" onchange="updateParams()">
+                </div>
+                
+                <div class="control-row">
+                    <button onclick="runSimulation()">▶ Run Simulation</button>
+                    <button onclick="resetSimulation()">↺ Reset</button>
+                    <button onclick="exportData()">📊 Export Data</button>
+                </div>
+            </div>
+            
+            <div class="grid">
+                <div class="phase-space">
+                    <canvas id="phaseCanvas"></canvas>
+                    <div class="legend">
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #4da6ff;"></div>
+                            <span>Trajectory</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #50fa7b;"></div>
+                            <span>Initial Point</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #ff5555;"></div>
+                            <span>Legendrian L</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="output" id="simOutput">
+                    <div class="line"><span class="highlight-label">Simulation ready.</span></div>
+                    <div class="line">Select Hamiltonian and adjust parameters.</div>
+                    <div class="line">Click "Run Simulation" to evolve contact dynamics.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GR Extension -->
+        <div class="panel" style="margin-top: 20px;">
+            <h2>🌌 Gravitational Extension (General Relativity)</h2>
+            
+            <p style="color: var(--text-secondary); margin-bottom: 15px;">
+                <strong>Principle:</strong> Contact structure α fixes the canonical kinematic scaffold (locally Darboux-flat). 
+                Spacetime curvature enters through the Hamiltonian constraint by inserting a metric g<sub>μν</sub>(x).
+            </p>
+            
+            <div class="grid">
+                <div>
+                    <h3>Relativistic Hamiltonian (Mass-Shell)</h3>
+                    <div class="math-display highlight">
+                        H = ½ g<sup>μν</sup>(x)(p<sub>μ</sub> − qA<sub>μ</sub>)(p<sub>ν</sub> − qA<sub>ν</sub>) + ½m² = 0
+                    </div>
+                    <p style="color: var(--text-secondary); font-size: 0.9em; margin-top: 10px;">
+                        • A<sub>μ</sub> = 0: pure geodesic motion in curved spacetime<br>
+                        • A<sub>μ</sub> ≠ 0: charged particle in EM field
+                    </p>
+                    
+                    <h3>Hamilton-Jacobi Master PDE</h3>
+                    <div class="math-display">
+                        ½ g<sup>μν</sup>(x)(∂<sub>μ</sub>A − qA<sub>μ</sub>)(∂<sub>ν</sub>A − qA<sub>ν</sub>) + ½m² = 0
+                    </div>
+                </div>
+                
+                <div>
+                    <h3>Available Metrics</h3>
+                    <div class="controls">
+                        <select id="metricSelect" onchange="updateMetricDisplay()">
+                            <option value="minkowski">Minkowski (Flat)</option>
+                            <option value="schwarzschild">Schwarzschild</option>
+                            <option value="flrw">FLRW (Cosmological)</option>
+                        </select>
+                    </div>
+                    
+                    <div id="metricDisplay" class="math-display">
+                        g<sub>μν</sub> = diag(1, −1, −1, −1)
+                    </div>
+                    
+                    <h3>One-Line Summary</h3>
+                    <div class="math-display highlight" style="font-size: 0.95em;">
+                        Kinematics from α; curvature from g<sub>μν</sub>(x) inside H (and thus the HJ PDE)
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Table -->
+        <div class="panel" style="margin-top: 20px;">
+            <h2>📋 Summary Table</h2>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>Theory Version</th>
+                        <th>Base Dim</th>
+                        <th>Total Contact Dim</th>
+                        <th>Independent Coordinates</th>
+                        <th>Dependent Fields</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Grand (Standard)</td>
+                        <td>6</td>
+                        <td><strong>13</strong></td>
+                        <td>q<sup>i</sup>, t, ℓ, S plus A</td>
+                        <td>None</td>
+                    </tr>
+                    <tr>
+                        <td>Holographic</td>
+                        <td>3</td>
+                        <td><strong>7</strong></td>
+                        <td>t, ℓ, S plus A</td>
+                        <td>q<sup>i</sup>(t, ℓ, S)</td>
+                    </tr>
+                    <tr>
+                        <td>Gauge-Extended (Grand + φ)</td>
+                        <td>7</td>
+                        <td><strong>15</strong></td>
+                        <td>add (φ, I)</td>
+                        <td>None</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <h3 style="margin-top: 20px;">Physics Caveats</h3>
+            <ol style="color: var(--text-secondary); margin-left: 20px; line-height: 1.8;">
+                <li><strong>Entropy closure:</strong> Using S as a base coordinate is valid only in LTE/adiabatic regimes (no extra internal variables required).</li>
+                <li><strong>Gauge extension:</strong> Adding an independent canonical pair (φ, I) increases total dimension by 2.</li>
+            </ol>
+        </div>
+
+        <!-- Code Examples -->
+        <div class="panel" style="margin-top: 20px;">
+            <h2>💻 Code Examples</h2>
+            
+            <h3>Create Grand Manifold</h3>
+            <pre class="output" style="overflow-x: auto;">
+const ET = require('./extended_thermodynamics_contact.js');
+
+// Create the 13D Grand Contact Manifold
+const M13 = ET.grandManifold();
+console.log(M13.toString());
+// Output: Grand Contact Manifold M₁₃ = J¹(Q₆): dim=13
+
+// Create a physical point
+const pt = M13.physicalPoint(
+    1, 0, 0,      // q¹, q², q³ (spatial position)
+    0,            // t (time)
+    0,            // ℓ = log(λ)
+    1,            // S (entropy)
+    0.5, 0, 0,    // k₁, k₂, k₃ (wavenumber)
+    1,            // ω (frequency)
+    0,            // Δ (dilatation)
+    1,            // T (temperature)
+    0             // A (action)
+);
+
+// Verify contact condition
+console.log('Contact non-degeneracy:', M13.verifyContactCondition(pt));
+// Output: 720 (= 6!)
+            </pre>
+            
+            <h3>Contact Hamiltonian Dynamics</h3>
+            <pre class="output" style="overflow-x: auto;">
+// Dispersion relation Hamiltonian: H = ω - c|k|
+const H = ET.ThermodynamicHamiltonian.dispersionRelation(M13, 1, 0);
+
+// Flow the point
+const trajectory = H.flow(pt, 0.1, 100);
+
+// Check Hamiltonian evolution
+const Hvalues = H.hamiltonianEvolution(trajectory);
+console.log('H at t=0:', Hvalues[0]);
+console.log('H at t=10:', Hvalues[100]);
+            </pre>
+            
+            <h3>Legendrian Submanifold</h3>
+            <pre class="output" style="overflow-x: auto;">
+// Generating function: A(x) = k·q - ωt
+const L = new ET.LegendrianSubmanifold(M13, 
+    x => x.k1 * x.q1 - x.omega * x.t
+);
+
+// Lift base point to contact manifold
+const baseCoords = { q1: 1, q2: 0, q3: 0, t: 0, ell: 0, S: 1 };
+const liftedPt = L.lift(baseCoords);
+
+// Verify Legendrian condition: α|_L = 0
+console.log('Legendrian:', L.verifyLegendrianCondition(baseCoords));
+            </pre>
+            
+            <h3>Gravitational Extension</h3>
+            <pre class="output" style="overflow-x: auto;">
+// Schwarzschild metric
+const metric = ET.SpacetimeMetric.schwarzschild(1);
+
+// Relativistic Hamiltonian
+const relH = new ET.RelativisticHamiltonian(metric, 1, null, 0);
+
+// Initial conditions (t, r, θ, φ) and (p_t, p_r, p_θ, p_φ)
+const x0 = [0, 10, Math.PI/2, 0];
+const p0 = [1, 0, 0, 0.2]; // p_t=E, p_φ=L (conserved)
+
+// Integrate geodesic
+const geodesic = relH.integrateGeodesic(x0, p0, 0.1, 1000);
+            </pre>
+        </div>
+    </div>
+
+    <!-- JavaScript Implementation -->
+    <script>
+        // ========================================
+        // Extended Thermodynamics Implementation
+        // ========================================
+        
+        const EPSILON = 1e-12;
+        
+        // Current model and simulation state
+        let currentModel = 'grand';
+        let simulationData = [];
+        let animationId = null;
+        
+        // Parameters
+        let params = {
+            mass: 1,
+            speed: 1,
+            temp: 1
+        };
+        
+        // Tab switching
+        function selectModel(model) {
+            currentModel = model;
+            
+            // Update tabs
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(`${model}-tab`).classList.add('active');
+            
+            updateOutput(`Selected ${model === 'grand' ? 'Grand M₁₃' : model === 'holographic' ? 'Holographic M₇' : 'Gauge-Extended M₁₅'} manifold`);
+        }
+        
+        // Parameter updates
+        function updateParams() {
+            params.mass = parseFloat(document.getElementById('massSlider').value);
+            params.speed = parseFloat(document.getElementById('speedSlider').value);
+            params.temp = parseFloat(document.getElementById('tempSlider').value);
+            
+            document.getElementById('massValue').value = params.mass;
+            document.getElementById('speedValue').value = params.speed;
+            document.getElementById('tempValue').value = params.temp;
+        }
+        
+        function updateHamiltonian() {
+            const type = document.getElementById('hamiltonianType').value;
+            updateOutput(`Hamiltonian type: ${type}`);
+        }
+        
+        // Metric display
+        function updateMetricDisplay() {
+            const metric = document.getElementById('metricSelect').value;
+            const display = document.getElementById('metricDisplay');
+            
+            if (metric === 'minkowski') {
+                display.innerHTML = 'g<sub>μν</sub> = diag(1, −1, −1, −1)';
+            } else if (metric === 'schwarzschild') {
+                display.innerHTML = 'g<sub>μν</sub> = diag(1−2M/r, −(1−2M/r)<sup>−1</sup>, −r², −r²sin²θ)';
+            } else if (metric === 'flrw') {
+                display.innerHTML = 'g<sub>μν</sub> = diag(1, −a(t)², −a(t)²S<sub>k</sub>², −a(t)²S<sub>k</sub>²sin²θ)';
+            }
+        }
+        
+        // ========================================
+        // Simulation Core
+        // ========================================
+        
+        class ContactPoint {
+            constructor(coords) {
+                this.coords = { ...coords };
+            }
+            
+            get(key) { return this.coords[key] || 0; }
+            set(key, val) { this.coords[key] = val; return this; }
+            clone() { return new ContactPoint({ ...this.coords }); }
+            
+            add(tangent, dt = 1) {
+                const newPt = this.clone();
+                for (const key in tangent) {
+                    if (newPt.coords[key] !== undefined) {
+                        newPt.coords[key] += tangent[key] * dt;
+                    }
+                }
+                return newPt;
+            }
+        }
+        
+        // Hamiltonian functions
+        const hamiltonians = {
+            dispersion: (coords, p) => {
+                const { k1 = 0, k2 = 0, k3 = 0, omega = 0 } = coords;
+                const kMag = Math.sqrt(k1*k1 + k2*k2 + k3*k3);
+                return omega - p.speed * kMag;
+            },
+            
+            massive: (coords, p) => {
+                const { k1 = 0, k2 = 0, k3 = 0, omega = 0 } = coords;
+                const kSq = k1*k1 + k2*k2 + k3*k3;
+                const c = p.speed;
+                const m = p.mass;
+                return omega - Math.sqrt(c*c*kSq + m*m*c*c*c*c);
+            },
+            
+            thermodynamic: (coords, p) => {
+                const { T = 1, S = 0 } = coords;
+                return 0.5 * T - T * S;
+            }
+        };
+        
+        // Numerical gradient
+        function gradient(H, coords, p, h = 1e-7) {
+            const grad = {};
+            const keys = Object.keys(coords);
+            
+            for (const key of keys) {
+                const plus = { ...coords, [key]: coords[key] + h };
+                const minus = { ...coords, [key]: coords[key] - h };
+                grad[key] = (H(plus, p) - H(minus, p)) / (2 * h);
+            }
+            return grad;
+        }
+        
+        // Contact Hamiltonian vector field
+        function contactVectorField(H, pt, p, manifold) {
+            const coords = pt.coords;
+            const grad = gradient(H, coords, p);
+            const RH = grad['A'] || 0;  // Reeb component
+            const Hval = H(coords, p);
+            
+            const X = {};
+            
+            // Base coordinates and momenta
+            const baseCoords = manifold.base;
+            const momentaCoords = manifold.momenta;
+            
+            // ẋ^a = ∂H/∂p_a
+            for (let i = 0; i < baseCoords.length; i++) {
+                X[baseCoords[i]] = grad[momentaCoords[i]] || 0;
+            }
+            
+            // ṗ_a = -∂H/∂x^a - p_a · RH
+            for (let i = 0; i < momentaCoords.length; i++) {
+                const pVal = coords[momentaCoords[i]] || 0;
+                X[momentaCoords[i]] = -(grad[baseCoords[i]] || 0) - pVal * RH;
+            }
+            
+            // u̇ = p · ∂_p H - H
+            let pDotDpH = 0;
+            for (let i = 0; i < momentaCoords.length; i++) {
+                pDotDpH += (coords[momentaCoords[i]] || 0) * (grad[momentaCoords[i]] || 0);
+            }
+            X['A'] = pDotDpH - Hval;
+            
+            return X;
+        }
+        
+        // RK4 integration
+        function flowRK4(H, pt, dt, p, manifold) {
+            const k1 = contactVectorField(H, pt, p, manifold);
+            
+            const pt2 = pt.add(k1, dt / 2);
+            const k2 = contactVectorField(H, pt2, p, manifold);
+            
+            const pt3 = pt.add(k2, dt / 2);
+            const k3 = contactVectorField(H, pt3, p, manifold);
+            
+            const pt4 = pt.add(k3, dt);
+            const k4 = contactVectorField(H, pt4, p, manifold);
+            
+            const combined = {};
+            for (const key of Object.keys(k1)) {
+                combined[key] = (k1[key] + 2*k2[key] + 2*k3[key] + k4[key]) / 6;
+            }
+            
+            return pt.add(combined, dt);
+        }
+        
+        // ========================================
+        // Visualization
+        // ========================================
+        
+        const canvas = document.getElementById('phaseCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = 350;
+        }
+        
+        function drawPhaseSpace(trajectory, projection = ['k1', 'omega']) {
+            resizeCanvas();
+            const w = canvas.width;
+            const h = canvas.height;
+            
+            ctx.fillStyle = '#0a0e14';
+            ctx.fillRect(0, 0, w, h);
+            
+            if (trajectory.length === 0) {
+                ctx.fillStyle = '#8a94a6';
+                ctx.font = '14px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Run simulation to see phase space trajectory', w/2, h/2);
+                return;
+            }
+            
+            // Find bounds
+            let minX = Infinity, maxX = -Infinity;
+            let minY = Infinity, maxY = -Infinity;
+            
+            for (const pt of trajectory) {
+                const x = pt.get(projection[0]);
+                const y = pt.get(projection[1]);
+                minX = Math.min(minX, x);
+                maxX = Math.max(maxX, x);
+                minY = Math.min(minY, y);
+                maxY = Math.max(maxY, y);
+            }
+            
+            // Add padding
+            const padX = (maxX - minX) * 0.1 || 1;
+            const padY = (maxY - minY) * 0.1 || 1;
+            minX -= padX; maxX += padX;
+            minY -= padY; maxY += padY;
+            
+            const scaleX = (w - 60) / (maxX - minX);
+            const scaleY = (h - 60) / (maxY - minY);
+            
+            const toScreen = (x, y) => [
+                30 + (x - minX) * scaleX,
+                h - 30 - (y - minY) * scaleY
+            ];
+            
+            // Draw axes
+            ctx.strokeStyle = '#3d4663';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(30, 30);
+            ctx.lineTo(30, h - 30);
+            ctx.lineTo(w - 30, h - 30);
+            ctx.stroke();
+            
+            // Axis labels
+            ctx.fillStyle = '#8a94a6';
+            ctx.font = '12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(projection[0], w/2, h - 5);
+            
+            ctx.save();
+            ctx.translate(12, h/2);
+            ctx.rotate(-Math.PI/2);
+            ctx.fillText(projection[1], 0, 0);
+            ctx.restore();
+            
+            // Draw trajectory
+            ctx.strokeStyle = '#4da6ff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            
+            const [startX, startY] = toScreen(
+                trajectory[0].get(projection[0]),
+                trajectory[0].get(projection[1])
+            );
+            ctx.moveTo(startX, startY);
+            
+            for (let i = 1; i < trajectory.length; i++) {
+                const [x, y] = toScreen(
+                    trajectory[i].get(projection[0]),
+                    trajectory[i].get(projection[1])
+                );
+                ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+            
+            // Draw initial point
+            ctx.fillStyle = '#50fa7b';
+            ctx.beginPath();
+            ctx.arc(startX, startY, 6, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Draw final point
+            const [endX, endY] = toScreen(
+                trajectory[trajectory.length - 1].get(projection[0]),
+                trajectory[trajectory.length - 1].get(projection[1])
+            );
+            ctx.fillStyle = '#ffb86c';
+            ctx.beginPath();
+            ctx.arc(endX, endY, 5, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+        
+        // ========================================
+        // Simulation Control
+        // ========================================
+        
+        function runSimulation() {
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+            
+            const hType = document.getElementById('hamiltonianType').value;
+            const H = hamiltonians[hType] || hamiltonians.dispersion;
+            
+            // Manifold structure
+            const manifold = {
+                grand: {
+                    base: ['q1', 'q2', 'q3', 't', 'ell', 'S'],
+                    momenta: ['k1', 'k2', 'k3', 'omega', 'Delta', 'T']
+                },
+                holographic: {
+                    base: ['t', 'ell', 'S'],
+                    momenta: ['omega', 'Delta', 'T']
+                },
+                gauge: {
+                    base: ['q1', 'q2', 'q3', 't', 'ell', 'S', 'phi'],
+                    momenta: ['k1', 'k2', 'k3', 'omega', 'Delta', 'T', 'I']
+                }
+            }[currentModel];
+            
+            // Initial conditions
+            const initial = {
+                q1: 0, q2: 0, q3: 0,
+                t: 0, ell: 0, S: 1,
+                k1: 0.5, k2: 0.3, k3: 0,
+                omega: 1, Delta: 0, T: params.temp,
+                A: 0,
+                phi: 0, I: 0
+            };
+            
+            let pt = new ContactPoint(initial);
+            simulationData = [pt.clone()];
+            
+            const dt = 0.05;
+            const steps = 500;
+            
+            updateOutput('Running simulation...');
+            
+            // Run simulation
+            for (let i = 0; i < steps; i++) {
+                pt = flowRK4(H, pt, dt, params, manifold);
+                simulationData.push(pt.clone());
+            }
+            
+            // Draw result
+            drawPhaseSpace(simulationData);
+            
+            // Update output
+            const finalPt = simulationData[simulationData.length - 1];
+            updateOutput([
+                `Simulation complete: ${steps} steps`,
+                `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+                `Initial: k₁=${initial.k1.toFixed(3)}, ω=${initial.omega.toFixed(3)}, A=${initial.A.toFixed(3)}`,
+                `Final:   k₁=${finalPt.get('k1').toFixed(3)}, ω=${finalPt.get('omega').toFixed(3)}, A=${finalPt.get('A').toFixed(3)}`,
+                `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+                `Hamiltonian type: ${hType}`,
+                `Parameters: m=${params.mass}, c=${params.speed}, T₀=${params.temp}`,
+                `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+                `Contact form: α = dA - Σ p_a dx^a`,
+                `dim(M) = ${2 * manifold.base.length + 1}`
+            ].join('\n'));
+        }
+        
+        function resetSimulation() {
+            simulationData = [];
+            resizeCanvas();
+            ctx.fillStyle = '#0a0e14';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#8a94a6';
+            ctx.font = '14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Run simulation to see phase space trajectory', canvas.width/2, canvas.height/2);
+            updateOutput('Simulation reset.');
+        }
+        
+        function exportData() {
+            if (simulationData.length === 0) {
+                updateOutput('No data to export. Run simulation first.');
+                return;
+            }
+            
+            const header = Object.keys(simulationData[0].coords).join(',');
+            const rows = simulationData.map(pt => 
+                Object.values(pt.coords).map(v => v.toFixed(6)).join(',')
+            );
+            
+            const csv = [header, ...rows].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'contact_dynamics_trajectory.csv';
+            a.click();
+            
+            updateOutput(`Exported ${simulationData.length} points to CSV.`);
+        }
+        
+        function updateOutput(text) {
+            const output = document.getElementById('simOutput');
+            const lines = Array.isArray(text) ? text : text.split('\n');
+            output.innerHTML = lines.map(line => 
+                `<div class="line">${line
+                    .replace(/(\d+\.\d+)/g, '<span class="highlight-value">$1</span>')
+                    .replace(/(dim|Hamiltonian|Contact|α|ω|Δ|Σ)/g, '<span class="highlight-label">$1</span>')
+                }</div>`
+            ).join('');
+        }
+        
+        // Initialize
+        window.addEventListener('load', () => {
+            resizeCanvas();
+            resetSimulation();
+            updateParams();
+        });
+        
+        window.addEventListener('resize', () => {
+            if (simulationData.length > 0) {
+                drawPhaseSpace(simulationData);
+            } else {
+                resetSimulation();
+            }
+        });
+    </script>
+</body>
+</html>

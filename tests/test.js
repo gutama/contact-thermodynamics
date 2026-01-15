@@ -1,0 +1,409 @@
+/**
+ * Test Suite: Extended Thermodynamics Contact Geometry
+ * 
+ * Validates:
+ * - Contact manifold dimensions
+ * - Contact form structure
+ * - Hamilton's equations
+ * - Legendrian submanifolds
+ * - GR extension
+ */
+
+const ET = require('../src/index.js');
+
+// Test utilities
+let passed = 0;
+let failed = 0;
+
+function assert(condition, message) {
+    if (condition) {
+        console.log(`  ✓ ${message}`);
+        passed++;
+    } else {
+        console.log(`  ✗ ${message}`);
+        failed++;
+    }
+}
+
+function assertApprox(a, b, tol, message) {
+    const diff = Math.abs(a - b);
+    assert(diff < tol, `${message} (got ${a.toFixed(6)}, expected ${b.toFixed(6)}, diff ${diff.toExponential(2)})`);
+}
+
+function section(name) {
+    console.log(`\n━━━ ${name} ━━━`);
+}
+
+// ============================================================================
+// I. DIMENSION TESTS
+// ============================================================================
+
+section('I. Dimensionality Theorem: dim M = 2n + 1');
+
+{
+    const grand = ET.grandManifold();
+    assert(grand.n === 6, 'Grand manifold base dimension n = 6');
+    assert(grand.dim === 13, 'Grand manifold total dimension = 13');
+    
+    const holo = ET.holographicManifold();
+    assert(holo.n === 3, 'Holographic manifold base dimension n = 3');
+    assert(holo.dim === 7, 'Holographic manifold total dimension = 7');
+    
+    const gauge = ET.gaugeExtended();
+    assert(gauge.n === 7, 'Gauge-extended base dimension n = 7');
+    assert(gauge.dim === 15, 'Gauge-extended total dimension = 15');
+}
+
+// ============================================================================
+// II. COORDINATE STRUCTURE TESTS
+// ============================================================================
+
+section('II. Coordinate Structure');
+
+{
+    const grand = ET.grandManifold();
+    
+    // Base coordinates
+    const expectedBase = ['q1', 'q2', 'q3', 't', 'ell', 'S'];
+    const expectedMomenta = ['k1', 'k2', 'k3', 'omega', 'Delta', 'T'];
+    
+    assert(
+        JSON.stringify(grand.baseCoords) === JSON.stringify(expectedBase),
+        'Grand base coords: (q¹, q², q³, t, ℓ, S)'
+    );
+    
+    assert(
+        JSON.stringify(grand.momentaCoords) === JSON.stringify(expectedMomenta),
+        'Grand momenta: (k₁, k₂, k₃, ω, Δ, T)'
+    );
+    
+    assert(grand.fiberCoord === 'A', 'Fiber coordinate is A (action)');
+}
+
+{
+    const holo = ET.holographicManifold();
+    
+    assert(
+        JSON.stringify(holo.baseCoords) === JSON.stringify(['t', 'ell', 'S']),
+        'Holographic base: (t, ℓ, S)'
+    );
+    
+    assert(
+        JSON.stringify(holo.momentaCoords) === JSON.stringify(['omega', 'Delta', 'T']),
+        'Holographic momenta: (ω, Δ, T)'
+    );
+}
+
+// ============================================================================
+// III. CONTACT FORM TESTS
+// ============================================================================
+
+section('III. Contact Form α = du - p_a dx^a');
+
+{
+    const grand = ET.grandManifold();
+    
+    // Create a test point
+    const pt = grand.physicalPoint(
+        1, 0, 0,    // q¹, q², q³
+        0,          // t
+        0,          // ℓ
+        1,          // S
+        0.5, 0, 0,  // k₁, k₂, k₃
+        1,          // ω
+        0,          // Δ
+        1,          // T
+        0           // A
+    );
+    
+    // Tangent vector that should give α = 0 on Legendrian
+    // If p_a = ∂A/∂x^a, then α(v) = du(v) - p_a dx^a(v) = 0
+    // For Legendrian tangent: if v = (δx, δu = p·δx, δp), then α(v) = 0
+    
+    // Test with horizontal tangent (δx^a = 1, δu = p_a, δp = 0)
+    const legendrianTangent = {
+        q1: 1, q2: 0, q3: 0, t: 0, ell: 0, S: 0,
+        k1: 0, k2: 0, k3: 0, omega: 0, Delta: 0, T: 0,
+        A: 0.5  // = k₁ · δq¹
+    };
+    
+    const alphaVal = grand.evaluateContactForm(pt, legendrianTangent);
+    assertApprox(alphaVal, 0, 1e-10, 'Contact form vanishes on Legendrian tangent');
+    
+    // Test with vertical tangent (δu = 1, rest = 0)
+    const verticalTangent = {
+        q1: 0, q2: 0, q3: 0, t: 0, ell: 0, S: 0,
+        k1: 0, k2: 0, k3: 0, omega: 0, Delta: 0, T: 0,
+        A: 1
+    };
+    
+    const alphaVertical = grand.evaluateContactForm(pt, verticalTangent);
+    assertApprox(alphaVertical, 1, 1e-10, 'Contact form α(∂/∂u) = 1');
+}
+
+// ============================================================================
+// IV. CONTACT NON-DEGENERACY: α ∧ (dα)^n ≠ 0
+// ============================================================================
+
+section('IV. Contact Non-Degeneracy');
+
+{
+    const grand = ET.grandManifold();
+    const pt = grand.origin;
+    
+    const volume = grand.verifyContactCondition(pt);
+    assert(volume === 720, 'Grand manifold: α ∧ (dα)⁶ = 6! = 720');
+    
+    const holo = ET.holographicManifold();
+    const holoVol = holo.verifyContactCondition(holo.origin);
+    assert(holoVol === 6, 'Holographic manifold: α ∧ (dα)³ = 3! = 6');
+    
+    const gauge = ET.gaugeExtended();
+    const gaugeVol = gauge.verifyContactCondition(gauge.origin);
+    assert(gaugeVol === 5040, 'Gauge-extended: α ∧ (dα)⁷ = 7! = 5040');
+}
+
+// ============================================================================
+// V. REEB VECTOR FIELD
+// ============================================================================
+
+section('V. Reeb Vector Field: α(R) = 1, ι_R dα = 0');
+
+{
+    const grand = ET.grandManifold();
+    const pt = grand.origin;
+    
+    const R = grand.reebField(pt);
+    
+    // R should be ∂/∂A (fiber direction)
+    assert(R['A'] === 1, 'Reeb field R = ∂/∂A');
+    assert(R['q1'] === 0, 'Reeb has no q¹ component');
+    assert(R['k1'] === 0, 'Reeb has no k₁ component');
+    
+    // α(R) = 1
+    const alphaR = grand.evaluateContactForm(pt, R);
+    assertApprox(alphaR, 1, 1e-10, 'α(R) = 1');
+}
+
+// ============================================================================
+// VI. CONTACT HAMILTONIAN DYNAMICS
+// ============================================================================
+
+section('VI. Contact Hamiltonian Dynamics');
+
+{
+    const grand = ET.grandManifold();
+    
+    // Simple Hamiltonian: H = ω (frequency as energy)
+    const H = coords => coords.omega;
+    const ham = new ET.ContactHamiltonian(grand, H);
+    
+    const pt = grand.physicalPoint(
+        0, 0, 0, 0, 0, 1,
+        0.5, 0, 0, 1, 0, 1,
+        0
+    );
+    
+    // Evaluate
+    assertApprox(ham.evaluate(pt), 1, 1e-10, 'H(pt) = ω = 1');
+    
+    // Vector field
+    const X = ham.vectorField(pt);
+    
+    // ẋ^a = ∂H/∂p_a = 0 except for t (since ∂H/∂ω = 1)
+    assertApprox(X['t'], 1, 1e-6, 'ṫ = ∂H/∂ω = 1');
+    assertApprox(X['q1'], 0, 1e-6, 'q̇¹ = ∂H/∂k₁ = 0');
+    
+    // ṗ_a = -∂H/∂x^a - p_a · RH
+    // Since H = ω, RH = ∂H/∂A = 0
+    assertApprox(X['omega'], 0, 1e-6, 'ω̇ = -∂H/∂t - ω·RH = 0');
+}
+
+{
+    // Test dispersion relation Hamiltonian
+    const grand = ET.grandManifold();
+    const disp = ET.ThermodynamicHamiltonian.dispersionRelation(grand, 1, 0);
+    
+    const pt = grand.physicalPoint(
+        0, 0, 0, 0, 0, 0,
+        1, 0, 0,  // k = (1, 0, 0), |k| = 1
+        1,        // ω = 1
+        0, 0,
+        0
+    );
+    
+    // H = ω - c|k| = 1 - 1 = 0 (on shell)
+    assertApprox(disp.evaluate(pt), 0, 1e-10, 'Dispersion: H = ω - |k| = 0 on shell');
+}
+
+// ============================================================================
+// VII. LEGENDRIAN SUBMANIFOLDS
+// ============================================================================
+
+section('VII. Legendrian Submanifolds');
+
+{
+    const grand = ET.grandManifold();
+    
+    // Simple generating function: A(x) = k₀·q - ω₀·t
+    // where k₀ = (1, 0, 0), ω₀ = 1 are constants
+    const k0 = [1, 0, 0];
+    const omega0 = 1;
+    
+    const genFunc = x => {
+        return k0[0] * (x.q1 || 0) + k0[1] * (x.q2 || 0) + k0[2] * (x.q3 || 0) - omega0 * (x.t || 0);
+    };
+    
+    const L = new ET.LegendrianSubmanifold(grand, genFunc);
+    
+    // Test lift
+    const baseX = { q1: 2, q2: 0, q3: 0, t: 1, ell: 0, S: 0 };
+    const lifted = L.lift(baseX);
+    
+    // A = k₀·q - ω₀·t = 1·2 - 1·1 = 1
+    assertApprox(lifted.get('A'), 1, 1e-6, 'Legendrian lift: A = k₀·q - ω₀·t = 1');
+    
+    // p_a = ∂_a A
+    assertApprox(lifted.get('k1'), k0[0], 1e-6, 'Legendrian lift: k₁ = ∂A/∂q¹ = 1');
+    assertApprox(lifted.get('omega'), -omega0, 1e-6, 'Legendrian lift: ω = -∂A/∂t = -1 (sign!)');
+    
+    assert(L.verifyLegendrianCondition(baseX), 'Legendrian condition α|_L = 0 verified');
+}
+
+// ============================================================================
+// VIII. GRAVITATIONAL EXTENSION
+// ============================================================================
+
+section('VIII. Gravitational Extension');
+
+{
+    // Minkowski metric
+    const mink = ET.SpacetimeMetric.minkowski();
+    const g = mink.covariant([0, 0, 0, 0]);
+    
+    assert(g[0][0] === 1, 'Minkowski: g₀₀ = +1 (timelike)');
+    assert(g[1][1] === -1, 'Minkowski: g₁₁ = -1 (spacelike)');
+    assert(g[2][2] === -1, 'Minkowski: g₂₂ = -1');
+    assert(g[3][3] === -1, 'Minkowski: g₃₃ = -1');
+    
+    const gInv = mink.contravariant([0, 0, 0, 0]);
+    assertApprox(gInv[0][0], 1, 1e-10, 'Minkowski inverse: g⁰⁰ = +1');
+}
+
+{
+    // Schwarzschild metric
+    const schw = ET.SpacetimeMetric.schwarzschild(1);
+    const r = 10;  // Large radius
+    const g = schw.covariant([0, r, Math.PI/2, 0]);
+    
+    const f = 1 - 2/r;  // 1 - 2M/r = 0.8
+    assertApprox(g[0][0], f, 1e-10, `Schwarzschild: g₀₀ = 1 - 2M/r = ${f}`);
+    assertApprox(g[1][1], -1/f, 1e-10, `Schwarzschild: g₁₁ = -(1 - 2M/r)⁻¹`);
+}
+
+{
+    // Relativistic Hamiltonian (mass shell)
+    const metric = ET.SpacetimeMetric.minkowski();
+    const relH = new ET.RelativisticHamiltonian(metric, 1, null, 0);
+    
+    // Test mass shell: H = ½(g^μν p_μ p_ν + m²) = 0
+    // For m=1, p=(√2, 1, 0, 0), we have p² = 2 - 1 = 1 = m²
+    const x = [0, 0, 0, 0];
+    const p = [Math.sqrt(2), 1, 0, 0];
+    
+    const Hval = relH.evaluate(x, p);
+    assertApprox(Hval, 0, 1e-10, 'Relativistic H = 0 on mass shell');
+}
+
+// ============================================================================
+// IX. FLOW CONSERVATION
+// ============================================================================
+
+section('IX. Flow Integration');
+
+{
+    const grand = ET.grandManifold();
+    
+    // Free particle: H = ½|k|²
+    const H = coords => {
+        const k1 = coords.k1 || 0;
+        const k2 = coords.k2 || 0;
+        const k3 = coords.k3 || 0;
+        return 0.5 * (k1*k1 + k2*k2 + k3*k3);
+    };
+    
+    const ham = new ET.ContactHamiltonian(grand, H);
+    
+    const pt = grand.physicalPoint(
+        0, 0, 0, 0, 0, 0,
+        1, 0, 0,  // k = (1, 0, 0)
+        0, 0, 0,
+        0
+    );
+    
+    // Flow for 10 steps
+    const trajectory = ham.flow(pt, 0.1, 10);
+    
+    assert(trajectory.length === 11, 'Flow produces correct number of points');
+    
+    // For free particle, k should be conserved
+    const k1_init = trajectory[0].get('k1');
+    const k1_final = trajectory[10].get('k1');
+    assertApprox(k1_init, k1_final, 1e-6, 'Momentum k₁ conserved under free evolution');
+    
+    // q should evolve as q = q₀ + k·t
+    const q1_final = trajectory[10].get('q1');
+    const expected_q1 = 1.0;  // k₁ · dt · steps = 1 · 0.1 · 10 = 1
+    assertApprox(q1_final, expected_q1, 0.1, 'Position q¹ evolves correctly');
+}
+
+// ============================================================================
+// X. HOLOGRAPHIC MODEL EMERGENT SPACE
+// ============================================================================
+
+section('X. Holographic Emergent Space');
+
+{
+    const holo = ET.holographicManifold();
+    
+    // Create holographic point
+    const pt = holo.holographicPoint(
+        0,    // t
+        0,    // ℓ
+        1,    // S
+        1,    // ω
+        0,    // Δ
+        1,    // T
+        0     // A
+    );
+    
+    assert(pt.get('t') === 0, 'Holographic point has time coordinate');
+    assert(pt.get('S') === 1, 'Holographic point has entropy coordinate');
+    
+    // Emergent space function: q^i = a(t,ℓ,S) · xî
+    const emergent = holo.createEmergentSpace(pt, (t, ell, S) => {
+        const a = Math.exp(ell) * (1 + 0.1 * S);  // Simple emergence rule
+        return [a, 0, 0];
+    });
+    
+    assert(typeof emergent.q1 === 'number', 'Emergent q¹ is defined');
+    assertApprox(emergent.q1, 1.1, 1e-10, 'Emergent q¹ = exp(ℓ)(1 + 0.1S) = 1.1');
+}
+
+// ============================================================================
+// SUMMARY
+// ============================================================================
+
+console.log('\n' + '═'.repeat(50));
+console.log(`Tests completed: ${passed + failed}`);
+console.log(`  Passed: ${passed}`);
+console.log(`  Failed: ${failed}`);
+console.log('═'.repeat(50));
+
+if (failed > 0) {
+    console.log('\n⚠ Some tests failed! Review above for details.');
+    process.exit(1);
+} else {
+    console.log('\n✓ All tests passed! Framework validated.');
+    process.exit(0);
+}

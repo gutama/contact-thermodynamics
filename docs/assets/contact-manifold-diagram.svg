@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1f2e"/>
+      <stop offset="100%" style="stop-color:#0a0e14"/>
+    </linearGradient>
+    <linearGradient id="blueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4da6ff"/>
+      <stop offset="100%" style="stop-color:#bd93f9"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="800" height="400" fill="url(#bgGrad)"/>
+  
+  <!-- Title -->
+  <text x="400" y="40" text-anchor="middle" fill="url(#blueGrad)" font-family="Arial, sans-serif" font-size="24" font-weight="bold">
+    Contact Manifold Structure: J¹(Q)
+  </text>
+  
+  <!-- Base manifold Q -->
+  <ellipse cx="200" cy="280" rx="120" ry="60" fill="none" stroke="#4da6ff" stroke-width="2" opacity="0.5"/>
+  <text x="200" y="360" text-anchor="middle" fill="#8a94a6" font-family="Arial, sans-serif" font-size="14">
+    Base Manifold Q (dim n)
+  </text>
+  <text x="200" y="285" text-anchor="middle" fill="#50fa7b" font-family="Arial, sans-serif" font-size="16">
+    x¹, x², ..., xⁿ
+  </text>
+  
+  <!-- Fiber -->
+  <line x1="200" y1="220" x2="200" y2="100" stroke="#ffb86c" stroke-width="2" stroke-dasharray="5,5"/>
+  <circle cx="200" cy="100" r="8" fill="#ffb86c" filter="url(#glow)"/>
+  <text x="220" y="105" fill="#ffb86c" font-family="Arial, sans-serif" font-size="14">u (fiber)</text>
+  
+  <!-- Contact manifold M -->
+  <path d="M 400,80 Q 550,80 600,200 Q 650,320 550,350 Q 450,380 350,320 Q 250,260 300,150 Q 350,80 400,80" 
+        fill="none" stroke="url(#blueGrad)" stroke-width="3" opacity="0.8"/>
+  <text x="500" y="210" text-anchor="middle" fill="#e6e8eb" font-family="Arial, sans-serif" font-size="18" font-weight="bold">
+    M = J¹(Q)
+  </text>
+  <text x="500" y="235" text-anchor="middle" fill="#8a94a6" font-family="Arial, sans-serif" font-size="14">
+    dim M = 2n + 1
+  </text>
+  
+  <!-- Coordinates on M -->
+  <text x="450" y="130" fill="#50fa7b" font-family="Arial, sans-serif" font-size="14">(xᵃ, u, pₐ)</text>
+  
+  <!-- Contact form -->
+  <rect x="550" y="90" width="200" height="60" rx="8" fill="#252b3d" stroke="#3d4663"/>
+  <text x="650" y="115" text-anchor="middle" fill="#4da6ff" font-family="Arial, sans-serif" font-size="14">Contact Form</text>
+  <text x="650" y="138" text-anchor="middle" fill="#50fa7b" font-family="Arial, sans-serif" font-size="16" font-weight="bold">
+    α = du − pₐdxᵃ
+  </text>
+  
+  <!-- Legendrian -->
+  <path d="M 380,280 Q 420,260 480,270 Q 540,280 560,310" 
+        fill="none" stroke="#ff5555" stroke-width="2" filter="url(#glow)"/>
+  <text x="480" y="330" fill="#ff5555" font-family="Arial, sans-serif" font-size="12">
+    Legendrian L: α|_L = 0
+  </text>
+  
+  <!-- Arrow from Q to M -->
+  <path d="M 280,250 Q 340,200 380,180" fill="none" stroke="#8a94a6" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#8a94a6"/>
+    </marker>
+  </defs>
+  
+  <!-- Reeb field -->
+  <line x1="600" y1="200" x2="600" y2="170" stroke="#bd93f9" stroke-width="2" marker-end="url(#reebArrow)"/>
+  <defs>
+    <marker id="reebArrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#bd93f9"/>
+    </marker>
+  </defs>
+  <text x="620" y="185" fill="#bd93f9" font-family="Arial, sans-serif" font-size="12">R = ∂/∂u</text>
+  
+  <!-- Key equations box -->
+  <rect x="20" y="80" width="160" height="100" rx="8" fill="#252b3d" stroke="#3d4663"/>
+  <text x="100" y="105" text-anchor="middle" fill="#4da6ff" font-family="Arial, sans-serif" font-size="12" font-weight="bold">Key Properties</text>
+  <text x="30" y="130" fill="#e6e8eb" font-family="Arial, sans-serif" font-size="11">α(R) = 1</text>
+  <text x="30" y="150" fill="#e6e8eb" font-family="Arial, sans-serif" font-size="11">ι_R dα = 0</text>
+  <text x="30" y="170" fill="#e6e8eb" font-family="Arial, sans-serif" font-size="11">α ∧ (dα)ⁿ ≠ 0</text>
+</svg>

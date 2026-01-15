@@ -1,0 +1,53 @@
+{
+  "name": "contact-thermodynamics",
+  "version": "1.0.0",
+  "description": "Contact Geometry for Extended Thermodynamics - 1-Jet Bundles Framework",
+  "main": "src/index.js",
+  "browser": "src/index.js",
+  "types": "src/index.d.ts",
+  "scripts": {
+    "test": "node tests/test.js",
+    "test:watch": "nodemon --watch src --watch tests --exec 'npm test'",
+    "lint": "eslint src/ tests/ examples/",
+    "docs": "jsdoc -c jsdoc.json",
+    "example:basic": "node examples/basic-usage.js",
+    "example:dynamics": "node examples/dynamics.js",
+    "example:geodesics": "node examples/geodesics.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gutama/contact-thermodynamics.git"
+  },
+  "keywords": [
+    "contact-geometry",
+    "thermodynamics",
+    "geometric-mechanics",
+    "hamiltonian",
+    "jet-bundles",
+    "symplectic",
+    "physics",
+    "mathematics",
+    "legendrian",
+    "general-relativity",
+    "geodesics"
+  ],
+  "author": "Ginanjar Utama <ginanjar.utama@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/gutama/contact-thermodynamics/issues"
+  },
+  "homepage": "https://github.com/gutama/contact-thermodynamics#readme",
+  "devDependencies": {
+    "eslint": "^8.0.0",
+    "jsdoc": "^4.0.0",
+    "nodemon": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "src/",
+    "README.md",
+    "LICENSE"
+  ]
+}

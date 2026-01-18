@@ -289,6 +289,102 @@ This is analogous to how:
 
 ---
 
+## Discrete Geometric Calculus on Meshes
+
+The library includes a full implementation of the **Fundamental Theorem of Geometric Calculus (FTGC)** on triangle meshes, providing discrete differential operators.
+
+### The Fundamental Theorem
+
+The FTGC states:
+
+$$\boxed{\int_M \nabla F = \oint_{\partial M} F}$$
+
+This unifies Stokes/Gauss/Green theorems under one operator ∇.
+
+### Discrete Exterior Calculus (DEC)
+
+On a triangle mesh, differential forms are discretized:
+
+| Continuous | Discrete Location | Description |
+|------------|------------------|-------------|
+| 0-forms (scalars) | Vertices | One value per vertex |
+| 1-forms (vectors) | Edges | Signed circulation |
+| 2-forms (bivectors) | Faces | Area-weighted flux |
+
+This is **staggered storage** — the natural home for each grade.
+
+### The Cotan Laplacian
+
+The mesh metric is encoded by **cotan weights**:
+
+$$w_{ij} = \frac{1}{2}(\cot \alpha_{ij} + \cot \beta_{ij})$$
+
+where α and β are angles opposite edge (i,j) in adjacent triangles.
+
+The discrete Laplacian:
+
+$$(\Delta f)_i = \frac{1}{A_i} \sum_{j \sim i} w_{ij}(f_j - f_i)$$
+
+where $A_i$ is the dual area at vertex i.
+
+### Mixed Voronoi Dual Areas
+
+For **non-obtuse** triangles, use circumcentric (Voronoi) areas:
+
+$$A_i^{(k)} = \frac{1}{8}(|e_{ij}|^2 \cot\gamma_k + |e_{ik}|^2 \cot\beta_j)$$
+
+For **obtuse** triangles, fall back to barycentric (⅓ of face area).
+
+This ensures ∑ᵢ Aᵢ = total mesh area.
+
+### Discrete Differential Operators
+
+The geometric derivative splits into:
+
+| Operator | Input | Output | Formula |
+|----------|-------|--------|---------|
+| grad | 0-form (vertices) | 1-form (edges) | ∇∧f |
+| curl | 1-form (edges) | 2-form (faces) | ∇∧V |
+| div | 1-form (edges) | 0-form (vertices) | ∇·V |
+| laplacian | 0-form | 0-form | ∇·∇f |
+
+**Key identities hold discretely:**
+- curl(grad f) = 0
+- laplacian(constant) = 0
+
+### Leapfrog Time Integration
+
+For wave/heat/Maxwell equations, we use **leapfrog** (Verlet) integration:
+
+**Wave equation** (uₜₜ = c²∇²u):
+
+$$u^{n+1} = 2u^n - u^{n-1} + c^2 \Delta t^2 \nabla^2 u^n$$
+
+CFL stability: $\Delta t < h_{\min} / c$
+
+**Heat equation** (uₜ = α∇²u):
+
+- Explicit: $u^{n+1} = u^n + \alpha \Delta t \nabla^2 u^n$ (CFL-limited)
+- Implicit: $(I - \alpha \Delta t \nabla^2) u^{n+1} = u^n$ (unconditionally stable)
+
+**Maxwell equations** (Yee-style staggered):
+
+$$E^{n+1} = E^n + c \Delta t \nabla \times B^n$$
+$$B^{n+1} = B^n - c \Delta t \nabla \times E^{n+1}$$
+
+### Dirichlet Boundary Conditions
+
+Fixed boundary values are enforced via masking:
+
+```javascript
+const mask = boundaryDirichletMask(mesh);  // boundary = 1
+applyDirichlet(u, mask, boundaryValues);    // fix boundary vertices
+```
+
+The Laplacian solver respects these constraints, setting ∇²u = 0 at Dirichlet vertices.
+
+---
+
 ## References
 
 1. Arnold, V.I. — *Mathematical Methods of Classical Mechanics*
@@ -296,3 +392,6 @@ This is analogous to how:
 3. Geiges, H. — *An Introduction to Contact Topology*
 4. Bravetti, A. — "Contact Hamiltonian Dynamics" (Entropy, 2017)
 5. Mrugała, R. — "Geometric formulation of thermodynamics"
+6. Crane, K. — *Discrete Differential Geometry: An Applied Introduction* (CMU)
+7. Desbrun, M. et al. — "Discrete Exterior Calculus" (2005)
+8. Hestenes, D. & Sobczyk, G. — *Clifford Algebra to Geometric Calculus*

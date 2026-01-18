@@ -2,9 +2,9 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-18%2B-green.svg)](https://nodejs.org/)
-[![Tests](https://img.shields.io/badge/Tests-65%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/Tests-79%20passing-brightgreen.svg)](#testing)
 
-A JavaScript implementation of **Contact Geometry for Extended Thermodynamics** based on 1-jet bundles, now enhanced with **Geometric Algebra** and **Discrete Geometric Calculus**.
+A JavaScript implementation of **Contact Geometry for Extended Thermodynamics** based on 1-jet bundles, now enhanced with **Geometric Algebra**, **Discrete Geometric Calculus**, and **FTGC on Triangle Meshes**.
 
 <p align="center">
   <img src="docs/assets/contact-manifold-diagram.svg" alt="Contact Manifold Structure" width="600">
@@ -17,6 +17,11 @@ A JavaScript implementation of **Contact Geometry for Extended Thermodynamics** 
   - **Multivectors**: Proper handling of Cl(p,q,r) algebras, geometric products, and rotors
   - **Bivector Classification**: Elliptic (rotation), Parabolic (translation), Hyperbolic (boost)
   - **Discrete Calculus**: Split differential operator ∇, gradient, divergence, curl
+- **FTGC on Triangle Meshes** (NEW):
+  - **Triangle Mesh**: Typed arrays, auto-topology, boundary detection
+  - **Cotan Laplacian**: Mixed Voronoi dual areas, cotan weights
+  - **Geometric Derivative**: Unified ∇ = ∇· + ∇∧ on staggered mesh storage
+  - **PDE Solvers**: Wave/heat/Maxwell with Dirichlet boundary conditions
 - **Three Model Scales**:
   - **Grand Model (M₁₃)**: 13-dimensional full phase space
   - **Holographic Model (M₇)**: 7-dimensional with emergent space
@@ -47,6 +52,15 @@ The framework now integrates Clifford Algebra Cl(p,q) to handle geometric transf
 - **Geometric Product**: $ab = a \cdot b + a \wedge b$
 - **Rotors**: $R = \exp(-B\phi/2)$ generate rotations (elliptic B) and boosts (hyperbolic B)
 - **Split Derivative**: $\nabla = \sum e^i \partial_i$
+
+### FTGC on Triangle Meshes
+
+The Fundamental Theorem of Geometric Calculus (FTGC) is implemented on triangle meshes:
+
+- **Staggered Storage**: Grade 0 → vertices, Grade 1 → edges, Grade 2 → faces
+- **Cotan Weights**: Encode mesh metric as reciprocal basis $e^i$
+- **Unified Operator**: $\nabla = \nabla \cdot + \nabla \wedge$ (divergence + curl)
+- **Key Identity**: $\int_M \nabla F = \oint_{\partial M} F$ (Stokes generalized)
 
 ## 🚀 Quick Start
 
@@ -97,6 +111,31 @@ const R = sta.rotor(B, 1.0); // Boost by rapidity 1.0
 ```javascript
 const metric = CT.SpacetimeMetric.schwarzschild(1);
 const cov = new CT.CovariantDerivative(metric);
+```
+
+### FTGC Mesh Usage
+
+```javascript
+const CT = require('contact-thermodynamics');
+
+// Create triangulated grid mesh
+const mesh = CT.TriangleMesh.createGrid(16, 16, 1.0, 1.0);
+
+// Build discrete geometric derivative ∇
+const nabla = new CT.MeshGeometricDerivative(mesh);
+
+// Compute Laplacian of a scalar field
+const f = new Float64Array(mesh.nVertices);
+for (let i = 0; i < mesh.nVertices; i++) {
+    f[i] = Math.sin(Math.PI * mesh.vertices[i * 3]);
+}
+const lapF = nabla.laplacian(f);
+
+// Solve heat equation with Dirichlet BCs
+const solver = new CT.LeapfrogGCMesh(mesh);
+const dirichletMask = CT.boundaryDirichletMask(mesh);
+const dt = solver.estimateCFLHeat(0.1);
+const u = solver.heatSimulate(f, dt, 100, 0.1, { dirichletMask });
 
 // Compute Laplacian of a scalar field
 const lap = cov.laplacian(f_func, coords);
@@ -104,17 +143,22 @@ const lap = cov.laplacian(f_func, coords);
 
 ## 📊 Interactive Demos
 
-1. **[3D EM Wave Simulation](examples/em-wave-3d.html)** (NEW)
+1. **[3D EM Wave Simulation](examples/em-wave-3d.html)**
    - Real-time Maxwell solver using discrete geometric calculus
    - Interactive 3D visualization of electric fields
    - Add Gaussian pulses and plane waves
 
-2. **Phase Space Demo** (`examples/demo.html`)
+2. **[FTGC Mesh Heat Diffusion](examples/mesh-heat-ftgc.js)** (NEW)
+   - Entropy diffusion on triangle meshes using FTGC
+   - Dirichlet boundary conditions
+   - Variance decay tracking (equilibration)
+
+3. **Phase Space Demo** (`examples/demo.html`)
    - Interactive exploration of contact manifolds and flows
 
 ## 🧪 Testing
 
-Run the extended test suite (65 tests):
+Run the extended test suite (79 tests):
 
 ```bash
 npm test
@@ -127,14 +171,17 @@ contact-thermodynamics/
 ├── src/
 │   ├── index.js              # Main library (Manifolds, GR, DiffGeo)
 │   ├── multivector.js        # Geometric Algebra core
-│   └── geometric-calculus.js # Discrete operators & fields
+│   ├── geometric-calculus.js # Discrete operators (grids)
+│   ├── mesh.js               # Triangle mesh data structure
+│   ├── mesh-ftgc.js          # FTGC operators on meshes
+│   └── mesh-solvers.js       # Wave/heat/Maxwell on meshes
 ├── examples/
-│   ├── em-wave-3d.html       # 3D visualization
-│   ├── em-wave.js            # Node.js Maxwell solver
+│   ├── em-wave-3d.html       # 3D EM visualization
+│   ├── mesh-heat-ftgc.js     # FTGC heat diffusion demo
 │   └── ...                   # Other examples
 ├── docs/                     # Documentation
 ├── tests/
-│   └── test.js               # Test suite
+│   └── test.js               # Test suite (79 tests)
 └── README.md
 ```
 

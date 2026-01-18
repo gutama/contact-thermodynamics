@@ -15,6 +15,9 @@ Complete API documentation for the Contact Thermodynamics library.
 - [SpacetimeMetric](#spacetimemetric)
 - [RelativisticHamiltonian](#relativistinghamiltonian)
 - [DifferentialForm](#differentialform)
+- [TriangleMesh](#trianglemesh) (NEW)
+- [MeshGeometricDerivative](#meshgeometricderivative) (NEW)
+- [LeapfrogGCMesh](#leapfroggcmesh) (NEW)
 - [Utility Functions](#utility-functions)
 
 ---
@@ -656,7 +659,343 @@ const twoForm = dx.wedge(dy);
 
 ---
 
+## TriangleMesh
+
+Triangle mesh data structure with typed arrays and precomputed topology.
+
+### Constructor
+
+```javascript
+new TriangleMesh(vertices, faces, opts = {})
+```
+
+**Parameters:**
+- `vertices` *(Float64Array)* — Vertex positions (nVertices × 3)
+- `faces` *(Uint32Array)* — Triangle indices (nFaces × 3)
+- `opts.buildTopology` *(boolean)* — Auto-build topology (default: true)
+
+### Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `nVertices` | number | Number of vertices |
+| `nFaces` | number | Number of triangles |
+| `nEdges` | number | Number of edges |
+| `vertices` | Float64Array | Vertex positions (×3) |
+| `faces` | Uint32Array | Triangle indices (×3) |
+| `edges` | Uint32Array | Edge vertex pairs (×2) |
+| `boundaryVertices` | Uint8Array | Boundary mask (1 = boundary) |
+| `boundaryEdges` | Uint8Array | Boundary edge mask |
+
+### Methods
+
+#### `buildTopology()`
+
+Build edge list and adjacency structures.
+
+#### `getEdgeIndex(v0, v1)`
+
+Get edge index for vertex pair (order-independent).
+
+```javascript
+const eIdx = mesh.getEdgeIndex(0, 5);
+```
+
+#### `getVertex(idx)`
+
+Get vertex position as [x, y, z].
+
+```javascript
+const [x, y, z] = mesh.getVertex(10);
+```
+
+#### `faceAreas()`
+
+Compute triangle areas (cached).
+
+```javascript
+const areas = mesh.faceAreas(); // Float64Array
+```
+
+#### `edgeLengths()`
+
+Compute edge lengths (cached).
+
+#### `cotanWeights()`
+
+Compute cotan weights per edge (cached). These encode the mesh metric.
+
+```javascript
+const weights = mesh.cotanWeights();
+```
+
+#### `vertexDualAreas()`
+
+Compute mixed Voronoi dual areas per vertex (cached). Uses circumcentric for non-obtuse triangles, barycentric fallback for obtuse.
+
+```javascript
+const dualAreas = mesh.vertexDualAreas();
+```
+
+### Static Factory Methods
+
+#### `TriangleMesh.createGrid(nx, ny, Lx, Ly)`
+
+Create a regular grid mesh.
+
+```javascript
+const mesh = TriangleMesh.createGrid(16, 16, 1.0, 1.0);
+// 256 vertices, 450 triangles
+```
+
+#### `TriangleMesh.createDisk(nRadial, nAngular, radius)`
+
+Create a triangulated disk mesh.
+
+```javascript
+const disk = TriangleMesh.createDisk(8, 24, 1.0);
+```
+
+#### `TriangleMesh.createIcosahedron(radius)`
+
+Create an icosahedron (closed mesh, 12 vertices, 20 faces).
+
+```javascript
+const ico = TriangleMesh.createIcosahedron(1.0);
+```
+
+---
+
+## MeshGeometricDerivative
+
+Discrete geometric derivative ∇ on triangle meshes (FTGC).
+
+Implements the split differential operator: ∇ = Σᵢ eⁱ ⊗ ∂/∂xᵢ
+
+**Key insight**: Cotan weights encode the mesh metric (reciprocal basis).
+
+### Constructor
+
+```javascript
+new MeshGeometricDerivative(mesh)
+```
+
+### Methods
+
+#### `grad(f)`
+
+Gradient of scalar field.
+
+```javascript
+const gradF = nabla.grad(f); // Float64Array on edges
+```
+
+**Parameters:**
+- `f` *(Float64Array)* — Scalar field on vertices
+
+**Returns:** Float64Array — Vector field on edges
+
+#### `div(V)`
+
+Divergence of vector field.
+
+```javascript
+const divV = nabla.div(V); // Float64Array on vertices
+```
+
+#### `curl(V)`
+
+Curl of vector field.
+
+```javascript
+const curlV = nabla.curl(V); // Float64Array on faces
+```
+
+#### `laplacian(f, opts)`
+
+Laplacian of scalar field (cotan Laplacian).
+
+```javascript
+const lapF = nabla.laplacian(f, {
+    dirichletMask,    // Uint8Array (1 = fixed)
+    dirichletValues   // Float64Array
+});
+```
+
+**Returns:** Float64Array — Laplacian on vertices
+
+#### `laplacianMatrix()`
+
+Build the Laplacian as a sparse matrix.
+
+```javascript
+const L = nabla.laplacianMatrix();
+const Lu = L.matvec(u);
+```
+
+#### `wedge(F)` / `inner(F)` / `apply(F)`
+
+Apply outer/inner/full geometric derivative to a MeshMultivectorField.
+
+#### `verifyCurlGradZero(f)`
+
+Verify ∇∧(∇∧f) = 0 (returns max error).
+
+#### `verifyLaplacianConstantZero(c)`
+
+Verify ∇²(constant) ≈ 0 (returns max error).
+
+---
+
+## MeshMultivectorField
+
+Multivector field on a mesh with staggered storage.
+
+- Grade 0 (scalars) → Vertices
+- Grade 1 (vectors) → Edges
+- Grade 2 (bivectors) → Faces
+
+### Constructor
+
+```javascript
+new MeshMultivectorField(mesh, grade0, grade1, grade2)
+```
+
+### Methods
+
+- `add(other)`, `sub(other)`, `scale(s)` — Arithmetic
+- `gradeSelect(k)` — Extract grade-k component
+- `clone()` — Deep copy
+
+### Static Factory Methods
+
+```javascript
+const scalarField = MeshMultivectorField.scalarField(mesh, values);
+const vectorField = MeshMultivectorField.vectorField(mesh, values);
+const bivectorField = MeshMultivectorField.bivectorField(mesh, values);
+```
+
+---
+
+## LeapfrogGCMesh
+
+Leapfrog time-stepping solver using FTGC on triangle meshes.
+
+### Constructor
+
+```javascript
+new LeapfrogGCMesh(mesh)
+```
+
+### Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `mesh` | TriangleMesh | The underlying mesh |
+| `nabla` | MeshGeometricDerivative | The ∇ operator |
+
+### Methods
+
+#### `estimateCFL(c)`
+
+Estimate maximum stable time step for wave equation.
+
+```javascript
+const dt = solver.estimateCFL(1.0); // wave speed c = 1
+```
+
+#### `estimateCFLHeat(alpha)`
+
+Estimate maximum stable time step for heat equation.
+
+```javascript
+const dt = solver.estimateCFLHeat(0.1); // diffusion α = 0.1
+```
+
+#### `waveStep(uPrev, uCurr, dt, c, opts)`
+
+One leapfrog step for wave equation: u(t+dt) = 2u(t) - u(t-dt) + c²dt²∇²u(t)
+
+```javascript
+const uNext = solver.waveStep(uPrev, uCurr, dt, 1.0, {
+    dirichletMask,
+    dirichletValues
+});
+```
+
+#### `waveSimulate(u0, v0, dt, nSteps, c, opts)`
+
+Simulate wave equation from initial conditions.
+
+```javascript
+const uFinal = solver.waveSimulate(u0, v0, dt, 100, 1.0, {
+    dirichletMask,
+    callback: (step, u) => console.log(step)
+});
+```
+
+#### `heatStepExplicit(u, dt, alpha, opts)`
+
+Explicit Euler step for heat equation.
+
+#### `heatStepImplicit(u, dt, alpha, opts)`
+
+Implicit Euler step (unconditionally stable).
+
+```javascript
+const uNext = solver.heatStepImplicit(u, dt, 0.1, {
+    dirichletMask,
+    maxIter: 100,
+    tol: 1e-8
+});
+```
+
+#### `heatSimulate(u0, dt, nSteps, alpha, opts)`
+
+Simulate heat equation.
+
+```javascript
+const uFinal = solver.heatSimulate(u0, dt, 100, 0.1, {
+    implicit: true,
+    dirichletMask,
+    callback: (step, u) => { /* track variance */ }
+});
+```
+
+#### `maxwellStep(E, B, dt, c)`
+
+Yee-style leapfrog for Maxwell equations.
+
+- E: vector field on edges
+- B: bivector field on faces
+
+```javascript
+const { E: E_new, B: B_new } = solver.maxwellStep(E, B, dt, 1.0);
+```
+
+#### `energy(u)` / `mass(u)` / `variance(u)`
+
+Compute integral quantities for a scalar field.
+
+```javascript
+const E = solver.energy(u);   // ∫ u² dA
+const M = solver.mass(u);     // ∫ u dA
+const V = solver.variance(u); // ∫ (u - mean)² dA
+```
+
+---
+
 ## Utility Functions
+
+### Mesh Boundary Helpers
+
+```javascript
+// Apply Dirichlet BCs to a field (in-place)
+CT.applyDirichlet(f, mask, values);
+
+// Create Dirichlet mask from mesh boundary
+const mask = CT.boundaryDirichletMask(mesh);
+```
 
 ### Factory Functions
 

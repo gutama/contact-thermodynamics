@@ -1533,6 +1533,17 @@
     }
 
     // ============================================================================
+    // MESH / FTGC IMPORTS (Discrete Geometric Calculus on Meshes)
+    // ============================================================================
+
+    let MeshModule, MeshFTGCModule, MeshSolversModule;
+    if (typeof require !== 'undefined') {
+        MeshModule = require('./mesh.js');
+        MeshFTGCModule = require('./mesh-ftgc.js');
+        MeshSolversModule = require('./mesh-solvers.js');
+    }
+
+    // ============================================================================
     // EXPORTS
     // ============================================================================
 
@@ -1559,6 +1570,11 @@
         ChristoffelSymbols,
         CovariantDerivative,
         ParallelTransport,
+
+        // Mesh / FTGC (Discrete Geometric Calculus on Triangle Meshes)
+        ...(MeshModule || {}),
+        ...(MeshFTGCModule || {}),
+        ...(MeshSolversModule || {}),
 
         // Utilities
         DifferentialForm,

@@ -358,4 +358,282 @@ declare module 'contact-thermodynamics' {
     export function grandManifold(): GrandContactManifold;
     export function holographicManifold(): HolographicContactManifold;
     export function gaugeExtended(): GaugeExtendedManifold;
+
+    // ============================================================================
+    // MESH / FTGC (Discrete Geometric Calculus on Triangle Meshes)
+    // ============================================================================
+
+    /**
+     * Triangle mesh with typed array storage and precomputed topology.
+     */
+    export class TriangleMesh {
+        /** Vertex positions (nVertices * 3) */
+        readonly vertices: Float64Array;
+        /** Triangle indices (nFaces * 3) */
+        readonly faces: Uint32Array;
+        /** Number of vertices */
+        readonly nVertices: number;
+        /** Number of faces */
+        readonly nFaces: number;
+        /** Number of edges */
+        readonly nEdges: number;
+        /** Edge vertex pairs (nEdges * 2) */
+        readonly edges: Uint32Array;
+        /** Boundary vertex mask (1 = boundary) */
+        readonly boundaryVertices: Uint8Array;
+        /** Boundary edge mask (1 = boundary) */
+        readonly boundaryEdges: Uint8Array;
+
+        constructor(
+            vertices: Float64Array,
+            faces: Uint32Array,
+            opts?: { buildTopology?: boolean }
+        );
+
+        /** Build edge list and adjacency structures */
+        buildTopology(): void;
+
+        /** Get edge index for vertex pair */
+        getEdgeIndex(v0: number, v1: number): number;
+
+        /** Get vertex position as [x, y, z] */
+        getVertex(idx: number): [number, number, number];
+
+        /** Compute triangle areas (cached) */
+        faceAreas(): Float64Array;
+
+        /** Compute edge lengths (cached) */
+        edgeLengths(): Float64Array;
+
+        /** Compute cotan weights per edge (cached) */
+        cotanWeights(): Float64Array;
+
+        /** Compute mixed Voronoi dual areas per vertex (cached) */
+        vertexDualAreas(): Float64Array;
+
+        /** Invalidate geometry cache after modifying vertices */
+        invalidateGeometryCache(): void;
+
+        /** Create a regular grid mesh */
+        static createGrid(nx: number, ny: number, Lx?: number, Ly?: number): TriangleMesh;
+
+        /** Create a triangulated disk mesh */
+        static createDisk(nRadial: number, nAngular: number, radius?: number): TriangleMesh;
+
+        /** Create an icosahedron (closed mesh) */
+        static createIcosahedron(radius?: number): TriangleMesh;
+    }
+
+    /**
+     * Simple sparse matrix in CSR format.
+     */
+    export class SparseMatrix {
+        readonly rows: number;
+        readonly cols: number;
+
+        constructor(rows: number, cols: number);
+
+        /** Set entry (accumulates) */
+        set(row: number, col: number, value: number): void;
+
+        /** Get entry */
+        get(row: number, col: number): number;
+
+        /** Build CSR format for efficient matvec */
+        buildCSR(): void;
+
+        /** Matrix-vector product: y = A * x */
+        matvec(x: Float64Array): Float64Array;
+
+        /** Transpose matrix-vector product: y = Aᵀ * x */
+        matvecT(x: Float64Array): Float64Array;
+
+        /** Get diagonal entries */
+        diagonal(): Float64Array;
+    }
+
+    /** Create a diagonal matrix from an array */
+    export function diagMatrix(diag: Float64Array): SparseMatrix;
+
+    /**
+     * Multivector field on a mesh with staggered storage.
+     * Grade 0 → Vertices, Grade 1 → Edges, Grade 2 → Faces
+     */
+    export class MeshMultivectorField {
+        readonly mesh: TriangleMesh;
+        readonly grade0: Float64Array;
+        readonly grade1: Float64Array;
+        readonly grade2: Float64Array;
+
+        constructor(
+            mesh: TriangleMesh,
+            grade0?: Float64Array | null,
+            grade1?: Float64Array | null,
+            grade2?: Float64Array | null
+        );
+
+        add(other: MeshMultivectorField): MeshMultivectorField;
+        sub(other: MeshMultivectorField): MeshMultivectorField;
+        scale(s: number): MeshMultivectorField;
+        gradeSelect(k: number): MeshMultivectorField;
+        clone(): MeshMultivectorField;
+
+        static scalarField(mesh: TriangleMesh, values: Float64Array): MeshMultivectorField;
+        static vectorField(mesh: TriangleMesh, values: Float64Array): MeshMultivectorField;
+        static bivectorField(mesh: TriangleMesh, values: Float64Array): MeshMultivectorField;
+    }
+
+    /**
+     * Discrete geometric derivative ∇ on triangle meshes (FTGC).
+     * 
+     * Implements the split differential operator: ∇ = Σᵢ eⁱ ⊗ ∂/∂xᵢ
+     */
+    export class MeshGeometricDerivative {
+        readonly mesh: TriangleMesh;
+
+        constructor(mesh: TriangleMesh);
+
+        /** Apply outer derivative ∇∧ (grade-raising) */
+        wedge(F: MeshMultivectorField): MeshMultivectorField;
+
+        /** Apply inner derivative ∇· (grade-lowering) */
+        inner(F: MeshMultivectorField): MeshMultivectorField;
+
+        /** Apply full geometric derivative ∇ = ∇· + ∇∧ */
+        apply(F: MeshMultivectorField): MeshMultivectorField;
+
+        /** Gradient of scalar field */
+        grad(f: Float64Array): Float64Array;
+
+        /** Divergence of vector field */
+        div(V: Float64Array): Float64Array;
+
+        /** Curl of vector field */
+        curl(V: Float64Array): Float64Array;
+
+        /** Laplacian of scalar field (cotan Laplacian) */
+        laplacian(f: Float64Array, opts?: {
+            dirichletMask?: Uint8Array;
+            dirichletValues?: Float64Array;
+        }): Float64Array;
+
+        /** Build Laplacian as sparse matrix */
+        laplacianMatrix(): SparseMatrix;
+
+        /** Build weak Laplacian (without mass matrix inverse) */
+        laplacianWeak(): SparseMatrix;
+
+        /** Verify ∇∧(∇∧f) = 0 */
+        verifyCurlGradZero(f: Float64Array): number;
+
+        /** Verify ∇²(constant) ≈ 0 */
+        verifyLaplacianConstantZero(c?: number): number;
+    }
+
+    /** Apply Dirichlet boundary conditions to a field */
+    export function applyDirichlet(
+        f: Float64Array,
+        mask: Uint8Array,
+        values?: Float64Array
+    ): void;
+
+    /** Create Dirichlet mask from mesh boundary vertices */
+    export function boundaryDirichletMask(mesh: TriangleMesh): Uint8Array;
+
+    /**
+     * Leapfrog time-stepping solver using FTGC.
+     */
+    export class LeapfrogGCMesh {
+        readonly mesh: TriangleMesh;
+        readonly nabla: MeshGeometricDerivative;
+
+        constructor(mesh: TriangleMesh);
+
+        /** Estimate CFL time step for wave equation */
+        estimateCFL(c?: number): number;
+
+        /** Estimate CFL time step for heat equation */
+        estimateCFLHeat(alpha?: number): number;
+
+        /** One leapfrog step for wave equation */
+        waveStep(
+            uPrev: Float64Array,
+            uCurr: Float64Array,
+            dt: number,
+            c?: number,
+            opts?: {
+                dirichletMask?: Uint8Array;
+                dirichletValues?: Float64Array;
+            }
+        ): Float64Array;
+
+        /** Simulate wave equation */
+        waveSimulate(
+            u0: Float64Array,
+            v0: Float64Array,
+            dt: number,
+            nSteps: number,
+            c?: number,
+            opts?: {
+                dirichletMask?: Uint8Array;
+                dirichletValues?: Float64Array;
+                callback?: (step: number, u: Float64Array) => void;
+            }
+        ): Float64Array;
+
+        /** Explicit Euler step for heat equation */
+        heatStepExplicit(
+            u: Float64Array,
+            dt: number,
+            alpha?: number,
+            opts?: {
+                dirichletMask?: Uint8Array;
+                dirichletValues?: Float64Array;
+            }
+        ): Float64Array;
+
+        /** Implicit Euler step for heat equation */
+        heatStepImplicit(
+            u: Float64Array,
+            dt: number,
+            alpha?: number,
+            opts?: {
+                dirichletMask?: Uint8Array;
+                dirichletValues?: Float64Array;
+                maxIter?: number;
+                tol?: number;
+            }
+        ): Float64Array;
+
+        /** Simulate heat equation */
+        heatSimulate(
+            u0: Float64Array,
+            dt: number,
+            nSteps: number,
+            alpha?: number,
+            opts?: {
+                implicit?: boolean;
+                dirichletMask?: Uint8Array;
+                dirichletValues?: Float64Array;
+                callback?: (step: number, u: Float64Array) => void;
+            }
+        ): Float64Array;
+
+        /** Yee-style Maxwell step */
+        maxwellStep(
+            E: Float64Array,
+            B: Float64Array,
+            dt: number,
+            c?: number
+        ): { E: Float64Array; B: Float64Array };
+
+        /** Compute L2 energy of scalar field */
+        energy(u: Float64Array): number;
+
+        /** Compute total mass of scalar field */
+        mass(u: Float64Array): number;
+
+        /** Compute variance of scalar field */
+        variance(u: Float64Array): number;
+    }
 }

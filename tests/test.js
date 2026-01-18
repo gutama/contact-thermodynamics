@@ -601,6 +601,156 @@ section('XIV. Discrete Geometric Calculus');
 }
 
 // ============================================================================
+// X. FTGC MESH TESTS (Discrete Geometric Calculus on Triangle Meshes)
+// ============================================================================
+
+section('X. FTGC Mesh (Triangle Mesh Discrete Geometric Calculus)');
+
+{
+    // Test TriangleMesh creation and topology
+    const mesh = ET.TriangleMesh.createGrid(8, 8, 1.0, 1.0);
+    
+    assert(mesh.nVertices === 64, `Grid mesh: ${mesh.nVertices} vertices (expected 64)`);
+    assert(mesh.nFaces === 98, `Grid mesh: ${mesh.nFaces} triangles (expected 98)`);
+    assert(mesh.nEdges > 0, `Grid mesh: ${mesh.nEdges} edges computed`);
+    
+    // Boundary vertices: 4 corners + 4 edges × 6 interior = 28
+    const nBoundary = mesh.boundaryVertices.reduce((a, b) => a + b, 0);
+    assert(nBoundary === 28, `Grid mesh: ${nBoundary} boundary vertices (expected 28)`);
+}
+
+{
+    // Test icosahedron (closed mesh)
+    const ico = ET.TriangleMesh.createIcosahedron(1.0);
+    
+    assert(ico.nVertices === 12, `Icosahedron: ${ico.nVertices} vertices (expected 12)`);
+    assert(ico.nFaces === 20, `Icosahedron: ${ico.nFaces} faces (expected 20)`);
+    
+    // Euler: V - E + F = 2 → E = 12 - 20 + 2 = 30
+    assert(ico.nEdges === 30, `Icosahedron: ${ico.nEdges} edges (expected 30)`);
+    
+    // Closed mesh: no boundary
+    const nBoundary = ico.boundaryVertices.reduce((a, b) => a + b, 0);
+    assert(nBoundary === 0, `Icosahedron: ${nBoundary} boundary vertices (expected 0)`);
+}
+
+{
+    // Test FTGC identity: ∇∧(∇∧f) = 0 (curl of gradient is zero)
+    const mesh = ET.TriangleMesh.createGrid(8, 8, 1.0, 1.0);
+    const nabla = new ET.MeshGeometricDerivative(mesh);
+    
+    const f = new Float64Array(mesh.nVertices);
+    for (let i = 0; i < mesh.nVertices; i++) {
+        const x = mesh.vertices[i * 3];
+        const y = mesh.vertices[i * 3 + 1];
+        f[i] = Math.sin(Math.PI * x) * Math.cos(Math.PI * y);
+    }
+    
+    const err = nabla.verifyCurlGradZero(f);
+    assert(err < 1e-10, `FTGC: ∇∧(∇∧f) = 0, max error = ${err.toExponential(3)}`);
+}
+
+{
+    // Test FTGC identity: ∇²(constant) = 0
+    const mesh = ET.TriangleMesh.createGrid(8, 8, 1.0, 1.0);
+    const nabla = new ET.MeshGeometricDerivative(mesh);
+    
+    const err = nabla.verifyLaplacianConstantZero(1.0);
+    assert(err < 1e-10, `FTGC: ∇²(const) = 0, max error = ${err.toExponential(3)}`);
+}
+
+{
+    // Test cotan weights are computed (most should be non-zero)
+    const mesh = ET.TriangleMesh.createGrid(8, 8, 1.0, 1.0);
+    const cotanWeights = mesh.cotanWeights();
+    
+    let nNonZero = 0;
+    for (let i = 0; i < cotanWeights.length; i++) {
+        if (Math.abs(cotanWeights[i]) > 1e-10) nNonZero++;
+    }
+    
+    // Most edges should have non-zero cotan weights (boundary edges may have less)
+    // On an 8x8 grid we expect >60% non-zero
+    const ratio = nNonZero / mesh.nEdges;
+    assert(ratio > 0.6, `Cotan weights: ${nNonZero}/${mesh.nEdges} non-zero (${(ratio*100).toFixed(0)}%)`);
+}
+
+{
+    // Test mixed Voronoi dual areas sum to total mesh area
+    const mesh = ET.TriangleMesh.createGrid(8, 8, 1.0, 1.0);
+    const dualAreas = mesh.vertexDualAreas();
+    const faceAreas = mesh.faceAreas();
+    
+    let totalDual = 0;
+    for (let i = 0; i < dualAreas.length; i++) totalDual += dualAreas[i];
+    
+    let totalFace = 0;
+    for (let i = 0; i < faceAreas.length; i++) totalFace += faceAreas[i];
+    
+    assertApprox(totalDual, totalFace, 1e-10, `Dual areas sum = face areas sum (${totalFace.toFixed(4)})`);
+}
+
+{
+    // Test LeapfrogGCMesh heat equation conserves mass (with Neumann-like interior)
+    const mesh = ET.TriangleMesh.createIcosahedron(1.0);
+    const solver = new ET.LeapfrogGCMesh(mesh);
+    
+    // Initial condition: constant field
+    const u0 = new Float64Array(mesh.nVertices).fill(1.0);
+    const initialMass = solver.mass(u0);
+    
+    // Small time step, no boundary (closed mesh)
+    const dt = solver.estimateCFLHeat(0.1);
+    const u = solver.heatSimulate(u0, dt, 10, 0.1, {});
+    
+    const finalMass = solver.mass(u);
+    assertApprox(finalMass, initialMass, 1e-8, `Heat eq conserves mass on closed mesh`);
+}
+
+{
+    // Test Gauss-Bonnet on icosahedron: Σ curvature ≈ 4π
+    const ico = ET.TriangleMesh.createIcosahedron(1.0);
+    const dualAreas = ico.vertexDualAreas();
+    
+    // Angle defect at each vertex = 2π - Σ angles
+    let totalAngleDefect = 0;
+    for (let v = 0; v < ico.nVertices; v++) {
+        let angleSum = 0;
+        const tris = ico.vertexTriangles[v];
+        
+        for (const t of tris) {
+            const i = ico.faces[t * 3];
+            const j = ico.faces[t * 3 + 1];
+            const k = ico.faces[t * 3 + 2];
+            
+            // Find angle at vertex v in this triangle
+            let v0, v1, v2;
+            if (i === v) { v0 = i; v1 = j; v2 = k; }
+            else if (j === v) { v0 = j; v1 = k; v2 = i; }
+            else { v0 = k; v1 = i; v2 = j; }
+            
+            const p0 = ico.getVertex(v0);
+            const p1 = ico.getVertex(v1);
+            const p2 = ico.getVertex(v2);
+            
+            const a = [p1[0]-p0[0], p1[1]-p0[1], p1[2]-p0[2]];
+            const b = [p2[0]-p0[0], p2[1]-p0[1], p2[2]-p0[2]];
+            const dot = a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
+            const normA = Math.sqrt(a[0]*a[0] + a[1]*a[1] + a[2]*a[2]);
+            const normB = Math.sqrt(b[0]*b[0] + b[1]*b[1] + b[2]*b[2]);
+            
+            const angle = Math.acos(Math.max(-1, Math.min(1, dot / (normA * normB))));
+            angleSum += angle;
+        }
+        
+        totalAngleDefect += (2 * Math.PI - angleSum);
+    }
+    
+    // Gauss-Bonnet: Σ K_i = 2π χ = 2π × 2 = 4π for sphere
+    assertApprox(totalAngleDefect, 4 * Math.PI, 0.01, `Gauss-Bonnet: Σ angle defect ≈ 4π (${(totalAngleDefect/Math.PI).toFixed(3)}π)`);
+}
+
+// ============================================================================
 // SUMMARY
 // ============================================================================
 
@@ -617,4 +767,3 @@ if (failed > 0) {
     console.log('\n✓ All tests passed! Framework validated.');
     process.exit(0);
 }
-

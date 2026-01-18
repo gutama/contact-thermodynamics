@@ -41,3 +41,6 @@ temp/
 
 # Agent
 .agent/
+
+# Skills (large reference files)
+.github/skills/

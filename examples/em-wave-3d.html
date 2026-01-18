@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D EM Wave Visualization | Contact Thermodynamics</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3a 100%);
+            color: #e0e0e0;
+            overflow: hidden;
+        }
+        #container { width: 100vw; height: 100vh; position: relative; }
+        #canvas { display: block; }
+        
+        /* Control Panel */
+        #controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(20, 20, 40, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 20px;
+            width: 280px;
+            border: 1px solid rgba(100, 100, 255, 0.3);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+        #controls h2 {
+            font-size: 1.2em;
+            margin-bottom: 15px;
+            color: #8af;
+            border-bottom: 1px solid rgba(100, 100, 255, 0.3);
+            padding-bottom: 10px;
+        }
+        .control-group {
+            margin-bottom: 15px;
+        }
+        .control-group label {
+            display: block;
+            font-size: 0.85em;
+            color: #aaa;
+            margin-bottom: 5px;
+        }
+        .control-group input[type="range"] {
+            width: 100%;
+            accent-color: #6af;
+        }
+        .control-group .value {
+            font-size: 0.8em;
+            color: #6af;
+            text-align: right;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            background: linear-gradient(135deg, #4a4aff 0%, #2a2a8f 100%);
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        button:hover {
+            background: linear-gradient(135deg, #6a6aff 0%, #4a4aaf 100%);
+            transform: translateY(-1px);
+        }
+        button.active {
+            background: linear-gradient(135deg, #2aff6a 0%, #1a8f4a 100%);
+        }
+        
+        /* Info Panel */
+        #info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(20, 20, 40, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 15px 20px;
+            border: 1px solid rgba(100, 100, 255, 0.3);
+            font-size: 0.85em;
+        }
+        #info .stat {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+        }
+        #info .stat-value {
+            color: #6af;
+            font-family: monospace;
+        }
+        
+        /* Legend */
+        #legend {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(20, 20, 40, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 15px 20px;
+            border: 1px solid rgba(100, 100, 255, 0.3);
+        }
+        #legend h3 {
+            font-size: 0.9em;
+            margin-bottom: 10px;
+            color: #8af;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+            font-size: 0.85em;
+        }
+        .color-box {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        .color-positive { background: linear-gradient(135deg, #ff6a6a, #ff2a2a); }
+        .color-negative { background: linear-gradient(135deg, #6a6aff, #2a2aff); }
+        .color-magnetic { background: linear-gradient(135deg, #6aff6a, #2aff2a); }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <canvas id="canvas"></canvas>
+        
+        <div id="controls">
+            <h2>⚡ EM Wave Controls</h2>
+            
+            <div class="control-group">
+                <label>Grid Size: <span id="gridSize-val">32</span></label>
+                <input type="range" id="gridSize" min="16" max="64" value="32" step="8">
+            </div>
+            
+            <div class="control-group">
+                <label>Wave Speed: <span id="speed-val">1.0</span></label>
+                <input type="range" id="speed" min="0.2" max="2.0" value="1.0" step="0.1">
+            </div>
+            
+            <div class="control-group">
+                <label>Pulse Width: <span id="sigma-val">0.3</span></label>
+                <input type="range" id="sigma" min="0.1" max="0.8" value="0.3" step="0.05">
+            </div>
+            
+            <div class="control-group">
+                <label>Height Scale: <span id="scale-val">2.0</span></label>
+                <input type="range" id="scale" min="0.5" max="5.0" value="2.0" step="0.1">
+            </div>
+            
+            <button id="startBtn" class="active">▶ Running</button>
+            <button id="resetBtn">↺ Reset Simulation</button>
+            <button id="pulseBtn">◉ Add Gaussian Pulse</button>
+            <button id="planeWaveBtn">〰 Add Plane Wave</button>
+        </div>
+        
+        <div id="legend">
+            <h3>Field Components</h3>
+            <div class="legend-item">
+                <div class="color-box color-positive"></div>
+                <span>Ez > 0 (Electric up)</span>
+            </div>
+            <div class="legend-item">
+                <div class="color-box color-negative"></div>
+                <span>Ez < 0 (Electric down)</span>
+            </div>
+            <div class="legend-item">
+                <div class="color-box color-magnetic"></div>
+                <span>|B| (Magnetic field)</span>
+            </div>
+        </div>
+        
+        <div id="info">
+            <div class="stat">
+                <span>Time:</span>
+                <span class="stat-value" id="time">0.00</span>
+            </div>
+            <div class="stat">
+                <span>Energy:</span>
+                <span class="stat-value" id="energy">0.00</span>
+            </div>
+            <div class="stat">
+                <span>Max |E|:</span>
+                <span class="stat-value" id="maxE">0.00</span>
+            </div>
+            <div class="stat">
+                <span>FPS:</span>
+                <span class="stat-value" id="fps">0</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================================
+        // THREE.JS INLINE (minimal subset for this demo)
+        // ============================================================================
+        
+        // We'll use raw WebGL for maximum compatibility
+        const canvas = document.getElementById('canvas');
+        const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+        
+        if (!gl) {
+            alert('WebGL not supported');
+        }
+
+        // ============================================================================
+        // EM FIELD SIMULATION
+        // ============================================================================
+        
+        class EMField2D {
+            constructor(n, L = 2 * Math.PI) {
+                this.n = n;
+                this.L = L;
+                this.dx = L / n;
+                this.c = 1.0;
+                
+                this.Ez = new Float32Array(n * n);
+                this.Bx = new Float32Array(n * n);
+                this.By = new Float32Array(n * n);
+                
+                this.time = 0;
+            }
+            
+            idx(i, j) {
+                return ((i % this.n) + this.n) % this.n + 
+                       (((j % this.n) + this.n) % this.n) * this.n;
+            }
+            
+            initGaussian(x0, y0, sigma = 0.3) {
+                const n = this.n;
+                for (let j = 0; j < n; j++) {
+                    for (let i = 0; i < n; i++) {
+                        const x = i * this.dx;
+                        const y = j * this.dx;
+                        const dx = x - x0;
+                        const dy = y - y0;
+                        this.Ez[i + j * n] += Math.exp(-(dx*dx + dy*dy) / (2 * sigma * sigma));
+                    }
+                }
+            }
+            
+            initPlaneWave(kx, ky, amplitude = 0.5) {
+                const n = this.n;
+                for (let j = 0; j < n; j++) {
+                    for (let i = 0; i < n; i++) {
+                        const x = i * this.dx;
+                        const y = j * this.dx;
+                        this.Ez[i + j * n] += amplitude * Math.sin(kx * x + ky * y);
+                    }
+                }
+            }
+            
+            reset() {
+                this.Ez.fill(0);
+                this.Bx.fill(0);
+                this.By.fill(0);
+                this.time = 0;
+            }
+            
+            step(dt) {
+                const n = this.n;
+                const dx = this.dx;
+                const c2dt = this.c * this.c * dt;
+                
+                // Update B: ∂B/∂t = -∇×E
+                for (let j = 0; j < n; j++) {
+                    for (let i = 0; i < n; i++) {
+                        const idx = this.idx(i, j);
+                        
+                        const dEz_dy = (this.Ez[this.idx(i, j+1)] - this.Ez[this.idx(i, j-1)]) / (2 * dx);
+                        const dEz_dx = (this.Ez[this.idx(i+1, j)] - this.Ez[this.idx(i-1, j)]) / (2 * dx);
+                        
+                        this.Bx[idx] -= dt * dEz_dy;
+                        this.By[idx] += dt * dEz_dx;
+                    }
+                }
+                
+                // Update E: ∂E/∂t = c²∇×B
+                for (let j = 0; j < n; j++) {
+                    for (let i = 0; i < n; i++) {
+                        const idx = this.idx(i, j);
+                        
+                        const dBy_dx = (this.By[this.idx(i+1, j)] - this.By[this.idx(i-1, j)]) / (2 * dx);
+                        const dBx_dy = (this.Bx[this.idx(i, j+1)] - this.Bx[this.idx(i, j-1)]) / (2 * dx);
+                        
+                        this.Ez[idx] += c2dt * (dBy_dx - dBx_dy);
+                    }
+                }
+                
+                this.time += dt;
+            }
+            
+            energy() {
+                let U = 0;
+                const dV = this.dx * this.dx;
+                for (let i = 0; i < this.n * this.n; i++) {
+                    U += 0.5 * (this.Ez[i]**2 + this.Bx[i]**2 + this.By[i]**2) * dV;
+                }
+                return U;
+            }
+            
+            maxE() {
+                let max = 0;
+                for (let i = 0; i < this.n * this.n; i++) {
+                    max = Math.max(max, Math.abs(this.Ez[i]));
+                }
+                return max;
+            }
+        }
+
+        // ============================================================================
+        // 3D VISUALIZATION
+        // ============================================================================
+        
+        let field;
+        let running = true;
+        let heightScale = 2.0;
+        let sigma = 0.3;
+        
+        // Camera state
+        let cameraRotX = 0.5;
+        let cameraRotY = 0.3;
+        let cameraDistance = 8;
+        let isDragging = false;
+        let lastMouseX, lastMouseY;
+        
+        // FPS tracking
+        let frameCount = 0;
+        let lastFpsTime = performance.now();
+        
+        function init() {
+            const gridSize = parseInt(document.getElementById('gridSize').value);
+            field = new EMField2D(gridSize);
+            field.initGaussian(Math.PI, Math.PI, sigma);
+            resizeCanvas();
+        }
+        
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            gl.viewport(0, 0, canvas.width, canvas.height);
+        }
+        
+        // ============================================================================
+        // SHADERS
+        // ============================================================================
+        
+        const vertexShaderSource = `
+            attribute vec3 aPosition;
+            attribute vec3 aColor;
+            uniform mat4 uMVP;
+            varying vec3 vColor;
+            
+            void main() {
+                gl_Position = uMVP * vec4(aPosition, 1.0);
+                vColor = aColor;
+            }
+        `;
+        
+        const fragmentShaderSource = `
+            precision mediump float;
+            varying vec3 vColor;
+            
+            void main() {
+                gl_FragColor = vec4(vColor, 1.0);
+            }
+        `;
+        
+        function compileShader(source, type) {
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                console.error('Shader compile error:', gl.getShaderInfoLog(shader));
+            }
+            return shader;
+        }
+        
+        const vertexShader = compileShader(vertexShaderSource, gl.VERTEX_SHADER);
+        const fragmentShader = compileShader(fragmentShaderSource, gl.FRAGMENT_SHADER);
+        
+        const program = gl.createProgram();
+        gl.attachShader(program, vertexShader);
+        gl.attachShader(program, fragmentShader);
+        gl.linkProgram(program);
+        gl.useProgram(program);
+        
+        const aPosition = gl.getAttribLocation(program, 'aPosition');
+        const aColor = gl.getAttribLocation(program, 'aColor');
+        const uMVP = gl.getUniformLocation(program, 'uMVP');
+        
+        const positionBuffer = gl.createBuffer();
+        const colorBuffer = gl.createBuffer();
+        
+        // ============================================================================
+        // MATRIX MATH
+        // ============================================================================
+        
+        function mat4Perspective(fov, aspect, near, far) {
+            const f = 1 / Math.tan(fov / 2);
+            return new Float32Array([
+                f / aspect, 0, 0, 0,
+                0, f, 0, 0,
+                0, 0, (far + near) / (near - far), -1,
+                0, 0, (2 * far * near) / (near - far), 0
+            ]);
+        }
+        
+        function mat4Translate(x, y, z) {
+            return new Float32Array([
+                1, 0, 0, 0,
+                0, 1, 0, 0,
+                0, 0, 1, 0,
+                x, y, z, 1
+            ]);
+        }
+        
+        function mat4RotateX(angle) {
+            const c = Math.cos(angle), s = Math.sin(angle);
+            return new Float32Array([
+                1, 0, 0, 0,
+                0, c, s, 0,
+                0, -s, c, 0,
+                0, 0, 0, 1
+            ]);
+        }
+        
+        function mat4RotateY(angle) {
+            const c = Math.cos(angle), s = Math.sin(angle);
+            return new Float32Array([
+                c, 0, -s, 0,
+                0, 1, 0, 0,
+                s, 0, c, 0,
+                0, 0, 0, 1
+            ]);
+        }
+        
+        function mat4Multiply(a, b) {
+            const result = new Float32Array(16);
+            for (let i = 0; i < 4; i++) {
+                for (let j = 0; j < 4; j++) {
+                    result[i * 4 + j] = 0;
+                    for (let k = 0; k < 4; k++) {
+                        result[i * 4 + j] += a[k * 4 + j] * b[i * 4 + k];
+                    }
+                }
+            }
+            return result;
+        }
+        
+        // ============================================================================
+        // RENDER LOOP
+        // ============================================================================
+        
+        function render() {
+            // Step physics
+            if (running && field) {
+                const dt = field.dx / (field.c * Math.sqrt(2)) * 0.8;
+                for (let i = 0; i < 3; i++) {
+                    field.step(dt);
+                }
+            }
+            
+            // Clear
+            gl.clearColor(0.04, 0.04, 0.1, 1.0);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+            gl.enable(gl.DEPTH_TEST);
+            
+            if (!field) {
+                requestAnimationFrame(render);
+                return;
+            }
+            
+            const n = field.n;
+            const scale = heightScale;
+            
+            // Build mesh vertices
+            const vertices = [];
+            const colors = [];
+            
+            // Field surface
+            for (let j = 0; j < n - 1; j++) {
+                for (let i = 0; i < n - 1; i++) {
+                    const x0 = (i / n - 0.5) * 4;
+                    const x1 = ((i + 1) / n - 0.5) * 4;
+                    const z0 = (j / n - 0.5) * 4;
+                    const z1 = ((j + 1) / n - 0.5) * 4;
+                    
+                    const Ez00 = field.Ez[i + j * n];
+                    const Ez10 = field.Ez[(i + 1) + j * n];
+                    const Ez01 = field.Ez[i + (j + 1) * n];
+                    const Ez11 = field.Ez[(i + 1) + (j + 1) * n];
+                    
+                    // Color by Ez value
+                    const getColor = (ez) => {
+                        if (ez > 0) {
+                            const t = Math.min(ez * 2, 1);
+                            return [1, 0.3 + 0.7 * (1-t), 0.3 + 0.7 * (1-t)]; // Red
+                        } else {
+                            const t = Math.min(-ez * 2, 1);
+                            return [0.3 + 0.7 * (1-t), 0.3 + 0.7 * (1-t), 1]; // Blue
+                        }
+                    };
+                    
+                    // Triangle 1
+                    vertices.push(x0, Ez00 * scale, z0);
+                    vertices.push(x1, Ez10 * scale, z0);
+                    vertices.push(x0, Ez01 * scale, z1);
+                    
+                    let c = getColor(Ez00); colors.push(...c);
+                    c = getColor(Ez10); colors.push(...c);
+                    c = getColor(Ez01); colors.push(...c);
+                    
+                    // Triangle 2
+                    vertices.push(x1, Ez10 * scale, z0);
+                    vertices.push(x1, Ez11 * scale, z1);
+                    vertices.push(x0, Ez01 * scale, z1);
+                    
+                    c = getColor(Ez10); colors.push(...c);
+                    c = getColor(Ez11); colors.push(...c);
+                    c = getColor(Ez01); colors.push(...c);
+                }
+            }
+            
+            // Grid lines (base)
+            for (let i = 0; i <= n; i += 4) {
+                const x = (i / n - 0.5) * 4;
+                vertices.push(x, -0.02, -2, x, -0.02, 2);
+                colors.push(0.2, 0.2, 0.3, 0.2, 0.2, 0.3);
+                vertices.push(-2, -0.02, x, 2, -0.02, x);
+                colors.push(0.2, 0.2, 0.3, 0.2, 0.2, 0.3);
+            }
+            
+            // Upload data
+            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.DYNAMIC_DRAW);
+            gl.enableVertexAttribArray(aPosition);
+            gl.vertexAttribPointer(aPosition, 3, gl.FLOAT, false, 0, 0);
+            
+            gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.DYNAMIC_DRAW);
+            gl.enableVertexAttribArray(aColor);
+            gl.vertexAttribPointer(aColor, 3, gl.FLOAT, false, 0, 0);
+            
+            // Camera matrix
+            const aspect = canvas.width / canvas.height;
+            const proj = mat4Perspective(Math.PI / 4, aspect, 0.1, 100);
+            const view = mat4Multiply(
+                mat4Translate(0, 0, -cameraDistance),
+                mat4Multiply(mat4RotateX(cameraRotY), mat4RotateY(cameraRotX))
+            );
+            const mvp = mat4Multiply(proj, view);
+            
+            gl.uniformMatrix4fv(uMVP, false, mvp);
+            
+            // Draw surface
+            const surfaceVertCount = (n - 1) * (n - 1) * 6;
+            gl.drawArrays(gl.TRIANGLES, 0, surfaceVertCount);
+            
+            // Draw grid lines
+            gl.drawArrays(gl.LINES, surfaceVertCount, vertices.length / 3 - surfaceVertCount);
+            
+            // Update stats
+            document.getElementById('time').textContent = field.time.toFixed(2);
+            document.getElementById('energy').textContent = field.energy().toFixed(4);
+            document.getElementById('maxE').textContent = field.maxE().toFixed(4);
+            
+            // FPS
+            frameCount++;
+            const now = performance.now();
+            if (now - lastFpsTime > 1000) {
+                document.getElementById('fps').textContent = frameCount;
+                frameCount = 0;
+                lastFpsTime = now;
+            }
+            
+            requestAnimationFrame(render);
+        }
+        
+        // ============================================================================
+        // EVENT HANDLERS
+        // ============================================================================
+        
+        document.getElementById('startBtn').addEventListener('click', function() {
+            running = !running;
+            this.textContent = running ? '▶ Running' : '⏸ Paused';
+            this.classList.toggle('active', running);
+        });
+        
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            const gridSize = parseInt(document.getElementById('gridSize').value);
+            field = new EMField2D(gridSize);
+        });
+        
+        document.getElementById('pulseBtn').addEventListener('click', () => {
+            const x = Math.random() * field.L;
+            const y = Math.random() * field.L;
+            field.initGaussian(x, y, sigma);
+        });
+        
+        document.getElementById('planeWaveBtn').addEventListener('click', () => {
+            const k = 2 + Math.random() * 2;
+            const angle = Math.random() * Math.PI * 2;
+            field.initPlaneWave(k * Math.cos(angle), k * Math.sin(angle), 0.3);
+        });
+        
+        document.getElementById('gridSize').addEventListener('input', function() {
+            document.getElementById('gridSize-val').textContent = this.value;
+        });
+        
+        document.getElementById('speed').addEventListener('input', function() {
+            document.getElementById('speed-val').textContent = this.value;
+            if (field) field.c = parseFloat(this.value);
+        });
+        
+        document.getElementById('sigma').addEventListener('input', function() {
+            sigma = parseFloat(this.value);
+            document.getElementById('sigma-val').textContent = this.value;
+        });
+        
+        document.getElementById('scale').addEventListener('input', function() {
+            heightScale = parseFloat(this.value);
+            document.getElementById('scale-val').textContent = this.value;
+        });
+        
+        // Mouse rotation
+        canvas.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+        });
+        
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            const dx = e.clientX - lastMouseX;
+            const dy = e.clientY - lastMouseY;
+            cameraRotX += dx * 0.01;
+            cameraRotY += dy * 0.01;
+            cameraRotY = Math.max(-Math.PI/2, Math.min(Math.PI/2, cameraRotY));
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+        });
+        
+        canvas.addEventListener('mouseup', () => isDragging = false);
+        canvas.addEventListener('mouseleave', () => isDragging = false);
+        
+        canvas.addEventListener('wheel', (e) => {
+            cameraDistance *= 1 + e.deltaY * 0.001;
+            cameraDistance = Math.max(3, Math.min(20, cameraDistance));
+            e.preventDefault();
+        });
+        
+        // Touch support
+        canvas.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                isDragging = true;
+                lastMouseX = e.touches[0].clientX;
+                lastMouseY = e.touches[0].clientY;
+            }
+        });
+        
+        canvas.addEventListener('touchmove', (e) => {
+            if (!isDragging || e.touches.length !== 1) return;
+            const dx = e.touches[0].clientX - lastMouseX;
+            const dy = e.touches[0].clientY - lastMouseY;
+            cameraRotX += dx * 0.01;
+            cameraRotY += dy * 0.01;
+            cameraRotY = Math.max(-Math.PI/2, Math.min(Math.PI/2, cameraRotY));
+            lastMouseX = e.touches[0].clientX;
+            lastMouseY = e.touches[0].clientY;
+            e.preventDefault();
+        });
+        
+        canvas.addEventListener('touchend', () => isDragging = false);
+        
+        window.addEventListener('resize', resizeCanvas);
+        
+        // Start
+        init();
+        render();
+    </script>
+</body>
+</html>

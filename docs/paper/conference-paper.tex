@@ -1,0 +1,125 @@
+% Contact Thermodynamics — Conference Paper Draft
+% January 15, 2026
+\documentclass[10pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\hypersetup{colorlinks=true, linkcolor=blue, urlcolor=blue, citecolor=blue}
+
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\color{blue},
+  commentstyle=\color{gray},
+  stringstyle=\color{teal},
+  breaklines=true,
+  frame=single,
+  columns=flexible
+}
+
+\title{Contact Thermodynamics: A JavaScript Library for Contact Hamiltonian Dynamics on 1-Jet Bundles}
+\author{Ginanjar Utama \\ Indonesia \\ \texttt{ginanjar.utama@gmail.com}}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We present \emph{Contact Thermodynamics}, an open-source JavaScript library that implements contact geometry on 1-jet bundles for extended thermodynamics, wave mechanics, and contact Hamiltonian dynamics. The library provides canonical contact manifolds, contact Hamiltonian vector fields, Runge--Kutta integration, Legendrian submanifolds, and a relativistic extension through curved spacetime Hamiltonians. The implementation supports multiple model scales (grand, holographic, and gauge-extended) and includes interactive browser-based visualization for phase-space exploration. This draft describes the mathematical formulation, software architecture, and representative usage.
+\end{abstract}
+
+\section{Introduction}
+Contact geometry provides the natural mathematical framework for systems with dissipation, thermodynamic potentials, and odd-dimensional phase spaces. Unlike symplectic mechanics, where the Hamiltonian is conserved, contact Hamiltonian dynamics permits non-conservation consistent with irreversible processes. This paper introduces \emph{Contact Thermodynamics}, a JavaScript implementation targeting rapid experimentation, teaching, and interactive visualization.
+
+\paragraph{Contributions.} The library provides: (i) a full 1-jet bundle model of contact manifolds, (ii) contact Hamiltonian dynamics with numerical integration, (iii) Legendrian submanifolds and Hamilton--Jacobi generators, (iv) a relativistic extension via spacetime metrics, and (v) interactive browser demos for phase-space trajectories.
+
+\section{Mathematical Background}
+Let $Q$ be a configuration manifold of dimension $n$. The 1-jet bundle $J^1(Q)$ has canonical coordinates $(x^a, u, p_a)$ with dimension $2n+1$. The canonical contact form is
+\begin{equation}
+\alpha = du - p_a\,dx^a.
+\end{equation}
+A contact manifold satisfies the non-degeneracy condition $\alpha\wedge(d\alpha)^n\neq 0$.
+
+Given a Hamiltonian $H: M\to\mathbb{R}$ on a contact manifold $(M,\alpha)$, the contact Hamiltonian vector field $X_H$ is defined by
+\begin{align}
+\iota_{X_H}\alpha &= -H, \\
+\iota_{X_H} d\alpha &= dH - (R H)\,\alpha,
+\end{align}
+where $R$ is the Reeb vector field. In canonical coordinates, the equations are
+\begin{align}
+\dot{x}^a &= \frac{\partial H}{\partial p_a},\\
+\dot{p}_a &= -\frac{\partial H}{\partial x^a} - p_a\,\frac{\partial H}{\partial u},\\
+\dot{u} &= p_a\frac{\partial H}{\partial p_a} - H.
+\end{align}
+These equations permit dissipative behavior through the $\partial H/\partial u$ term.
+
+\section{Library Design and API}
+The library implements contact manifolds as 1-jet bundles with named coordinates, and provides typed points, vector fields, and integrators. Three standard models are included:
+\begin{itemize}
+    \item \textbf{Grand Model} $M_{13}$: full phase space with six base coordinates and six conjugate momenta, plus $A$.
+    \item \textbf{Holographic Model} $M_7$: reduced base $(t,\ell,S)$ with emergent spatial fields.
+    \item \textbf{Gauge-Extended Model} $M_{15}$: adds gauge phase $(\varphi,I)$.
+\end{itemize}
+
+\subsection{Core Types}
+\texttt{ContactManifold} constructs the coordinate system and contact form. \texttt{ContactHamiltonian} implements vector fields and RK4 integration. \texttt{LegendrianSubmanifold} provides generating-function lifts. A minimal usage example is shown below.
+
+\begin{lstlisting}[language=JavaScript,caption={Minimal usage: define a manifold and integrate a contact Hamiltonian.}]
+const CT = require('contact-thermodynamics');
+const M13 = CT.grandManifold();
+
+const H = CT.ThermodynamicHamiltonian.dispersionRelation(M13, 1, 0);
+const pt = M13.physicalPoint(
+  0,0,0, 0,0,1,   // q,t,ell,S
+  1,0,0,          // k
+  1,0,1,          // omega, Delta, T
+  0               // A
+);
+
+const traj = H.flow(pt, 0.1, 100);
+const energies = H.hamiltonianEvolution(traj);
+console.log(energies[0], energies[100]);
+\end{lstlisting}
+
+\section{Visualization and Demos}
+The project includes interactive browser demos for phase-space trajectory inspection. The 3D phase-space demo allows users to rotate and zoom trajectories while switching Hamiltonians and coordinate projections. These tools are intended for conceptual understanding of contact flows and the non-conservation of $H$.
+
+\section{Relativistic Extension}
+The library supports a relativistic Hamiltonian that couples the contact structure to curved spacetime metrics. A metric $g_{\mu\nu}(x)$ defines a mass-shell constraint
+\begin{equation}
+H = \frac{1}{2}g^{\mu\nu}(x)(p_\mu - qA_\mu)(p_\nu - qA_\nu) - \frac{1}{2}m^2 = 0.
+\end{equation}
+Geodesic integration is provided for Minkowski, Schwarzschild, and FLRW metrics.
+
+\section{Discussion}
+Contact Thermodynamics lowers the barrier to using contact geometry in computational experiments and education. JavaScript enables immediate deployment in the browser and integration with interactive visualization. The library is intentionally modular so it can serve as a reference implementation or a teaching aid.
+
+\section{Limitations and Future Work}
+The current implementation focuses on canonical coordinates and standard models. Future work includes adaptive integrators, symbolic gradients, and richer visualization of Legendrian wavefronts.
+
+\section*{Availability}
+Source code and documentation are available at \url{https://github.com/gutama/contact-thermodynamics}.
+
+\begin{thebibliography}{9}
+\bibitem{geiges2008}
+H. Geiges, \emph{An Introduction to Contact Topology}. Cambridge University Press, 2008.
+
+\bibitem{bravetti2017}
+A. Bravetti, ``Contact Hamiltonian Dynamics: The Concept and Its Use,'' \emph{Entropy}, 2017.
+
+\bibitem{deleon2017}
+M. de Le\'on and C. Sard\'on, ``Geometry of Contact Hamiltonian Systems,'' \emph{Journal of Physics A}, 2017.
+
+\bibitem{arnold1989}
+V. I. Arnold, \emph{Mathematical Methods of Classical Mechanics}. Springer, 1989.
+
+\bibitem{saunders1989}
+D. J. Saunders, \emph{The Geometry of Jet Bundles}. Cambridge University Press, 1989.
+\end{thebibliography}
+
+\end{document}

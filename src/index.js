@@ -17,7 +17,7 @@
  * @license MIT
  */
 
-(function(global) {
+(function (global) {
     'use strict';
 
     const EPSILON = 1e-12;
@@ -194,7 +194,7 @@
         }
 
         toString() {
-            const parts = this.manifold.allCoords.map(c => 
+            const parts = this.manifold.allCoords.map(c =>
                 `${c}=${this.coords[c].toFixed(4)}`
             );
             return `(${parts.join(', ')})`;
@@ -223,11 +223,11 @@
                 ['k1', 'k2', 'k3', 'omega', 'Delta', 'T'],  // Momenta
                 'A'  // Fiber (action)
             );
-            
+
             // Physical interpretations
             this.physicalInterpretations = {
                 q1: 'spatial coordinate 1',
-                q2: 'spatial coordinate 2', 
+                q2: 'spatial coordinate 2',
                 q3: 'spatial coordinate 3',
                 t: 'time',
                 ell: 'log(scale factor) = log(λ)',
@@ -312,10 +312,10 @@
                 ['omega', 'Delta', 'T'],  // Momenta
                 'A'  // Fiber (action)
             );
-            
+
             // Emergent spatial fields (not coordinates, but dependent fields)
             this.emergentFields = ['q1', 'q2', 'q3'];
-            
+
             this.physicalInterpretations = {
                 t: 'time',
                 ell: 'log(scale factor) = log(λ)',
@@ -410,7 +410,7 @@
             if (this._dH) {
                 return this._dH(pt.coords);
             }
-            
+
             const grad = {};
             for (const c of this.manifold.allCoords) {
                 const ptPlus = pt.clone();
@@ -442,17 +442,17 @@
             const grad = this.gradient(pt);
             const RH = grad[this.manifold.fiberCoord];
             const Hval = this.H(pt.coords);
-            
+
             const X = {};
             const n = this.manifold.n;
-            
+
             // ẋ^a = ∂H/∂p_a
             for (let i = 0; i < n; i++) {
                 const pCoord = this.manifold.momentaCoords[i];
                 const xCoord = this.manifold.baseCoords[i];
                 X[xCoord] = grad[pCoord];
             }
-            
+
             // ṗ_a = -∂H/∂x^a - p_a · RH
             for (let i = 0; i < n; i++) {
                 const pCoord = this.manifold.momentaCoords[i];
@@ -460,7 +460,7 @@
                 const p = pt.get(pCoord);
                 X[pCoord] = -grad[xCoord] - p * RH;
             }
-            
+
             // u̇ = p · ∂_p H - H
             let pDotDpH = 0;
             for (let i = 0; i < n; i++) {
@@ -468,7 +468,7 @@
                 pDotDpH += pt.get(pCoord) * grad[pCoord];
             }
             X[this.manifold.fiberCoord] = pDotDpH - Hval;
-            
+
             return X;
         }
 
@@ -481,30 +481,30 @@
         flow(pt, dt, steps = 1) {
             let current = pt.clone();
             const trajectory = [current.clone()];
-            
+
             for (let i = 0; i < steps; i++) {
                 // RK4 integration
                 const k1 = this.vectorField(current);
-                
+
                 const pt2 = current.add(k1, dt / 2);
                 const k2 = this.vectorField(pt2);
-                
+
                 const pt3 = current.add(k2, dt / 2);
                 const k3 = this.vectorField(pt3);
-                
+
                 const pt4 = current.add(k3, dt);
                 const k4 = this.vectorField(pt4);
-                
+
                 // Combined step
                 const combined = {};
                 for (const c of this.manifold.allCoords) {
-                    combined[c] = (k1[c] + 2*k2[c] + 2*k3[c] + k4[c]) / 6;
+                    combined[c] = (k1[c] + 2 * k2[c] + 2 * k3[c] + k4[c]) / 6;
                 }
-                
+
                 current = current.add(combined, dt);
                 trajectory.push(current.clone());
             }
-            
+
             return trajectory;
         }
 
@@ -548,7 +548,7 @@
             if (this._dA) {
                 return this._dA(x);
             }
-            
+
             const grad = {};
             for (const coord of this.manifold.baseCoords) {
                 const xPlus = { ...x, [coord]: x[coord] + h };
@@ -564,10 +564,10 @@
          */
         lift(x) {
             const coords = { ...x };
-            
+
             // u = A(x)
             coords[this.manifold.fiberCoord] = this.A(x);
-            
+
             // p_a = ∂_a A(x)
             const grad = this.gradient(x);
             for (let i = 0; i < this.manifold.n; i++) {
@@ -575,7 +575,7 @@
                 const pCoord = this.manifold.momentaCoords[i];
                 coords[pCoord] = grad[xCoord];
             }
-            
+
             return this.manifold.point(coords);
         }
 
@@ -657,7 +657,7 @@
             // Gaussian elimination for 4x4
             const n = 4;
             const aug = m.map((row, i) => [...row, ...Array(n).fill(0).map((_, j) => i === j ? 1 : 0)]);
-            
+
             for (let col = 0; col < n; col++) {
                 // Find pivot
                 let maxRow = col;
@@ -665,15 +665,15 @@
                     if (abs(aug[row][col]) > abs(aug[maxRow][col])) maxRow = row;
                 }
                 [aug[col], aug[maxRow]] = [aug[maxRow], aug[col]];
-                
+
                 if (isZero(aug[col][col])) {
                     throw new Error('Singular metric');
                 }
-                
+
                 // Scale
                 const scale = aug[col][col];
                 for (let j = 0; j < 2 * n; j++) aug[col][j] /= scale;
-                
+
                 // Eliminate
                 for (let row = 0; row < n; row++) {
                     if (row !== col) {
@@ -684,7 +684,7 @@
                     }
                 }
             }
-            
+
             return aug.map(row => row.slice(n));
         }
 
@@ -715,13 +715,13 @@
         static schwarzschild(M = 1) {
             return new SpacetimeMetric(x => {
                 const [t, r, theta, phi] = x;
-                const f = 1 - 2*M/r;
+                const f = 1 - 2 * M / r;
                 const sinTheta2 = sin(theta) ** 2;
                 return [
                     [f, 0, 0, 0],
-                    [0, -1/f, 0, 0],
-                    [0, 0, -r*r, 0],
-                    [0, 0, 0, -r*r*sinTheta2]
+                    [0, -1 / f, 0, 0],
+                    [0, 0, -r * r, 0],
+                    [0, 0, 0, -r * r * sinTheta2]
                 ];
             });
         }
@@ -740,7 +740,7 @@
                 if (k === 0) Sk2 = chi * chi;
                 else if (k === 1) Sk2 = sin(chi) ** 2;
                 else Sk2 = (exp(chi) - exp(-chi)) / 2; // sinh²
-                
+
                 const sinTheta2 = sin(theta) ** 2;
                 return [
                     [1, 0, 0, 0],
@@ -749,6 +749,435 @@
                     [0, 0, 0, -a2 * Sk2 * sinTheta2]
                 ];
             });
+        }
+    }
+
+    // ============================================================================
+    // VI-B. CHRISTOFFEL SYMBOLS
+    // ============================================================================
+
+    /**
+     * ChristoffelSymbols: Compute connection coefficients from a metric
+     * 
+     * Γᵏᵢⱼ = ½ gᵏˡ(∂ᵢgⱼˡ + ∂ⱼgᵢˡ - ∂ˡgᵢⱼ)
+     * 
+     * Essential for:
+     * - Geodesic equation: ẍ^μ + Γ^μ_αβ ẋ^α ẋ^β = 0
+     * - Covariant derivatives
+     * - Parallel transport
+     */
+    class ChristoffelSymbols {
+        /**
+         * @param {SpacetimeMetric} metric - The spacetime metric
+         * @param {number} h - Step size for numerical differentiation
+         */
+        constructor(metric, h = 1e-7) {
+            this.metric = metric;
+            this.h = h;
+            this.dim = 4; // Spacetime dimension
+        }
+
+        /**
+         * Compute ∂gᵢⱼ/∂xˡ using central differences
+         */
+        _partialMetric(x, l) {
+            const xPlus = [...x];
+            const xMinus = [...x];
+            xPlus[l] += this.h;
+            xMinus[l] -= this.h;
+
+            const gPlus = this.metric.covariant(xPlus);
+            const gMinus = this.metric.covariant(xMinus);
+
+            const result = [];
+            for (let i = 0; i < this.dim; i++) {
+                result[i] = [];
+                for (let j = 0; j < this.dim; j++) {
+                    result[i][j] = (gPlus[i][j] - gMinus[i][j]) / (2 * this.h);
+                }
+            }
+            return result;
+        }
+
+        /**
+         * Compute all Christoffel symbols Γᵏᵢⱼ at given coordinates
+         * 
+         * @param {number[]} x - Spacetime coordinates [x⁰, x¹, x², x³]
+         * @returns {number[][][]} Γ[k][i][j] = Γᵏᵢⱼ
+         */
+        computeAt(x) {
+            const gInv = this.metric.contravariant(x);
+
+            // Precompute all metric partial derivatives
+            const partials = [];
+            for (let l = 0; l < this.dim; l++) {
+                partials[l] = this._partialMetric(x, l);
+            }
+
+            // Compute Γᵏᵢⱼ = ½ gᵏˡ(∂ᵢgⱼˡ + ∂ⱼgᵢˡ - ∂ˡgᵢⱼ)
+            const gamma = [];
+            for (let k = 0; k < this.dim; k++) {
+                gamma[k] = [];
+                for (let i = 0; i < this.dim; i++) {
+                    gamma[k][i] = [];
+                    for (let j = 0; j < this.dim; j++) {
+                        let sum = 0;
+                        for (let l = 0; l < this.dim; l++) {
+                            sum += gInv[k][l] * (
+                                partials[i][j][l] +  // ∂ᵢgⱼˡ
+                                partials[j][i][l] -  // ∂ⱼgᵢˡ
+                                partials[l][i][j]    // ∂ˡgᵢⱼ
+                            );
+                        }
+                        gamma[k][i][j] = 0.5 * sum;
+                    }
+                }
+            }
+            return gamma;
+        }
+
+        /**
+         * Compute Riemann curvature tensor R^ρ_σμν (for verification)
+         * 
+         * R^ρ_σμν = ∂_μΓ^ρ_νσ - ∂_νΓ^ρ_μσ + Γ^ρ_μλ Γ^λ_νσ - Γ^ρ_νλ Γ^λ_μσ
+         */
+        riemannAt(x) {
+            const h = this.h;
+            const gammaAt = this.computeAt(x);
+
+            // Compute partial derivatives of Christoffel symbols
+            const dGamma = [];
+            for (let mu = 0; mu < this.dim; mu++) {
+                const xPlus = [...x]; xPlus[mu] += h;
+                const xMinus = [...x]; xMinus[mu] -= h;
+                const gammaPlus = this.computeAt(xPlus);
+                const gammaMinus = this.computeAt(xMinus);
+
+                dGamma[mu] = [];
+                for (let rho = 0; rho < this.dim; rho++) {
+                    dGamma[mu][rho] = [];
+                    for (let alpha = 0; alpha < this.dim; alpha++) {
+                        dGamma[mu][rho][alpha] = [];
+                        for (let beta = 0; beta < this.dim; beta++) {
+                            dGamma[mu][rho][alpha][beta] =
+                                (gammaPlus[rho][alpha][beta] - gammaMinus[rho][alpha][beta]) / (2 * h);
+                        }
+                    }
+                }
+            }
+
+            // Compute Riemann tensor
+            const R = [];
+            for (let rho = 0; rho < this.dim; rho++) {
+                R[rho] = [];
+                for (let sigma = 0; sigma < this.dim; sigma++) {
+                    R[rho][sigma] = [];
+                    for (let mu = 0; mu < this.dim; mu++) {
+                        R[rho][sigma][mu] = [];
+                        for (let nu = 0; nu < this.dim; nu++) {
+                            let val = dGamma[mu][rho][nu][sigma] - dGamma[nu][rho][mu][sigma];
+                            for (let lambda = 0; lambda < this.dim; lambda++) {
+                                val += gammaAt[rho][mu][lambda] * gammaAt[lambda][nu][sigma];
+                                val -= gammaAt[rho][nu][lambda] * gammaAt[lambda][mu][sigma];
+                            }
+                            R[rho][sigma][mu][nu] = val;
+                        }
+                    }
+                }
+            }
+            return R;
+        }
+
+        /**
+         * Compute Ricci tensor R_μν
+         */
+        ricciAt(x) {
+            const R = this.riemannAt(x);
+            const Ric = [];
+            for (let mu = 0; mu < this.dim; mu++) {
+                Ric[mu] = [];
+                for (let nu = 0; nu < this.dim; nu++) {
+                    let sum = 0;
+                    for (let rho = 0; rho < this.dim; rho++) {
+                        sum += R[rho][mu][rho][nu];
+                    }
+                    Ric[mu][nu] = sum;
+                }
+            }
+            return Ric;
+        }
+
+        /**
+         * Compute Ricci scalar R
+         */
+        ricciScalarAt(x) {
+            const Ric = this.ricciAt(x);
+            const gInv = this.metric.contravariant(x);
+            let R = 0;
+            for (let mu = 0; mu < this.dim; mu++) {
+                for (let nu = 0; nu < this.dim; nu++) {
+                    R += gInv[mu][nu] * Ric[mu][nu];
+                }
+            }
+            return R;
+        }
+    }
+
+    // ============================================================================
+    // VI-C. COVARIANT DERIVATIVE
+    // ============================================================================
+
+    /**
+     * CovariantDerivative: Covariant derivative operator on spacetime
+     * 
+     * For a vector field V^j:
+     *   ∇ᵢV^j = ∂ᵢV^j + Γʲᵢₖ V^k
+     * 
+     * For a covector field (1-form) ω_j:
+     *   ∇ᵢω_j = ∂ᵢω_j - Γᵏᵢⱼ ω_k
+     */
+    class CovariantDerivative {
+        /**
+         * @param {SpacetimeMetric} metric
+         * @param {number} h - Step size for numerical differentiation
+         */
+        constructor(metric, h = 1e-7) {
+            this.metric = metric;
+            this.christoffel = new ChristoffelSymbols(metric, h);
+            this.h = h;
+            this.dim = 4;
+        }
+
+        /**
+         * Compute covariant derivative of contravariant vector field
+         * ∇ᵢV^j = ∂ᵢV^j + Γʲᵢₖ V^k
+         * 
+         * @param {Function} V_func - (x) => [V⁰, V¹, V², V³]
+         * @param {number[]} x - Point to evaluate at
+         * @returns {number[][]} ∇V[i][j] = ∇ᵢV^j
+         */
+        ofVector(V_func, x) {
+            const gamma = this.christoffel.computeAt(x);
+            const V = V_func(x);
+
+            const nablaV = [];
+            for (let i = 0; i < this.dim; i++) {
+                nablaV[i] = [];
+
+                // Compute ∂ᵢV^j
+                const xPlus = [...x]; xPlus[i] += this.h;
+                const xMinus = [...x]; xMinus[i] -= this.h;
+                const VPlus = V_func(xPlus);
+                const VMinus = V_func(xMinus);
+
+                for (let j = 0; j < this.dim; j++) {
+                    let term = (VPlus[j] - VMinus[j]) / (2 * this.h);  // ∂ᵢV^j
+                    for (let k = 0; k < this.dim; k++) {
+                        term += gamma[j][i][k] * V[k];  // Γʲᵢₖ V^k
+                    }
+                    nablaV[i][j] = term;
+                }
+            }
+            return nablaV;
+        }
+
+        /**
+         * Divergence of vector field: div V = ∇ᵢV^i
+         * 
+         * Uses formula: div V = (1/√g) ∂ᵢ(√g V^i)
+         */
+        divergence(V_func, x) {
+            const g = this.metric.covariant(x);
+            const detG = this._det4x4(g);
+            const sqrtG = sqrt(abs(detG));
+
+            let div = 0;
+            for (let i = 0; i < this.dim; i++) {
+                const xPlus = [...x]; xPlus[i] += this.h;
+                const xMinus = [...x]; xMinus[i] -= this.h;
+
+                const gPlus = this.metric.covariant(xPlus);
+                const gMinus = this.metric.covariant(xMinus);
+                const sqrtGPlus = sqrt(abs(this._det4x4(gPlus)));
+                const sqrtGMinus = sqrt(abs(this._det4x4(gMinus)));
+
+                const VPlus = V_func(xPlus);
+                const VMinus = V_func(xMinus);
+
+                div += (sqrtGPlus * VPlus[i] - sqrtGMinus * VMinus[i]) / (2 * this.h);
+            }
+            return div / sqrtG;
+        }
+
+        /**
+         * Laplace-Beltrami operator on scalar field
+         * Δf = div(grad f) = (1/√g) ∂ᵢ(√g g^ij ∂ⱼf)
+         */
+        laplacian(f_func, x) {
+            // Gradient: (grad f)^i = g^ij ∂ⱼf
+            const grad_f = (coords) => {
+                const gInv = this.metric.contravariant(coords);
+                const df = [];
+                for (let j = 0; j < this.dim; j++) {
+                    const xPlus = [...coords]; xPlus[j] += this.h;
+                    const xMinus = [...coords]; xMinus[j] -= this.h;
+                    df[j] = (f_func(xPlus) - f_func(xMinus)) / (2 * this.h);
+                }
+                const gradF = [];
+                for (let i = 0; i < this.dim; i++) {
+                    gradF[i] = 0;
+                    for (let j = 0; j < this.dim; j++) {
+                        gradF[i] += gInv[i][j] * df[j];
+                    }
+                }
+                return gradF;
+            };
+
+            return this.divergence(grad_f, x);
+        }
+
+        _det4x4(m) {
+            // 4x4 determinant using cofactor expansion
+            return (
+                m[0][0] * (m[1][1] * (m[2][2] * m[3][3] - m[2][3] * m[3][2]) - m[1][2] * (m[2][1] * m[3][3] - m[2][3] * m[3][1]) + m[1][3] * (m[2][1] * m[3][2] - m[2][2] * m[3][1])) -
+                m[0][1] * (m[1][0] * (m[2][2] * m[3][3] - m[2][3] * m[3][2]) - m[1][2] * (m[2][0] * m[3][3] - m[2][3] * m[3][0]) + m[1][3] * (m[2][0] * m[3][2] - m[2][2] * m[3][0])) +
+                m[0][2] * (m[1][0] * (m[2][1] * m[3][3] - m[2][3] * m[3][1]) - m[1][1] * (m[2][0] * m[3][3] - m[2][3] * m[3][0]) + m[1][3] * (m[2][0] * m[3][1] - m[2][1] * m[3][0])) -
+                m[0][3] * (m[1][0] * (m[2][1] * m[3][2] - m[2][2] * m[3][1]) - m[1][1] * (m[2][0] * m[3][2] - m[2][2] * m[3][0]) + m[1][2] * (m[2][0] * m[3][1] - m[2][1] * m[3][0]))
+            );
+        }
+    }
+
+    // ============================================================================
+    // VI-D. PARALLEL TRANSPORT
+    // ============================================================================
+
+    /**
+     * ParallelTransport: Transport vectors along curves preserving the connection
+     * 
+     * Solves: dV^k/dt + Γᵏᵢⱼ (dx^i/dt) V^j = 0
+     */
+    class ParallelTransport {
+        /**
+         * @param {SpacetimeMetric} metric
+         * @param {number} h - Step size for numerical differentiation
+         */
+        constructor(metric, h = 1e-7) {
+            this.metric = metric;
+            this.christoffel = new ChristoffelSymbols(metric, h);
+            this.dim = 4;
+        }
+
+        /**
+         * Transport vector along a parameterized curve
+         * 
+         * @param {Function} curve - γ(t) => [x⁰, x¹, x², x³]
+         * @param {number[]} V_initial - Initial vector V^μ(t₀)
+         * @param {number} t_start - Starting parameter
+         * @param {number} t_end - Ending parameter
+         * @param {number} n_steps - Number of integration steps
+         * @returns {Object[]} Array of {t, x, V} at each step
+         */
+        transport(curve, V_initial, t_start, t_end, n_steps = 100) {
+            const dt = (t_end - t_start) / n_steps;
+            const h = 1e-6;  // For computing curve tangent
+
+            let V = [...V_initial];
+            const trajectory = [{ t: t_start, x: curve(t_start), V: [...V] }];
+
+            for (let step = 0; step < n_steps; step++) {
+                const t = t_start + step * dt;
+                const x = curve(t);
+
+                // Compute curve tangent dx^i/dt
+                const xPlus = curve(t + h);
+                const xMinus = curve(t - h);
+                const dxdt = [];
+                for (let i = 0; i < this.dim; i++) {
+                    dxdt[i] = (xPlus[i] - xMinus[i]) / (2 * h);
+                }
+
+                // RK4 integration of parallel transport equation
+                const k1 = this._transportRHS(x, V, dxdt);
+
+                const x2 = curve(t + dt / 2);
+                const dxdt2 = [];
+                const xPlus2 = curve(t + dt / 2 + h);
+                const xMinus2 = curve(t + dt / 2 - h);
+                for (let i = 0; i < this.dim; i++) {
+                    dxdt2[i] = (xPlus2[i] - xMinus2[i]) / (2 * h);
+                }
+                const V2 = V.map((v, i) => v + 0.5 * dt * k1[i]);
+                const k2 = this._transportRHS(x2, V2, dxdt2);
+
+                const V3 = V.map((v, i) => v + 0.5 * dt * k2[i]);
+                const k3 = this._transportRHS(x2, V3, dxdt2);
+
+                const x4 = curve(t + dt);
+                const dxdt4 = [];
+                const xPlus4 = curve(t + dt + h);
+                const xMinus4 = curve(t + dt - h);
+                for (let i = 0; i < this.dim; i++) {
+                    dxdt4[i] = (xPlus4[i] - xMinus4[i]) / (2 * h);
+                }
+                const V4 = V.map((v, i) => v + dt * k3[i]);
+                const k4 = this._transportRHS(x4, V4, dxdt4);
+
+                // Combine RK4 steps
+                V = V.map((v, i) => v + dt / 6 * (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i]));
+
+                trajectory.push({ t: t + dt, x: curve(t + dt), V: [...V] });
+            }
+
+            return trajectory;
+        }
+
+        /**
+         * RHS of parallel transport equation: dV^k/dt = -Γᵏᵢⱼ (dx^i/dt) V^j
+         */
+        _transportRHS(x, V, dxdt) {
+            const gamma = this.christoffel.computeAt(x);
+            const dVdt = [];
+
+            for (let k = 0; k < this.dim; k++) {
+                let sum = 0;
+                for (let i = 0; i < this.dim; i++) {
+                    for (let j = 0; j < this.dim; j++) {
+                        sum += gamma[k][i][j] * dxdt[i] * V[j];
+                    }
+                }
+                dVdt[k] = -sum;
+            }
+            return dVdt;
+        }
+
+        /**
+         * Compute holonomy around a closed loop
+         * 
+         * @param {Function} loop - Closed curve γ(t), γ(0) = γ(1)
+         * @param {number} n_steps - Integration steps
+         * @returns {number[][]} Holonomy transformation matrix
+         */
+        holonomy(loop, n_steps = 200) {
+            // Transport each basis vector around the loop
+            const holonomyMatrix = [];
+
+            for (let mu = 0; mu < this.dim; mu++) {
+                const e_mu = Array(this.dim).fill(0);
+                e_mu[mu] = 1;
+
+                const result = this.transport(loop, e_mu, 0, 1, n_steps);
+                holonomyMatrix[mu] = result[result.length - 1].V;
+            }
+
+            // Transpose to get transformation matrix
+            const H = [];
+            for (let i = 0; i < this.dim; i++) {
+                H[i] = [];
+                for (let j = 0; j < this.dim; j++) {
+                    H[i][j] = holonomyMatrix[j][i];
+                }
+            }
+            return H;
         }
     }
 
@@ -787,7 +1216,7 @@
         evaluate(x, p) {
             const gInv = this.metric.contravariant(x);
             const A = this.A(x);
-            
+
             let H = 0;
             for (let mu = 0; mu < 4; mu++) {
                 for (let nu = 0; nu < 4; nu++) {
@@ -798,7 +1227,7 @@
             }
             // Mass shell: g^μν p_μ p_ν = m² → H = ½(g^μν p_μ p_ν - m²) = 0
             H -= 0.5 * this.m * this.m;
-            
+
             return H;
         }
 
@@ -822,21 +1251,21 @@
             const h = 1e-7;
             const dHdx = [];
             const dHdp = [];
-            
+
             // ∂H/∂x^μ
             for (let mu = 0; mu < 4; mu++) {
                 const xPlus = [...x]; xPlus[mu] += h;
                 const xMinus = [...x]; xMinus[mu] -= h;
-                dHdx.push((this.evaluate(xPlus, p) - this.evaluate(xMinus, p)) / (2*h));
+                dHdx.push((this.evaluate(xPlus, p) - this.evaluate(xMinus, p)) / (2 * h));
             }
-            
+
             // ∂H/∂p_μ
             for (let mu = 0; mu < 4; mu++) {
                 const pPlus = [...p]; pPlus[mu] += h;
                 const pMinus = [...p]; pMinus[mu] -= h;
-                dHdp.push((this.evaluate(x, pPlus) - this.evaluate(x, pMinus)) / (2*h));
+                dHdp.push((this.evaluate(x, pPlus) - this.evaluate(x, pMinus)) / (2 * h));
             }
-            
+
             // ẋ^μ = ∂H/∂p_μ, ṗ_μ = -∂H/∂x^μ
             return {
                 xDot: dHdp,
@@ -855,29 +1284,29 @@
             let x = [...x0];
             let p = [...p0];
             const trajectory = [{ x: [...x], p: [...p], tau: 0 }];
-            
+
             for (let i = 0; i < steps; i++) {
                 // RK4
                 const k1 = this.geodesicEquations(x, p);
-                
+
                 const x2 = x.map((xi, mu) => xi + 0.5 * dtau * k1.xDot[mu]);
                 const p2 = p.map((pi, mu) => pi + 0.5 * dtau * k1.pDot[mu]);
                 const k2 = this.geodesicEquations(x2, p2);
-                
+
                 const x3 = x.map((xi, mu) => xi + 0.5 * dtau * k2.xDot[mu]);
                 const p3 = p.map((pi, mu) => pi + 0.5 * dtau * k2.pDot[mu]);
                 const k3 = this.geodesicEquations(x3, p3);
-                
+
                 const x4 = x.map((xi, mu) => xi + dtau * k3.xDot[mu]);
                 const p4 = p.map((pi, mu) => pi + dtau * k3.pDot[mu]);
                 const k4 = this.geodesicEquations(x4, p4);
-                
-                x = x.map((xi, mu) => xi + dtau/6 * (k1.xDot[mu] + 2*k2.xDot[mu] + 2*k3.xDot[mu] + k4.xDot[mu]));
-                p = p.map((pi, mu) => pi + dtau/6 * (k1.pDot[mu] + 2*k2.pDot[mu] + 2*k3.pDot[mu] + k4.pDot[mu]));
-                
+
+                x = x.map((xi, mu) => xi + dtau / 6 * (k1.xDot[mu] + 2 * k2.xDot[mu] + 2 * k3.xDot[mu] + k4.xDot[mu]));
+                p = p.map((pi, mu) => pi + dtau / 6 * (k1.pDot[mu] + 2 * k2.pDot[mu] + 2 * k3.pDot[mu] + k4.pDot[mu]));
+
                 trajectory.push({ x: [...x], p: [...p], tau: (i + 1) * dtau });
             }
-            
+
             return trajectory;
         }
     }
@@ -898,8 +1327,8 @@
          */
         constructor(manifold, params = {}) {
             // Default parameters
-            const { 
-                mass = 1, 
+            const {
+                mass = 1,
                 potential = () => 0,
                 thermalCoupling = 1,
                 scalingDimension = 0
@@ -908,33 +1337,33 @@
             // Build Hamiltonian function
             const H = coords => {
                 let result = 0;
-                
+
                 // Kinetic term: ½m|k|² = ½m(k₁² + k₂² + k₃²)
                 if ('k1' in coords) {
                     const k1 = coords.k1 || 0;
                     const k2 = coords.k2 || 0;
                     const k3 = coords.k3 || 0;
-                    result += 0.5 * mass * (k1*k1 + k2*k2 + k3*k3);
+                    result += 0.5 * mass * (k1 * k1 + k2 * k2 + k3 * k3);
                 }
-                
+
                 // Frequency-time coupling: ω
                 if ('omega' in coords) {
                     result -= coords.omega;  // -ω for E = ℏω
                 }
-                
+
                 // Dilatation term: Δ·ℓ contribution
                 if ('Delta' in coords && 'ell' in coords) {
                     result += scalingDimension * coords.Delta;
                 }
-                
+
                 // Thermal term: T·S coupling
                 if ('T' in coords && 'S' in coords) {
                     result -= thermalCoupling * coords.T * coords.S;
                 }
-                
+
                 // External potential
                 result += potential(coords);
-                
+
                 return result;
             };
 
@@ -952,15 +1381,15 @@
                 const k2 = coords.k2 || 0;
                 const k3 = coords.k3 || 0;
                 const omega = coords.omega || 0;
-                const kSq = k1*k1 + k2*k2 + k3*k3;
-                
+                const kSq = k1 * k1 + k2 * k2 + k3 * k3;
+
                 if (mass === 0) {
                     return omega - c * sqrt(kSq);
                 } else {
-                    return omega - sqrt(c*c*kSq + mass*mass*c*c*c*c);
+                    return omega - sqrt(c * c * kSq + mass * mass * c * c * c * c);
                 }
             };
-            
+
             return new ContactHamiltonian(manifold, H);
         }
 
@@ -974,7 +1403,7 @@
                 const S = coords.S || 0;
                 const ell = coords.ell || 0;
                 const lambda = exp(ell);
-                
+
                 if (type === 'ideal') {
                     // F = U - TS, with U ∝ T and V ∝ λ³
                     return 1.5 * T - T * S + T * log(lambda * lambda * lambda);
@@ -986,7 +1415,7 @@
                 }
                 return 0;
             };
-            
+
             return new ContactHamiltonian(manifold, H);
         }
     }
@@ -1006,13 +1435,13 @@
     class GaugeExtendedManifold extends GrandContactManifold {
         constructor() {
             super();
-            
+
             // Add gauge coordinates
             this.baseCoords.push('phi');
             this.momentaCoords.push('I');
             this.n = this.baseCoords.length;  // Now 7
             this.dim = 2 * this.n + 1;  // Now 15
-            
+
             this.physicalInterpretations.phi = 'gauge phase';
             this.physicalInterpretations.I = 'gauge flux/current';
         }
@@ -1050,7 +1479,7 @@
         wedge(other) {
             const newDegree = this.degree + other.degree;
             const newTerms = [];
-            
+
             for (const t1 of this.terms) {
                 for (const t2 of other.terms) {
                     // Check for repeated basis elements
@@ -1076,7 +1505,7 @@
                     }
                 }
             }
-            
+
             return new DifferentialForm(newDegree, newTerms);
         }
 
@@ -1111,28 +1540,33 @@
         // Core classes
         ContactManifold,
         ContactPoint,
-        
+
         // Specific manifolds
         GrandContactManifold,
         HolographicContactManifold,
         GaugeExtendedManifold,
-        
+
         // Dynamics
         ContactHamiltonian,
         LegendrianSubmanifold,
         ThermodynamicHamiltonian,
-        
+
         // Gravitational extension
         SpacetimeMetric,
         RelativisticHamiltonian,
-        
+
+        // Differential geometry (NEW - from GA skill)
+        ChristoffelSymbols,
+        CovariantDerivative,
+        ParallelTransport,
+
         // Utilities
         DifferentialForm,
         summaryTable,
-        
+
         // Constants
         EPSILON,
-        
+
         // Factory functions
         grandManifold: () => new GrandContactManifold(),
         holographicManifold: () => new HolographicContactManifold(),

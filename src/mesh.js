@@ -32,8 +32,8 @@
 
     function vec3Dot(a, aOffset, b, bOffset) {
         return a[aOffset] * b[bOffset] +
-               a[aOffset + 1] * b[bOffset + 1] +
-               a[aOffset + 2] * b[bOffset + 2];
+            a[aOffset + 1] * b[bOffset + 1] +
+            a[aOffset + 2] * b[bOffset + 2];
     }
 
     function vec3Cross(a, aOffset, b, bOffset, out, outOffset) {
@@ -97,6 +97,9 @@
             this._vertexDualAreas = null;
             this._cotanWeights = null;
             this._edgeLengths = null;
+            this._faceNormals = null;
+            this._edgeVectors = null;
+            this._dihedralAngles = null;
 
             if (buildTopology) {
                 this.buildTopology();
@@ -394,12 +397,12 @@
                     // Edge (vi,vj) has opposite angle at k (cotK), length len_ij_sq
                     // Edge (vi,vk) has opposite angle at j (cotJ), length len_ki_sq
                     const areaI = (cotK * len_ij_sq + cotJ * len_ki_sq) / 8;
-                    
+
                     // Contribution to vj: edges (vj,vi) and (vj,vk)
                     // Edge (vj,vi) has opposite angle at k (cotK), length len_ij_sq
                     // Edge (vj,vk) has opposite angle at i (cotI), length len_jk_sq
                     const areaJ = (cotK * len_ij_sq + cotI * len_jk_sq) / 8;
-                    
+
                     // Contribution to vk: edges (vk,vi) and (vk,vj)
                     // Edge (vk,vi) has opposite angle at j (cotJ), length len_ki_sq
                     // Edge (vk,vj) has opposite angle at i (cotI), length len_jk_sq
@@ -422,6 +425,147 @@
         }
 
         /**
+         * Compute unit face normals (cached).
+         * Normal direction follows right-hand rule from triangle winding.
+         * @returns {Float64Array} Normal vectors (nFaces * 3)
+         */
+        faceNormals() {
+            if (this._faceNormals) return this._faceNormals;
+
+            const nF = this.nFaces;
+            const normals = new Float64Array(nF * 3);
+            const v = this.vertices;
+            const f = this.faces;
+            const tmp1 = new Float64Array(3);
+            const tmp2 = new Float64Array(3);
+            const cross = new Float64Array(3);
+
+            for (let t = 0; t < nF; t++) {
+                const i = f[t * 3], j = f[t * 3 + 1], k = f[t * 3 + 2];
+                vec3Sub(v, j * 3, v, i * 3, tmp1, 0);
+                vec3Sub(v, k * 3, v, i * 3, tmp2, 0);
+                vec3Cross(tmp1, 0, tmp2, 0, cross, 0);
+                const len = vec3Norm(cross, 0);
+                if (len > EPSILON) {
+                    normals[t * 3] = cross[0] / len;
+                    normals[t * 3 + 1] = cross[1] / len;
+                    normals[t * 3 + 2] = cross[2] / len;
+                } else {
+                    // Degenerate triangle, use z-up
+                    normals[t * 3 + 2] = 1;
+                }
+            }
+
+            this._faceNormals = normals;
+            return normals;
+        }
+
+        /**
+         * Get face normal as [nx, ny, nz].
+         * @param {number} faceIdx
+         * @returns {number[]}
+         */
+        getFaceNormal(faceIdx) {
+            const normals = this.faceNormals();
+            const offset = faceIdx * 3;
+            return [normals[offset], normals[offset + 1], normals[offset + 2]];
+        }
+
+        /**
+         * Compute unit edge vectors (cached).
+         * Edge direction goes from lower-index vertex to higher-index vertex.
+         * @returns {Float64Array} Edge vectors (nEdges * 3)
+         */
+        edgeVectors() {
+            if (this._edgeVectors) return this._edgeVectors;
+
+            const nE = this.nEdges;
+            const edgeVecs = new Float64Array(nE * 3);
+            const v = this.vertices;
+            const e = this.edges;
+            const tmp = new Float64Array(3);
+
+            for (let i = 0; i < nE; i++) {
+                const v0 = e[i * 2], v1 = e[i * 2 + 1];
+                vec3Sub(v, v1 * 3, v, v0 * 3, tmp, 0);
+                const len = vec3Norm(tmp, 0);
+                if (len > EPSILON) {
+                    edgeVecs[i * 3] = tmp[0] / len;
+                    edgeVecs[i * 3 + 1] = tmp[1] / len;
+                    edgeVecs[i * 3 + 2] = tmp[2] / len;
+                }
+            }
+
+            this._edgeVectors = edgeVecs;
+            return edgeVecs;
+        }
+
+        /**
+         * Get edge vector as [ex, ey, ez].
+         * @param {number} edgeIdx
+         * @returns {number[]}
+         */
+        getEdgeVector(edgeIdx) {
+            const edgeVecs = this.edgeVectors();
+            const offset = edgeIdx * 3;
+            return [edgeVecs[offset], edgeVecs[offset + 1], edgeVecs[offset + 2]];
+        }
+
+        /**
+         * Compute dihedral angles at each edge (cached).
+         * Dihedral angle = angle between face normals at shared edge.
+         * Convention: angle in [0, 2π), measured as rotation from n1 to n2 around edge.
+         * Boundary edges have angle = π (flat).
+         * @returns {Float64Array} Dihedral angle per edge (in radians)
+         */
+        dihedralAngles() {
+            if (this._dihedralAngles) return this._dihedralAngles;
+
+            const nE = this.nEdges;
+            const angles = new Float64Array(nE);
+            const normals = this.faceNormals();
+            const edgeVecs = this.edgeVectors();
+
+            for (let e = 0; e < nE; e++) {
+                const t0 = this.edgeTriangles[e * 2];
+                const t1 = this.edgeTriangles[e * 2 + 1];
+
+                if (t1 < 0) {
+                    // Boundary edge: treat as flat (π)
+                    angles[e] = PI;
+                    continue;
+                }
+
+                // Get normals of adjacent faces
+                const n0 = [normals[t0 * 3], normals[t0 * 3 + 1], normals[t0 * 3 + 2]];
+                const n1 = [normals[t1 * 3], normals[t1 * 3 + 1], normals[t1 * 3 + 2]];
+
+                // Edge vector (for signed angle)
+                const ev = [edgeVecs[e * 3], edgeVecs[e * 3 + 1], edgeVecs[e * 3 + 2]];
+
+                // Compute angle between normals
+                // cos(θ) = n0 · n1
+                const cosTheta = n0[0] * n1[0] + n0[1] * n1[1] + n0[2] * n1[2];
+
+                // sin(θ) = (n0 × n1) · edge / |edge|
+                // Cross product n0 × n1
+                const cross = [
+                    n0[1] * n1[2] - n0[2] * n1[1],
+                    n0[2] * n1[0] - n0[0] * n1[2],
+                    n0[0] * n1[1] - n0[1] * n1[0]
+                ];
+                const sinTheta = cross[0] * ev[0] + cross[1] * ev[1] + cross[2] * ev[2];
+
+                // Dihedral angle using atan2 for full range
+                // Convention: 0 = coplanar same direction, π = coplanar opposite
+                angles[e] = PI - Math.atan2(sinTheta, cosTheta);
+            }
+
+            this._dihedralAngles = angles;
+            return angles;
+        }
+
+        /**
          * Invalidate cached geometry (call after modifying vertices).
          */
         invalidateGeometryCache() {
@@ -429,6 +573,9 @@
             this._vertexDualAreas = null;
             this._cotanWeights = null;
             this._edgeLengths = null;
+            this._faceNormals = null;
+            this._edgeVectors = null;
+            this._dihedralAngles = null;
         }
 
         // ========================================================================
@@ -566,16 +713,16 @@
             const b = a * phi;
 
             const vertices = new Float64Array([
-                -a, b, 0,   a, b, 0,   -a, -b, 0,   a, -b, 0,
-                0, -a, b,   0, a, b,   0, -a, -b,   0, a, -b,
-                b, 0, -a,   b, 0, a,   -b, 0, -a,   -b, 0, a
+                -a, b, 0, a, b, 0, -a, -b, 0, a, -b, 0,
+                0, -a, b, 0, a, b, 0, -a, -b, 0, a, -b,
+                b, 0, -a, b, 0, a, -b, 0, -a, -b, 0, a
             ]);
 
             const faces = new Uint32Array([
-                0, 11, 5,   0, 5, 1,   0, 1, 7,   0, 7, 10,  0, 10, 11,
-                1, 5, 9,    5, 11, 4,  11, 10, 2, 10, 7, 6,  7, 1, 8,
-                3, 9, 4,    3, 4, 2,   3, 2, 6,   3, 6, 8,   3, 8, 9,
-                4, 9, 5,    2, 4, 11,  6, 2, 10,  8, 6, 7,   9, 8, 1
+                0, 11, 5, 0, 5, 1, 0, 1, 7, 0, 7, 10, 0, 10, 11,
+                1, 5, 9, 5, 11, 4, 11, 10, 2, 10, 7, 6, 7, 1, 8,
+                3, 9, 4, 3, 4, 2, 3, 2, 6, 3, 6, 8, 3, 8, 9,
+                4, 9, 5, 2, 4, 11, 6, 2, 10, 8, 6, 7, 9, 8, 1
             ]);
 
             return new TriangleMesh(vertices, faces);

@@ -17,13 +17,18 @@ A JavaScript implementation of **Contact Geometry for Extended Thermodynamics** 
   - **Multivectors**: Proper handling of Cl(p,q,r) algebras, geometric products, and rotors
   - **Bivector Classification**: Elliptic (rotation), Parabolic (translation), Hyperbolic (boost)
   - **Discrete Calculus**: Split differential operator ∇, gradient, divergence, curl
-- **Riemannian Geometry via GA** (NEW):
+- **Riemannian Geometry via GA**:
   - **Connection Bivectors**: Replace Christoffel symbols with ωᵢ = ½ eʲ ∧ (∂ᵢeⱼ)
   - **Curvature 2-Form**: Cartan structure equation Ω = dω + ω ∧ ω
   - **Coordinate-Free Geodesics**: Solve ∇ᵥv = 0 without index gymnastics
   - **Parallel Transport & Holonomy**: Transport vectors around loops
   - **Gauss-Bonnet Integration**: Verify ∫∫K dA = 2πχ(M)
   - **Manifolds**: Sphere, Torus, Hyperbolic Plane with verified curvature
+- **Discrete Riemannian Geometry** (NEW):
+  - **Mesh Connection Bivector**: Dihedral rotation at edges
+  - **Angle Defect Curvature**: K = 2π - Σθ at vertices
+  - **Discrete Parallel Transport**: Transport across mesh edges
+  - **Bianchi Identity**: Verified via Gauss-Bonnet Σ Kᵥ = 2πχ(M)
 - **FTGC on Triangle Meshes**:
   - **Triangle Mesh**: Typed arrays, auto-topology, boundary detection
   - **Cotan Laplacian**: Mixed Voronoi dual areas, cotan weights
@@ -213,8 +218,9 @@ contact-thermodynamics/
 │   ├── index.js              # Main library (Manifolds, GR, DiffGeo)
 │   ├── multivector.js        # Geometric Algebra core
 │   ├── geometric-calculus.js # Discrete operators (grids)
-│   ├── riemannian-ga.js      # Coordinate-free Riemannian geometry (NEW)
-│   ├── geodesic-ga.js        # Geodesic solver, parallel transport (NEW)
+│   ├── riemannian-ga.js      # Coordinate-free Riemannian geometry
+│   ├── riemannian-discrete.js# Discrete Riemannian on meshes (NEW)
+│   ├── geodesic-ga.js        # Geodesic solver, parallel transport
 │   ├── mesh.js               # Triangle mesh data structure
 │   ├── mesh-ftgc.js          # FTGC operators on meshes
 │   └── mesh-solvers.js       # Wave/heat/Maxwell on meshes
@@ -233,8 +239,6 @@ contact-thermodynamics/
 
 The following enhancements are planned for the Riemannian GA module:
 
-- **Discrete Riemannian Geometry**: Extend connection bivectors to triangle meshes
-- **Bianchi Identity Verification**: Implement ∇ ∧ Ω = 0 check
 - **3D Riemannian Manifolds**: Support for 3D manifolds embedded in higher dimensions
 - **GPU Acceleration**: WebGL/WebGPU compute shaders for real-time geodesic fields
 - **Ricci Flow**: Implement discrete Ricci flow using connection bivector formulation

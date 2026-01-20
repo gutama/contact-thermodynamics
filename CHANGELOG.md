@@ -76,6 +76,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+#### Discrete Riemannian Geometry
+- `riemannian-discrete.js` module for triangle meshes:
+  - `MeshConnectionBivector`: Dihedral rotation at edges
+  - `MeshCurvature2Form`: Angle defect curvature (K = 2π - Σθ)
+  - `MeshParallelTransport`: Transport vectors across edges
+  - `BianchiIdentityVerifier`: Verify ∇∧Ω = 0 via Gauss-Bonnet (Σ Kᵥ = 2πχ)
+- Extended `mesh.js` with:
+  - `faceNormals()`: Unit normal vectors per face
+  - `edgeVectors()`: Unit edge direction vectors
+  - `dihedralAngles()`: Angle between adjacent face normals
+- Test suite: 5 tests verifying icosahedron, flat grid, and Bianchi identity
+
 ### Planned
 - Additional spacetime metrics (Kerr, Reissner-Nordström)
 - Symplectic integrators for long-time evolution

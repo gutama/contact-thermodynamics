@@ -17,7 +17,14 @@ A JavaScript implementation of **Contact Geometry for Extended Thermodynamics** 
   - **Multivectors**: Proper handling of Cl(p,q,r) algebras, geometric products, and rotors
   - **Bivector Classification**: Elliptic (rotation), Parabolic (translation), Hyperbolic (boost)
   - **Discrete Calculus**: Split differential operator ∇, gradient, divergence, curl
-- **FTGC on Triangle Meshes** (NEW):
+- **Riemannian Geometry via GA** (NEW):
+  - **Connection Bivectors**: Replace Christoffel symbols with ωᵢ = ½ eʲ ∧ (∂ᵢeⱼ)
+  - **Curvature 2-Form**: Cartan structure equation Ω = dω + ω ∧ ω
+  - **Coordinate-Free Geodesics**: Solve ∇ᵥv = 0 without index gymnastics
+  - **Parallel Transport & Holonomy**: Transport vectors around loops
+  - **Gauss-Bonnet Integration**: Verify ∫∫K dA = 2πχ(M)
+  - **Manifolds**: Sphere, Torus, Hyperbolic Plane with verified curvature
+- **FTGC on Triangle Meshes**:
   - **Triangle Mesh**: Typed arrays, auto-topology, boundary detection
   - **Cotan Laplacian**: Mixed Voronoi dual areas, cotan weights
   - **Geometric Derivative**: Unified ∇ = ∇· + ∇∧ on staggered mesh storage
@@ -31,7 +38,7 @@ A JavaScript implementation of **Contact Geometry for Extended Thermodynamics** 
   - **Christoffel Symbols**: Automatic computation from spacetime metrics
   - **Covariant Derivative**: ∇ operator for vectors and tensors
   - **Parallel Transport**: Connection-preserving transport along curves
-- **Interactive Visualization**: Browser-based demos including **3D EM Wave Simulation**
+- **Interactive Visualization**: Browser-based demos including **3D EM Wave** and **Riemannian Geodesics**
 
 ## 📐 Mathematical Foundation
 
@@ -113,6 +120,35 @@ const metric = CT.SpacetimeMetric.schwarzschild(1);
 const cov = new CT.CovariantDerivative(metric);
 ```
 
+### Riemannian Geometry (Coordinate-Free)
+
+```javascript
+const { Sphere2D, Curvature2Form } = require('./src/riemannian-ga');
+const { GAGeodesicSolver, GAParallelTransport } = require('./src/geodesic-ga');
+
+// Create a unit sphere
+const sphere = new Sphere2D(1.0);
+
+// Compute Gaussian curvature at θ = π/4 (no Christoffel symbols!)
+const curvature = new Curvature2Form(sphere);
+const K = curvature.gaussianCurvature([Math.PI/4, 0]);
+console.log('K =', K); // K = 1.0
+
+// Solve geodesic equation: ∇ᵥv = 0
+const solver = new GAGeodesicSolver(sphere);
+const solution = solver.solve(
+    [Math.PI/4, 0],  // Initial position (θ, φ)
+    [1, 0],          // Initial velocity (along meridian)
+    Math.PI          // Arc length
+);
+
+// Parallel transport around a latitude circle (holonomy)
+const transport = new GAParallelTransport(sphere);
+const loop = t => [Math.PI/4, 2*Math.PI*t];  // Latitude circle at θ = π/4
+const holonomy = transport.holonomyAngle(loop, [1, 0], 200);
+console.log('Holonomy:', holonomy * 180/Math.PI, '°');
+```
+
 ### FTGC Mesh Usage
 
 ```javascript
@@ -148,17 +184,22 @@ const lap = cov.laplacian(f_func, coords);
    - Interactive 3D visualization of electric fields
    - Add Gaussian pulses and plane waves
 
-2. **[FTGC Mesh Heat Diffusion](examples/mesh-heat-ftgc.js)** (NEW)
+2. **[Riemannian Geometry Demo](examples/riemannian-ga-demo.html)** (NEW)
+   - Coordinate-free geodesics on Sphere, Torus, Hyperbolic Plane
+   - Connection bivector visualization
+   - Holonomy computation and Gauss-Bonnet verification
+
+3. **[FTGC Mesh Heat Diffusion](examples/mesh-heat-ftgc.js)**
    - Entropy diffusion on triangle meshes using FTGC
    - Dirichlet boundary conditions
    - Variance decay tracking (equilibration)
 
-3. **Phase Space Demo** (`examples/demo.html`)
+4. **Phase Space Demo** (`examples/demo.html`)
    - Interactive exploration of contact manifolds and flows
 
 ## 🧪 Testing
 
-Run the extended test suite (79 tests):
+Run the extended test suite:
 
 ```bash
 npm test
@@ -172,19 +213,38 @@ contact-thermodynamics/
 │   ├── index.js              # Main library (Manifolds, GR, DiffGeo)
 │   ├── multivector.js        # Geometric Algebra core
 │   ├── geometric-calculus.js # Discrete operators (grids)
+│   ├── riemannian-ga.js      # Coordinate-free Riemannian geometry (NEW)
+│   ├── geodesic-ga.js        # Geodesic solver, parallel transport (NEW)
 │   ├── mesh.js               # Triangle mesh data structure
 │   ├── mesh-ftgc.js          # FTGC operators on meshes
 │   └── mesh-solvers.js       # Wave/heat/Maxwell on meshes
 ├── examples/
 │   ├── em-wave-3d.html       # 3D EM visualization
+│   ├── riemannian-ga-demo.html # Riemannian geodesics visualization (NEW)
 │   ├── mesh-heat-ftgc.js     # FTGC heat diffusion demo
 │   └── ...                   # Other examples
 ├── docs/                     # Documentation
 ├── tests/
-│   └── test.js               # Test suite (79 tests)
+│   └── test.js               # Test suite
 └── README.md
 ```
+
+## 🔮 Future Work
+
+The following enhancements are planned for the Riemannian GA module:
+
+- **Discrete Riemannian Geometry**: Extend connection bivectors to triangle meshes
+- **Bianchi Identity Verification**: Implement ∇ ∧ Ω = 0 check
+- **3D Riemannian Manifolds**: Support for 3D manifolds embedded in higher dimensions
+- **GPU Acceleration**: WebGL/WebGPU compute shaders for real-time geodesic fields
+- **Ricci Flow**: Implement discrete Ricci flow using connection bivector formulation
+- **Spinor Bundles**: Extend to spin geometry via Clifford algebra representations
+- **Applications**:
+  - Shape analysis and mesh processing
+  - General relativistic ray tracing
+  - Thermodynamic manifold learning
 
 ## 📄 License
 
 MIT License — see [LICENSE](LICENSE) for details.
+

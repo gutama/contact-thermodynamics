@@ -1566,7 +1566,7 @@
         SpacetimeMetric,
         RelativisticHamiltonian,
 
-        // Differential geometry (NEW - from GA skill)
+        // Differential geometry (from GA skill)
         ChristoffelSymbols,
         CovariantDerivative,
         ParallelTransport,
@@ -1575,6 +1575,11 @@
         ...(MeshModule || {}),
         ...(MeshFTGCModule || {}),
         ...(MeshSolversModule || {}),
+
+        // Riemannian Geometry via Geometric Calculus (NEW)
+        // Coordinate-free formulations with connection bivectors
+        RiemannianGA: typeof RiemannianGA !== 'undefined' ? RiemannianGA : null,
+        GeodesicGA: typeof GeodesicGA !== 'undefined' ? GeodesicGA : null,
 
         // Utilities
         DifferentialForm,

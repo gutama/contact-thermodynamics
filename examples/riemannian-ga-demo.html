@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Riemannian Geometry GA Demo - Contact Thermodynamics</title>
+    <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-tertiary: #1a1a25;
+            --text-primary: #e8e8f0;
+            --text-secondary: #9898a8;
+            --accent-blue: #4a9eff;
+            --accent-purple: #a855f7;
+            --accent-cyan: #22d3ee;
+            --accent-green: #4ade80;
+            --accent-red: #f87171;
+            --border-color: #2a2a3a;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 2rem;
+            background: linear-gradient(135deg, rgba(74, 158, 255, 0.1), rgba(168, 85, 247, 0.1));
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .master-equations {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
+            border: 1px solid var(--border-color);
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 0.9rem;
+            color: var(--accent-cyan);
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 2rem;
+        }
+
+        .controls {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+            height: fit-content;
+            position: sticky;
+            top: 2rem;
+        }
+
+        .control-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .control-group label {
+            display: block;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        select,
+        input[type="range"],
+        input[type="number"] {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+
+        select:focus,
+        input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            height: 8px;
+            padding: 0;
+            border-radius: 4px;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--accent-blue);
+            cursor: pointer;
+        }
+
+        .range-value {
+            text-align: center;
+            color: var(--accent-cyan);
+            font-size: 0.9rem;
+            margin-top: 0.25rem;
+        }
+
+        button {
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-bottom: 0.75rem;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(74, 158, 255, 0.3);
+        }
+
+        button.secondary {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+        }
+
+        .visualization {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4/3;
+            background: var(--bg-primary);
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .results {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .result-card {
+            background: var(--bg-tertiary);
+            border-radius: 10px;
+            padding: 1rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .result-card h3 {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+        }
+
+        .result-value {
+            font-size: 1.3rem;
+            font-weight: 600;
+            font-family: 'Fira Code', monospace;
+        }
+
+        .result-value.positive {
+            color: var(--accent-green);
+        }
+
+        .result-value.negative {
+            color: var(--accent-red);
+        }
+
+        .result-value.neutral {
+            color: var(--accent-cyan);
+        }
+
+        .log {
+            background: var(--bg-primary);
+            border-radius: 10px;
+            padding: 1rem;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+            margin-top: 1rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .log-entry {
+            padding: 0.25rem 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .log-entry.success {
+            color: var(--accent-green);
+        }
+
+        .log-entry.error {
+            color: var(--accent-red);
+        }
+
+        .log-entry.info {
+            color: var(--accent-cyan);
+        }
+
+        .legend {
+            display: flex;
+            gap: 1.5rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+        }
+
+        @media (max-width: 900px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .controls {
+                position: static;
+            }
+
+            .results {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>Riemannian Geometry in Geometric Calculus</h1>
+            <p class="subtitle">Coordinate-free geodesics, parallel transport, and holonomy — no Christoffel symbols!
+            </p>
+            <div class="master-equations">
+                Connection: ω_i = ½ e^j ∧ (∂_i e_j) | Geodesic: ∇_v v = 0 ⟺ v̇ + ω(v) × v = 0 | Curvature: Ω = dω + ω ∧
+                ω
+            </div>
+        </header>
+
+        <div class="main-grid">
+            <div class="controls">
+                <div class="control-group">
+                    <label>Manifold</label>
+                    <select id="manifoldSelect">
+                        <option value="sphere">Sphere (K = 1/R²)</option>
+                        <option value="torus">Torus (K varies)</option>
+                        <option value="hyperbolic">Hyperbolic Plane (K = -1)</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label>Visualization Mode</label>
+                    <select id="modeSelect">
+                        <option value="geodesic">Geodesic Trajectory</option>
+                        <option value="transport">Parallel Transport</option>
+                        <option value="holonomy">Holonomy Loop</option>
+                        <option value="curvature">Curvature Map</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label>Initial θ (latitude)</label>
+                    <input type="range" id="thetaSlider" min="0.1" max="3.0" step="0.05" value="0.785">
+                    <div class="range-value" id="thetaValue">θ = π/4 (45°)</div>
+                </div>
+
+                <div class="control-group">
+                    <label>Initial φ (longitude)</label>
+                    <input type="range" id="phiSlider" min="0" max="6.28" step="0.05" value="0">
+                    <div class="range-value" id="phiValue">φ = 0°</div>
+                </div>
+
+                <div class="control-group">
+                    <label>Initial Velocity Direction</label>
+                    <input type="range" id="dirSlider" min="0" max="6.28" step="0.05" value="0">
+                    <div class="range-value" id="dirValue">Along meridian (θ-direction)</div>
+                </div>
+
+                <div class="control-group">
+                    <label>Trajectory Length</label>
+                    <input type="range" id="lengthSlider" min="0.5" max="6.28" step="0.1" value="3.14">
+                    <div class="range-value" id="lengthValue">T = π</div>
+                </div>
+
+                <button id="computeBtn">Compute Geodesic</button>
+                <button id="animateBtn" class="secondary">Animate</button>
+                <button id="verifyBtn" class="secondary">Verify Gauss-Bonnet</button>
+            </div>
+
+            <div class="visualization">
+                <div class="canvas-container">
+                    <canvas id="mainCanvas"></canvas>
+                </div>
+
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #4a9eff;"></div>
+                        <span>Geodesic Path</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #4ade80;"></div>
+                        <span>Initial Vector</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #f87171;"></div>
+                        <span>Transported Vector</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #a855f7;"></div>
+                        <span>Velocity</span>
+                    </div>
+                </div>
+
+                <div class="results">
+                    <div class="result-card">
+                        <h3>Gaussian Curvature K</h3>
+                        <div class="result-value positive" id="curvatureValue">—</div>
+                    </div>
+                    <div class="result-card">
+                        <h3>Holonomy Angle</h3>
+                        <div class="result-value neutral" id="holonomyValue">—</div>
+                    </div>
+                    <div class="result-card">
+                        <h3>Velocity Norm Error</h3>
+                        <div class="result-value neutral" id="normError">—</div>
+                    </div>
+                </div>
+
+                <div class="log" id="logContainer">
+                    <div class="log-entry info">Ready. Select a manifold and click "Compute Geodesic".</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../src/riemannian-ga.js"></script>
+    <script src="../src/geodesic-ga.js"></script>
+    <script>
+        // ========================================================================
+        // Demo Application
+        // ========================================================================
+
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Set canvas size
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            canvas.width = container.clientWidth * window.devicePixelRatio;
+            canvas.height = container.clientHeight * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // UI Elements
+        const manifoldSelect = document.getElementById('manifoldSelect');
+        const modeSelect = document.getElementById('modeSelect');
+        const thetaSlider = document.getElementById('thetaSlider');
+        const phiSlider = document.getElementById('phiSlider');
+        const dirSlider = document.getElementById('dirSlider');
+        const lengthSlider = document.getElementById('lengthSlider');
+
+        // State
+        let currentManifold = null;
+        let currentSolver = null;
+        let currentTransport = null;
+        let lastSolution = null;
+        let animationId = null;
+        let animationProgress = 0;
+
+        // Initialize
+        function createManifold(type) {
+            switch (type) {
+                case 'sphere':
+                    return new RiemannianGA.Sphere2D(1.0);
+                case 'torus':
+                    return new RiemannianGA.Torus2D(2.0, 1.0);
+                case 'hyperbolic':
+                    return new RiemannianGA.HyperbolicPlane();
+                default:
+                    return new RiemannianGA.Sphere2D(1.0);
+            }
+        }
+
+        function log(message, type = 'info') {
+            const container = document.getElementById('logContainer');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = message;
+            container.insertBefore(entry, container.firstChild);
+
+            // Keep only last 20 entries
+            while (container.children.length > 20) {
+                container.removeChild(container.lastChild);
+            }
+        }
+
+        function updateSliderLabels() {
+            const theta = parseFloat(thetaSlider.value);
+            const phi = parseFloat(phiSlider.value);
+            const dir = parseFloat(dirSlider.value);
+            const len = parseFloat(lengthSlider.value);
+
+            document.getElementById('thetaValue').textContent =
+                `θ = ${(theta / Math.PI).toFixed(2)}π (${(theta * 180 / Math.PI).toFixed(0)}°)`;
+            document.getElementById('phiValue').textContent =
+                `φ = ${(phi / Math.PI).toFixed(2)}π (${(phi * 180 / Math.PI).toFixed(0)}°)`;
+
+            if (Math.abs(dir) < 0.1) {
+                document.getElementById('dirValue').textContent = 'Along meridian (θ-direction)';
+            } else if (Math.abs(dir - Math.PI / 2) < 0.1) {
+                document.getElementById('dirValue').textContent = 'Along parallel (φ-direction)';
+            } else {
+                document.getElementById('dirValue').textContent =
+                    `Direction: ${(dir * 180 / Math.PI).toFixed(0)}°`;
+            }
+
+            document.getElementById('lengthValue').textContent =
+                `T = ${(len / Math.PI).toFixed(2)}π`;
+        }
+
+        // Slider events
+        [thetaSlider, phiSlider, dirSlider, lengthSlider].forEach(slider => {
+            slider.addEventListener('input', updateSliderLabels);
+        });
+        updateSliderLabels();
+
+        // Project 3D to 2D for visualization
+        function project3D(point, viewAngle = 0.5) {
+            if (point.length === 2) {
+                // 2D manifold (hyperbolic plane)
+                return { x: point[0], y: point[1], scale: 1 };
+            }
+
+            // Simple isometric projection with rotation
+            const cosA = Math.cos(viewAngle);
+            const sinA = Math.sin(viewAngle);
+
+            const x = point[0] * cosA - point[1] * sinA;
+            const y = point[2];
+            const z = point[0] * sinA + point[1] * cosA;
+
+            const perspective = 3 / (3 + z * 0.3);
+
+            return {
+                x: x * perspective,
+                y: y * perspective,
+                scale: perspective,
+                z: z
+            };
+        }
+
+        // Draw manifold surface
+        function drawManifold(type, viewAngle) {
+            const width = canvas.width / window.devicePixelRatio;
+            const height = canvas.height / window.devicePixelRatio;
+            const scale = Math.min(width, height) * 0.3;
+            const cx = width / 2;
+            const cy = height / 2;
+
+            ctx.strokeStyle = 'rgba(74, 158, 255, 0.2)';
+            ctx.lineWidth = 1;
+
+            if (type === 'sphere') {
+                // Draw latitude and longitude lines
+                for (let lat = 0.2; lat < Math.PI; lat += 0.3) {
+                    ctx.beginPath();
+                    for (let lon = 0; lon <= 2 * Math.PI; lon += 0.05) {
+                        const point = [
+                            Math.sin(lat) * Math.cos(lon),
+                            Math.sin(lat) * Math.sin(lon),
+                            Math.cos(lat)
+                        ];
+                        const proj = project3D(point, viewAngle);
+                        if (lon === 0) {
+                            ctx.moveTo(cx + proj.x * scale, cy - proj.y * scale);
+                        } else {
+                            ctx.lineTo(cx + proj.x * scale, cy - proj.y * scale);
+                        }
+                    }
+                    ctx.closePath();
+                    ctx.stroke();
+                }
+
+                for (let lon = 0; lon < Math.PI; lon += 0.3) {
+                    ctx.beginPath();
+                    for (let lat = 0; lat <= Math.PI; lat += 0.05) {
+                        const point = [
+                            Math.sin(lat) * Math.cos(lon),
+                            Math.sin(lat) * Math.sin(lon),
+                            Math.cos(lat)
+                        ];
+                        const proj = project3D(point, viewAngle);
+                        if (lat === 0) {
+                            ctx.moveTo(cx + proj.x * scale, cy - proj.y * scale);
+                        } else {
+                            ctx.lineTo(cx + proj.x * scale, cy - proj.y * scale);
+                        }
+                    }
+                    ctx.stroke();
+                }
+            } else if (type === 'torus') {
+                const R = 2, r = 1;
+                const torusScale = scale * 0.3;
+
+                // Draw tube circles
+                for (let phi = 0; phi < 2 * Math.PI; phi += 0.4) {
+                    ctx.beginPath();
+                    for (let theta = 0; theta <= 2 * Math.PI; theta += 0.05) {
+                        const rho = R + r * Math.cos(theta);
+                        const point = [
+                            rho * Math.cos(phi),
+                            rho * Math.sin(phi),
+                            r * Math.sin(theta)
+                        ];
+                        const proj = project3D(point, viewAngle);
+                        if (theta === 0) {
+                            ctx.moveTo(cx + proj.x * torusScale, cy - proj.y * torusScale);
+                        } else {
+                            ctx.lineTo(cx + proj.x * torusScale, cy - proj.y * torusScale);
+                        }
+                    }
+                    ctx.closePath();
+                    ctx.stroke();
+                }
+
+                // Draw center circles
+                for (let theta = 0; theta < 2 * Math.PI; theta += 0.4) {
+                    ctx.beginPath();
+                    for (let phi = 0; phi <= 2 * Math.PI; phi += 0.05) {
+                        const rho = R + r * Math.cos(theta);
+                        const point = [
+                            rho * Math.cos(phi),
+                            rho * Math.sin(phi),
+                            r * Math.sin(theta)
+                        ];
+                        const proj = project3D(point, viewAngle);
+                        if (phi === 0) {
+                            ctx.moveTo(cx + proj.x * torusScale, cy - proj.y * torusScale);
+                        } else {
+                            ctx.lineTo(cx + proj.x * torusScale, cy - proj.y * torusScale);
+                        }
+                    }
+                    ctx.closePath();
+                    ctx.stroke();
+                }
+            } else if (type === 'hyperbolic') {
+                // Draw Poincaré half-plane grid
+                ctx.strokeStyle = 'rgba(74, 158, 255, 0.3)';
+
+                // Vertical geodesics
+                for (let x = -3; x <= 3; x += 0.5) {
+                    ctx.beginPath();
+                    ctx.moveTo(cx + x * scale * 0.3, cy + 0.1 * scale);
+                    ctx.lineTo(cx + x * scale * 0.3, cy - 2 * scale * 0.3);
+                    ctx.stroke();
+                }
+
+                // Semicircular geodesics
+                for (let i = 0; i < 10; i++) {
+                    const centerX = (i - 5) * 0.3;
+                    const radius = 0.3 + i * 0.2;
+                    ctx.beginPath();
+                    ctx.arc(cx + centerX * scale, cy + 0.1 * scale, radius * scale * 0.3, Math.PI, 0);
+                    ctx.stroke();
+                }
+
+                // Boundary line (y = 0)
+                ctx.strokeStyle = 'rgba(248, 113, 113, 0.5)';
+                ctx.beginPath();
+                ctx.moveTo(cx - 3 * scale * 0.3, cy + 0.1 * scale);
+                ctx.lineTo(cx + 3 * scale * 0.3, cy + 0.1 * scale);
+                ctx.stroke();
+            }
+        }
+
+        // Draw geodesic path
+        function drawGeodesic(solution, viewAngle, progress = 1) {
+            const width = canvas.width / window.devicePixelRatio;
+            const height = canvas.height / window.devicePixelRatio;
+            const scale = Math.min(width, height) * 0.3;
+            const cx = width / 2;
+            const cy = height / 2;
+
+            const manifoldType = manifoldSelect.value;
+            let torusScale = manifoldType === 'torus' ? 0.3 : 1;
+            if (manifoldType === 'hyperbolic') torusScale = 0.3;
+
+            const maxIdx = Math.floor(solution.x.length * progress);
+
+            // Draw path
+            ctx.strokeStyle = '#4a9eff';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+
+            for (let i = 0; i < maxIdx; i++) {
+                let point;
+                const coords = solution.x[i];
+
+                if (manifoldType === 'sphere') {
+                    point = currentManifold.embedding(coords);
+                } else if (manifoldType === 'torus') {
+                    point = currentManifold.embedding(coords);
+                } else {
+                    point = coords; // Hyperbolic plane uses coordinates directly
+                }
+
+                const proj = project3D(point, viewAngle);
+                if (i === 0) {
+                    ctx.moveTo(cx + proj.x * scale * torusScale, cy - proj.y * scale * torusScale);
+                } else {
+                    ctx.lineTo(cx + proj.x * scale * torusScale, cy - proj.y * scale * torusScale);
+                }
+            }
+            ctx.stroke();
+
+            // Draw start point
+            if (solution.x.length > 0) {
+                let startPoint;
+                if (manifoldType === 'sphere' || manifoldType === 'torus') {
+                    startPoint = currentManifold.embedding(solution.x[0]);
+                } else {
+                    startPoint = solution.x[0];
+                }
+                const startProj = project3D(startPoint, viewAngle);
+
+                ctx.fillStyle = '#4ade80';
+                ctx.beginPath();
+                ctx.arc(cx + startProj.x * scale * torusScale, cy - startProj.y * scale * torusScale, 8, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+
+            // Draw current position and velocity
+            if (maxIdx > 0 && maxIdx < solution.x.length) {
+                let currentPoint;
+                if (manifoldType === 'sphere' || manifoldType === 'torus') {
+                    currentPoint = currentManifold.embedding(solution.x[maxIdx - 1]);
+                } else {
+                    currentPoint = solution.x[maxIdx - 1];
+                }
+                const curProj = project3D(currentPoint, viewAngle);
+
+                ctx.fillStyle = '#a855f7';
+                ctx.beginPath();
+                ctx.arc(cx + curProj.x * scale * torusScale, cy - curProj.y * scale * torusScale, 6, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+        }
+
+        // Main compute function
+        function compute() {
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+
+            const manifoldType = manifoldSelect.value;
+            const mode = modeSelect.value;
+            const theta = parseFloat(thetaSlider.value);
+            const phi = parseFloat(phiSlider.value);
+            const dir = parseFloat(dirSlider.value);
+            const tFinal = parseFloat(lengthSlider.value);
+
+            log(`Computing ${mode} on ${manifoldType}...`, 'info');
+
+            // Create manifold and solver
+            currentManifold = createManifold(manifoldType);
+            currentSolver = new GeodesicGA.GAGeodesicSolver(currentManifold);
+            currentTransport = new GeodesicGA.GAParallelTransport(currentManifold);
+
+            // Initial conditions
+            let x0, v0;
+            if (manifoldType === 'hyperbolic') {
+                x0 = [phi - Math.PI, Math.max(0.5, theta)]; // x, y (y > 0)
+                v0 = [Math.cos(dir), Math.sin(dir)];
+            } else {
+                x0 = [theta, phi];
+                v0 = [Math.cos(dir), Math.sin(dir) / Math.sin(theta)];
+            }
+
+            // Compute geodesic
+            try {
+                lastSolution = currentSolver.solve(x0, v0, tFinal, tFinal / 100);
+
+                // Compute curvature at starting point
+                const curvature = new RiemannianGA.Curvature2Form(currentManifold);
+                const K = curvature.gaussianCurvature(x0);
+
+                const curvatureEl = document.getElementById('curvatureValue');
+                curvatureEl.textContent = K.toFixed(4);
+                curvatureEl.className = 'result-value ' + (K > 0 ? 'positive' : K < 0 ? 'negative' : 'neutral');
+
+                // Verify arc-length preservation
+                const verification = currentSolver.verifyArcLengthPreservation(lastSolution);
+                document.getElementById('normError').textContent =
+                    (verification.maxDeviation * 100).toFixed(4) + '%';
+
+                log(`Geodesic computed. ${lastSolution.x.length} points. K = ${K.toFixed(4)}`, 'success');
+
+                // Compute holonomy if in holonomy mode
+                if (mode === 'holonomy') {
+                    const w0 = [1, 0]; // Reference vector
+                    const loop = t => {
+                        if (manifoldType === 'sphere') {
+                            return [theta, 2 * Math.PI * t]; // Latitude circle
+                        } else if (manifoldType === 'torus') {
+                            return [0, 2 * Math.PI * t]; // Outer equator
+                        } else {
+                            // Semicircular loop in hyperbolic plane
+                            const angle = Math.PI * t;
+                            return [Math.cos(angle), 0.5 + Math.sin(angle)];
+                        }
+                    };
+
+                    const holonomy = currentTransport.holonomyAngle(loop, w0, 200);
+                    document.getElementById('holonomyValue').textContent =
+                        `${(holonomy * 180 / Math.PI).toFixed(2)}°`;
+
+                    if (manifoldType === 'sphere') {
+                        const expected = 2 * Math.PI * (1 - Math.cos(theta));
+                        log(`Holonomy: ${(holonomy * 180 / Math.PI).toFixed(2)}°, expected: ${(expected * 180 / Math.PI).toFixed(2)}°`, 'info');
+                    }
+                }
+
+            } catch (err) {
+                log(`Error: ${err.message}`, 'error');
+                console.error(err);
+            }
+
+            render();
+        }
+
+        // Renderfunction
+        function render(progress = 1) {
+            const width = canvas.width / window.devicePixelRatio;
+            const height = canvas.height / window.devicePixelRatio;
+
+            // Clear
+            ctx.fillStyle = '#0a0a0f';
+            ctx.fillRect(0, 0, width, height);
+
+            const viewAngle = 0.6 + Date.now() * 0.0001 % (Math.PI * 2);
+
+            // Draw manifold wireframe
+            drawManifold(manifoldSelect.value, viewAngle);
+
+            // Draw geodesic if available
+            if (lastSolution) {
+                drawGeodesic(lastSolution, viewAngle, progress);
+            }
+        }
+
+        // Animation
+        function animate() {
+            if (!lastSolution) return;
+
+            animationProgress = 0;
+
+            function step() {
+                animationProgress += 0.01;
+                if (animationProgress > 1) animationProgress = 0;
+
+                render(animationProgress);
+                animationId = requestAnimationFrame(step);
+            }
+
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+                log('Animation stopped', 'info');
+            } else {
+                step();
+                log('Animation started', 'info');
+            }
+        }
+
+        // Verify Gauss-Bonnet
+        function verifyGaussBonnet() {
+            const manifoldType = manifoldSelect.value;
+            currentManifold = createManifold(manifoldType);
+
+            const integrator = new GeodesicGA.GaussBonnetIntegrator(currentManifold);
+
+            let result;
+            if (manifoldType === 'sphere') {
+                result = integrator.verifyGaussBonnet(2, [0.01, Math.PI - 0.01], [0, 2 * Math.PI], 50, 50);
+                log(`Gauss-Bonnet: ∫∫K dA = ${result.integral.toFixed(4)}, expected 4π = ${result.expected.toFixed(4)}`,
+                    result.relativeError < 0.1 ? 'success' : 'error');
+            } else if (manifoldType === 'torus') {
+                result = integrator.verifyGaussBonnet(0, [0, 2 * Math.PI], [0, 2 * Math.PI], 50, 50);
+                log(`Gauss-Bonnet: ∫∫K dA = ${result.integral.toFixed(4)}, expected 0`,
+                    Math.abs(result.integral) < 0.5 ? 'success' : 'error');
+            } else {
+                log('Gauss-Bonnet not applicable for non-compact hyperbolic plane', 'info');
+            }
+        }
+
+        // Event listeners
+        document.getElementById('computeBtn').addEventListener('click', compute);
+        document.getElementById('animateBtn').addEventListener('click', animate);
+        document.getElementById('verifyBtn').addEventListener('click', verifyGaussBonnet);
+        manifoldSelect.addEventListener('change', compute);
+        modeSelect.addEventListener('change', compute);
+
+        // Initial render
+        render();
+        log('Riemannian GA demo loaded. Using connection bivector formulation.', 'success');
+    </script>
+</body>
+
+</html>

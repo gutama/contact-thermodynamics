@@ -90,6 +90,99 @@
         ];
     }
 
+    function det3x3(A) {
+        return A[0][0] * (A[1][1] * A[2][2] - A[1][2] * A[2][1])
+            - A[0][1] * (A[1][0] * A[2][2] - A[1][2] * A[2][0])
+            + A[0][2] * (A[1][0] * A[2][1] - A[1][1] * A[2][0]);
+    }
+
+    function inv3x3(A) {
+        const d = det3x3(A);
+        if (abs(d) < EPSILON) throw new Error('Singular matrix');
+
+        // Cofactor matrix
+        const C = [
+            [
+                A[1][1] * A[2][2] - A[1][2] * A[2][1],
+                -(A[1][0] * A[2][2] - A[1][2] * A[2][0]),
+                A[1][0] * A[2][1] - A[1][1] * A[2][0]
+            ],
+            [
+                -(A[0][1] * A[2][2] - A[0][2] * A[2][1]),
+                A[0][0] * A[2][2] - A[0][2] * A[2][0],
+                -(A[0][0] * A[2][1] - A[0][1] * A[2][0])
+            ],
+            [
+                A[0][1] * A[1][2] - A[0][2] * A[1][1],
+                -(A[0][0] * A[1][2] - A[0][2] * A[1][0]),
+                A[0][0] * A[1][1] - A[0][1] * A[1][0]
+            ]
+        ];
+
+        // Transpose of cofactor / determinant
+        return [
+            [C[0][0] / d, C[1][0] / d, C[2][0] / d],
+            [C[0][1] / d, C[1][1] / d, C[2][1] / d],
+            [C[0][2] / d, C[1][2] / d, C[2][2] / d]
+        ];
+    }
+
+    /**
+     * General matrix inverse using Gauss-Jordan elimination.
+     * Works for any n×n matrix.
+     */
+    function invertMatrix(A) {
+        const n = A.length;
+
+        // Create augmented matrix [A | I]
+        const aug = [];
+        for (let i = 0; i < n; i++) {
+            aug[i] = [...A[i]];
+            for (let j = 0; j < n; j++) {
+                aug[i].push(i === j ? 1 : 0);
+            }
+        }
+
+        // Forward elimination with partial pivoting
+        for (let col = 0; col < n; col++) {
+            // Find pivot
+            let maxRow = col;
+            for (let row = col + 1; row < n; row++) {
+                if (abs(aug[row][col]) > abs(aug[maxRow][col])) {
+                    maxRow = row;
+                }
+            }
+            [aug[col], aug[maxRow]] = [aug[maxRow], aug[col]];
+
+            if (abs(aug[col][col]) < EPSILON) {
+                throw new Error('Singular matrix');
+            }
+
+            // Scale pivot row
+            const pivot = aug[col][col];
+            for (let j = 0; j < 2 * n; j++) {
+                aug[col][j] /= pivot;
+            }
+
+            // Eliminate column
+            for (let row = 0; row < n; row++) {
+                if (row !== col) {
+                    const factor = aug[row][col];
+                    for (let j = 0; j < 2 * n; j++) {
+                        aug[row][j] -= factor * aug[col][j];
+                    }
+                }
+            }
+        }
+
+        // Extract inverse from augmented matrix
+        const inv = [];
+        for (let i = 0; i < n; i++) {
+            inv[i] = aug[i].slice(n);
+        }
+        return inv;
+    }
+
     // ============================================================================
     // BIVECTOR CLASSES
     // ============================================================================
@@ -256,6 +349,160 @@
         }
     }
 
+    /**
+     * Bivector in 4D (six components: e₁₂, e₁₃, e₁₄, e₂₃, e₂₄, e₃₄)
+     * 
+     * Represents oriented planes in 4D. Used for 3D manifolds embedded in R⁴.
+     * 
+     * Components correspond to planes:
+     * - e₁₂: X-Y plane
+     * - e₁₃: X-Z plane
+     * - e₁₄: X-W plane
+     * - e₂₃: Y-Z plane
+     * - e₂₄: Y-W plane
+     * - e₃₄: Z-W plane
+     */
+    class Bivector4D {
+        constructor(e12 = 0, e13 = 0, e14 = 0, e23 = 0, e24 = 0, e34 = 0) {
+            this.e12 = e12;
+            this.e13 = e13;
+            this.e14 = e14;
+            this.e23 = e23;
+            this.e24 = e24;
+            this.e34 = e34;
+        }
+
+        static fromArray(arr) {
+            return new Bivector4D(arr[0], arr[1], arr[2], arr[3], arr[4], arr[5]);
+        }
+
+        /**
+         * Create bivector from wedge product of two 4D vectors.
+         * u ∧ v = Σᵢ<ⱼ (uᵢvⱼ - uⱼvᵢ) eᵢⱼ
+         */
+        static fromWedge(u, v) {
+            return new Bivector4D(
+                u[0] * v[1] - u[1] * v[0],  // e₁₂
+                u[0] * v[2] - u[2] * v[0],  // e₁₃
+                u[0] * v[3] - u[3] * v[0],  // e₁₄
+                u[1] * v[2] - u[2] * v[1],  // e₂₃
+                u[1] * v[3] - u[3] * v[1],  // e₂₄
+                u[2] * v[3] - u[3] * v[2]   // e₃₄
+            );
+        }
+
+        toArray() {
+            return [this.e12, this.e13, this.e14, this.e23, this.e24, this.e34];
+        }
+
+        toString() {
+            return `Bivector4D(${this.e12.toFixed(4)} e₁₂ + ${this.e13.toFixed(4)} e₁₃ + ` +
+                `${this.e14.toFixed(4)} e₁₄ + ${this.e23.toFixed(4)} e₂₃ + ` +
+                `${this.e24.toFixed(4)} e₂₄ + ${this.e34.toFixed(4)} e₃₄)`;
+        }
+
+        add(other) {
+            return new Bivector4D(
+                this.e12 + other.e12, this.e13 + other.e13, this.e14 + other.e14,
+                this.e23 + other.e23, this.e24 + other.e24, this.e34 + other.e34
+            );
+        }
+
+        sub(other) {
+            return new Bivector4D(
+                this.e12 - other.e12, this.e13 - other.e13, this.e14 - other.e14,
+                this.e23 - other.e23, this.e24 - other.e24, this.e34 - other.e34
+            );
+        }
+
+        scale(s) {
+            return new Bivector4D(
+                this.e12 * s, this.e13 * s, this.e14 * s,
+                this.e23 * s, this.e24 * s, this.e34 * s
+            );
+        }
+
+        neg() {
+            return this.scale(-1);
+        }
+
+        normSquared() {
+            return this.e12 * this.e12 + this.e13 * this.e13 + this.e14 * this.e14 +
+                this.e23 * this.e23 + this.e24 * this.e24 + this.e34 * this.e34;
+        }
+
+        norm() {
+            return sqrt(this.normSquared());
+        }
+
+        /**
+         * Compute B × v = ½(Bv - vB) in 4D.
+         * 
+         * For a bivector B acting on vector v, the commutator product rotates v
+         * in the planes specified by B. In 4D each plane rotates two coordinates.
+         * 
+         * Convention: eᵢⱼ × eᵢ = eⱼ, eᵢⱼ × eⱼ = -eᵢ
+         * This matches the cross product dual interpretation.
+         * 
+         * @param {number[]} v - 4D vector [v₁, v₂, v₃, v₄]
+         * @returns {number[]} Rotated vector
+         */
+        commutatorWithVector(v) {
+            // In 4D, bivector action: B × v where B = Σ bᵢⱼ eᵢⱼ
+            // eᵢⱼ × eᵢ = eⱼ (positive), eᵢⱼ × eⱼ = -eᵢ (negative)
+            // 
+            // For e12: e12 × e1 = +e2, e12 × e2 = -e1
+            // For e13: e13 × e1 = +e3, e13 × e3 = -e1
+            // etc.
+            return [
+                // v[0] component: affected by e12 (from e2), e13 (from e3), e14 (from e4)
+                -this.e12 * v[1] - this.e13 * v[2] - this.e14 * v[3],
+                // v[1] component: affected by e12 (from e1), e23 (from e3), e24 (from e4)
+                this.e12 * v[0] - this.e23 * v[2] - this.e24 * v[3],
+                // v[2] component: affected by e13 (from e1), e23 (from e2), e34 (from e4)
+                this.e13 * v[0] + this.e23 * v[1] - this.e34 * v[3],
+                // v[3] component: affected by e14 (from e1), e24 (from e2), e34 (from e3)
+                this.e14 * v[0] + this.e24 * v[1] + this.e34 * v[2]
+            ];
+        }
+
+        /**
+         * Compute B₁ × B₂ = ½(B₁B₂ - B₂B₁) for bivectors.
+         * In 4D this gives another bivector (Lie bracket of so(4)).
+         */
+        commutatorWithBivector(other) {
+            // Lie bracket [B₁, B₂] in so(4)
+            // This is more complex than 3D; computed via explicit expansion
+            return new Bivector4D(
+                this.e13 * other.e23 - this.e23 * other.e13 +
+                this.e14 * other.e24 - this.e24 * other.e14,  // e₁₂
+
+                -this.e12 * other.e23 + this.e23 * other.e12 +
+                this.e14 * other.e34 - this.e34 * other.e14,  // e₁₃
+
+                -this.e12 * other.e24 + this.e24 * other.e12 -
+                this.e13 * other.e34 + this.e34 * other.e13,  // e₁₄
+
+                this.e12 * other.e13 - this.e13 * other.e12 +
+                this.e24 * other.e34 - this.e34 * other.e24,  // e₂₃
+
+                this.e12 * other.e14 - this.e14 * other.e12 -
+                this.e23 * other.e34 + this.e34 * other.e23,  // e₂₄
+
+                this.e13 * other.e14 - this.e14 * other.e13 +
+                this.e23 * other.e24 - this.e24 * other.e23   // e₃₄
+            );
+        }
+
+        /**
+         * Compute B₁ · B₂ (scalar inner product).
+         */
+        innerWithBivector(other) {
+            return this.e12 * other.e12 + this.e13 * other.e13 + this.e14 * other.e14 +
+                this.e23 * other.e23 + this.e24 * other.e24 + this.e34 * other.e34;
+        }
+    }
+
     // ============================================================================
     // TANGENT FRAME
     // ============================================================================
@@ -281,27 +528,40 @@
          * Compute the reciprocal frame satisfying eⁱ · eⱼ = δⁱⱼ
          */
         _computeReciprocal() {
-            if (this.dim === 2 && this.ambientDim >= 2) {
-                // 2D case: explicitly compute reciprocal
-                const e1 = this.frame[0];
-                const e2 = this.frame[1];
+            const dim = this.dim;
 
-                // Metric tensor g_ij = e_i · e_j
-                const g = [
-                    [dot(e1, e1), dot(e1, e2)],
-                    [dot(e2, e1), dot(e2, e2)]
-                ];
-
-                // Inverse metric g^ij
-                const gInv = inv2x2(g);
-
-                // Reciprocal frame: e^i = g^ij e_j
-                const e1Up = vecAdd(vecScale(e1, gInv[0][0]), vecScale(e2, gInv[0][1]));
-                const e2Up = vecAdd(vecScale(e1, gInv[1][0]), vecScale(e2, gInv[1][1]));
-
-                return [e1Up, e2Up];
+            // Build metric tensor g_ij = e_i · e_j
+            const g = [];
+            for (let i = 0; i < dim; i++) {
+                g[i] = [];
+                for (let j = 0; j < dim; j++) {
+                    g[i][j] = dot(this.frame[i], this.frame[j]);
+                }
             }
-            throw new Error('Only 2D frames currently supported');
+
+            // Compute inverse metric g^ij
+            let gInv;
+            if (dim === 2) {
+                gInv = inv2x2(g);
+            } else if (dim === 3) {
+                gInv = inv3x3(g);
+            } else {
+                gInv = invertMatrix(g);
+            }
+
+            // Reciprocal frame: e^i = g^ij e_j
+            const reciprocal = [];
+            for (let i = 0; i < dim; i++) {
+                const ei_up = new Array(this.ambientDim).fill(0);
+                for (let j = 0; j < dim; j++) {
+                    for (let k = 0; k < this.ambientDim; k++) {
+                        ei_up[k] += gInv[i][j] * this.frame[j][k];
+                    }
+                }
+                reciprocal.push(ei_up);
+            }
+
+            return reciprocal;
         }
 
         /**
@@ -457,13 +717,37 @@
         }
 
         /**
+         * Create a zero bivector of appropriate dimension.
+         */
+        _zeroBivector() {
+            if (this.manifold.ambientDim === 3) {
+                return new Bivector3D(0, 0, 0);
+            } else if (this.manifold.ambientDim === 4) {
+                return new Bivector4D(0, 0, 0, 0, 0, 0);
+            }
+            throw new Error(`Unsupported ambient dimension: ${this.manifold.ambientDim}`);
+        }
+
+        /**
+         * Create bivector from wedge product of appropriate dimension.
+         */
+        _bivectorFromWedge(u, v) {
+            if (this.manifold.ambientDim === 3) {
+                return Bivector3D.fromWedge(u, v);
+            } else if (this.manifold.ambientDim === 4) {
+                return Bivector4D.fromWedge(u, v);
+            }
+            throw new Error(`Unsupported ambient dimension: ${this.manifold.ambientDim}`);
+        }
+
+        /**
          * Compute connection bivectors at given coordinates.
          * 
-         * For 2D surfaces in 3D, returns Bivector3D objects.
+         * Returns Bivector3D for 2D surfaces in 3D, Bivector4D for 3D manifolds in 4D.
          * 
          * @param {number[]} coords - Point on manifold
          * @param {number} h - Step size for numerical derivatives
-         * @returns {Bivector3D[]} Array [ω₀, ω₁, ...] of connection bivectors
+         * @returns {Bivector3D[]|Bivector4D[]} Array [ω₀, ω₁, ...] of connection bivectors
          */
         computeAt(coords, h = 1e-6) {
             const frame = this.manifold.frame(coords);
@@ -474,14 +758,14 @@
 
             for (let i = 0; i < dim; i++) {
                 // ω_i = ½ Σⱼ eʲ ∧ (∂ᵢeⱼ)
-                let omega_i = new Bivector3D(0, 0, 0);
+                let omega_i = this._zeroBivector();
 
                 for (let j = 0; j < dim; j++) {
                     const ej_recip = frame.reciprocal[j];  // eʲ (reciprocal frame)
                     const d_i_ej = frameDerivs[i][j];      // ∂ᵢeⱼ
 
                     // eʲ ∧ (∂ᵢeⱼ)
-                    const wedge_contrib = Bivector3D.fromWedge(ej_recip, d_i_ej);
+                    const wedge_contrib = this._bivectorFromWedge(ej_recip, d_i_ej);
                     omega_i = omega_i.add(wedge_contrib.scale(0.5));
                 }
 
@@ -497,12 +781,12 @@
          * 
          * @param {number[]} coords - Point on manifold
          * @param {number[]} u - Tangent vector (in coordinate basis)
-         * @returns {Bivector3D}
+         * @returns {Bivector3D|Bivector4D}
          */
         along(coords, u, h = 1e-6) {
             const omegas = this.computeAt(coords, h);
 
-            let result = new Bivector3D(0, 0, 0);
+            let result = this._zeroBivector();
             for (let i = 0; i < omegas.length; i++) {
                 result = result.add(omegas[i].scale(u[i]));
             }
@@ -1083,6 +1367,276 @@
     }
 
     // ============================================================================
+    // 3D MANIFOLD CLASSES
+    // ============================================================================
+
+    /**
+     * 3-Sphere (S³) embedded in R⁴.
+     * 
+     * Coordinates: (χ, θ, φ) where χ, θ ∈ [0, π], φ ∈ [0, 2π)
+     * 
+     * Embedding:
+     *   x = R sin(χ) sin(θ) cos(φ)
+     *   y = R sin(χ) sin(θ) sin(φ)
+     *   z = R sin(χ) cos(θ)
+     *   w = R cos(χ)
+     * 
+     * Metric: ds² = R²(dχ² + sin²χ (dθ² + sin²θ dφ²))
+     * 
+     * Curvature: Constant sectional curvature K = 1/R²
+     *            Ricci = 2/R² · g, Scalar R = 6/R²
+     */
+    class Sphere3D extends RiemannianManifold {
+        constructor(R = 1.0) {
+            super(3, 4);  // 3D manifold in 4D ambient space
+            this.R = R;
+        }
+
+        /**
+         * Embedding map: (χ, θ, φ) → (x, y, z, w)
+         */
+        embedding(coords) {
+            const [chi, theta, phi] = coords;
+            const R = this.R;
+            const sinChi = sin(chi);
+            const cosChi = cos(chi);
+            const sinTheta = sin(theta);
+            const cosTheta = cos(theta);
+
+            return [
+                R * sinChi * sinTheta * cos(phi),  // x
+                R * sinChi * sinTheta * sin(phi),  // y
+                R * sinChi * cosTheta,             // z
+                R * cosChi                         // w
+            ];
+        }
+
+        /**
+         * Tangent frame at (χ, θ, φ).
+         * e_χ = ∂r/∂χ, e_θ = ∂r/∂θ, e_φ = ∂r/∂φ
+         */
+        frame(coords) {
+            const [chi, theta, phi] = coords;
+            const R = this.R;
+
+            // Regularize for numerical stability
+            const sinChi = abs(sin(chi)) > EPSILON ? sin(chi) : EPSILON;
+            const cosChi = cos(chi);
+            const sinTheta = abs(sin(theta)) > EPSILON ? sin(theta) : EPSILON;
+            const cosTheta = cos(theta);
+            const cosPhi = cos(phi);
+            const sinPhi = sin(phi);
+
+            // e_χ = ∂/∂χ [R sin(χ) sin(θ) cos(φ), R sin(χ) sin(θ) sin(φ), R sin(χ) cos(θ), R cos(χ)]
+            const e_chi = [
+                R * cosChi * sinTheta * cosPhi,
+                R * cosChi * sinTheta * sinPhi,
+                R * cosChi * cosTheta,
+                -R * sinChi
+            ];
+
+            // e_θ = ∂/∂θ
+            const e_theta = [
+                R * sinChi * cosTheta * cosPhi,
+                R * sinChi * cosTheta * sinPhi,
+                -R * sinChi * sinTheta,
+                0
+            ];
+
+            // e_φ = ∂/∂φ
+            const e_phi = [
+                -R * sinChi * sinTheta * sinPhi,
+                R * sinChi * sinTheta * cosPhi,
+                0,
+                0
+            ];
+
+            return new TangentFrame([e_chi, e_theta, e_phi], 4);
+        }
+
+        /**
+         * Theoretical sectional curvature: K = 1/R²
+         */
+        theoreticalCurvature() {
+            return 1 / (this.R * this.R);
+        }
+
+        /**
+         * Theoretical scalar curvature: R = 6K = 6/R²
+         */
+        theoreticalScalarCurvature() {
+            return 6 / (this.R * this.R);
+        }
+    }
+
+    /**
+     * 3-Torus (T³) - product of three circles S¹ × S¹ × S¹.
+     * 
+     * Coordinates: (θ₁, θ₂, θ₃) ∈ [0, 2π)³
+     * 
+     * Embedding in R⁴ using Clifford torus style:
+     *   x = r₁ cos(θ₁)
+     *   y = r₁ sin(θ₁)
+     *   z = r₂ cos(θ₂)
+     *   w = r₂ sin(θ₂) + r₃ f(θ₃)  (or flat representation)
+     * 
+     * For flat T³, we use a diagonal metric: ds² = r₁²dθ₁² + r₂²dθ₂² + r₃²dθ₃²
+     * 
+     * Curvature: K = 0 (flat)
+     */
+    class Torus3D extends RiemannianManifold {
+        constructor(r1 = 1.0, r2 = 1.0, r3 = 1.0) {
+            super(3, 4);  // 3D manifold in 4D ambient space
+            this.r1 = r1;
+            this.r2 = r2;
+            this.r3 = r3;
+        }
+
+        /**
+         * Embedding map: (θ₁, θ₂, θ₃) → R⁴
+         * 
+         * We use a Clifford-style embedding where T³ lives on a "hypertorus".
+         */
+        embedding(coords) {
+            const [t1, t2, t3] = coords;
+            const { r1, r2, r3 } = this;
+
+            // Clifford-style: embed as product of circles in orthogonal planes
+            // Combined embedding that spans 4D
+            return [
+                r1 * cos(t1),
+                r1 * sin(t1),
+                r2 * cos(t2) + r3 * cos(t3) * 0.1,  // Slight coupling for non-degeneracy
+                r2 * sin(t2) + r3 * sin(t3) * 0.1
+            ];
+        }
+
+        /**
+         * Tangent frame at (θ₁, θ₂, θ₃).
+         * 
+         * For a flat torus, the frame vectors are simply circle tangents.
+         */
+        frame(coords) {
+            const [t1, t2, t3] = coords;
+            const { r1, r2, r3 } = this;
+
+            // e_1 = ∂/∂θ₁
+            const e_1 = [
+                -r1 * sin(t1),
+                r1 * cos(t1),
+                0,
+                0
+            ];
+
+            // e_2 = ∂/∂θ₂
+            const e_2 = [
+                0,
+                0,
+                -r2 * sin(t2),
+                r2 * cos(t2)
+            ];
+
+            // e_3 = ∂/∂θ₃ (coupled term)
+            const e_3 = [
+                0,
+                0,
+                -r3 * sin(t3) * 0.1,
+                r3 * cos(t3) * 0.1
+            ];
+
+            return new TangentFrame([e_1, e_2, e_3], 4);
+        }
+
+        /**
+         * Theoretical curvature: K = 0 (flat)
+         */
+        theoreticalCurvature() {
+            return 0;
+        }
+    }
+
+    /**
+     * Hyperbolic 3-space (H³) in upper half-space model.
+     * 
+     * Coordinates: (x, y, z) where z > 0
+     * 
+     * Metric: ds² = (dx² + dy² + dz²) / z²
+     * 
+     * Curvature: Constant negative sectional curvature K = -1
+     *            Scalar curvature R = -6
+     */
+    class HyperbolicSpace3D extends RiemannianManifold {
+        constructor() {
+            super(3, 3);  // 3D manifold in 3D coordinates (no embedding)
+        }
+
+        /**
+         * For the upper half-space model, coordinates ARE positions.
+         */
+        embedding(coords) {
+            return coords.slice();
+        }
+
+        /**
+         * Tangent frame for conformal metric g = (1/z²) I.
+         * 
+         * The natural frame is orthonormal w.r.t. the hyperbolic metric:
+         * e_i = z · ê_i where ê_i are standard basis vectors.
+         */
+        frame(coords) {
+            const [x, y, z] = coords;
+            const zSafe = abs(z) > EPSILON ? z : EPSILON;
+
+            // For the conformal metric g = (1/z²)δᵢⱼ,
+            // the coordinate basis has |e_i|² = 1/z²
+            // Using scaled frame: e_i = (1/z) ê_i gives |e_i|² = 1
+            // But for connection computation, use coordinate frame:
+            const e_x = [1, 0, 0];
+            const e_y = [0, 1, 0];
+            const e_z = [0, 0, 1];
+
+            // Create frame with conformal scaling built into metric
+            const frame = new TangentFrame([e_x, e_y, e_z], 3);
+
+            // Override metric computation for conformal factor
+            const zInv2 = 1 / (zSafe * zSafe);
+            frame.metric = () => [
+                [zInv2, 0, 0],
+                [0, zInv2, 0],
+                [0, 0, zInv2]
+            ];
+            frame.metricInverse = () => [
+                [zSafe * zSafe, 0, 0],
+                [0, zSafe * zSafe, 0],
+                [0, 0, zSafe * zSafe]
+            ];
+
+            // Recompute reciprocal with conformal metric
+            frame.reciprocal = [
+                vecScale(e_x, zSafe * zSafe),
+                vecScale(e_y, zSafe * zSafe),
+                vecScale(e_z, zSafe * zSafe)
+            ];
+
+            return frame;
+        }
+
+        /**
+         * Theoretical sectional curvature: K = -1
+         */
+        theoreticalCurvature() {
+            return -1;
+        }
+
+        /**
+         * Theoretical scalar curvature: R = 6K = -6
+         */
+        theoreticalScalarCurvature() {
+            return -6;
+        }
+    }
+
+    // ============================================================================
     // EXPORTS
     // ============================================================================
 
@@ -1090,6 +1644,7 @@
         // Bivector classes
         Bivector2D,
         Bivector3D,
+        Bivector4D,
 
         // Frame and manifold
         TangentFrame,
@@ -1102,10 +1657,15 @@
         // Covariant derivative
         GACovariantDerivative,
 
-        // Concrete manifolds
+        // 2D Manifolds
         Sphere2D,
         Torus2D,
         HyperbolicPlane,
+
+        // 3D Manifolds (NEW)
+        Sphere3D,
+        Torus3D,
+        HyperbolicSpace3D,
 
         // Utilities
         EPSILON,
@@ -1115,7 +1675,8 @@
         normalize,
         vecAdd,
         vecSub,
-        vecScale
+        vecScale,
+        invertMatrix
     };
 
     // Export for different module systems

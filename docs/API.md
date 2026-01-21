@@ -15,9 +15,13 @@ Complete API documentation for the Contact Thermodynamics library.
 - [SpacetimeMetric](#spacetimemetric)
 - [RelativisticHamiltonian](#relativistinghamiltonian)
 - [DifferentialForm](#differentialform)
-- [TriangleMesh](#trianglemesh) (NEW)
-- [MeshGeometricDerivative](#meshgeometricderivative) (NEW)
-- [LeapfrogGCMesh](#leapfroggcmesh) (NEW)
+- [TriangleMesh](#trianglemesh)
+- [MeshGeometricDerivative](#meshgeometricderivative)
+- [LeapfrogGCMesh](#leapfroggcmesh)
+- [Algebra](#algebra) (NEW)
+- [Multivector](#multivector) (NEW)
+- [RiemannianGA](#riemannianga) (NEW)
+- [ProbabilityManifold](#probabilitymanifold) (NEW)
 - [Utility Functions](#utility-functions)
 
 ---
@@ -1032,4 +1036,305 @@ import * as CT from 'contact-thermodynamics';
 
 const manifold: CT.GrandContactManifold = CT.grandManifold();
 const pt: CT.ContactPoint = manifold.physicalPoint(1, 0, 0, 0, 0, 1, 0.5, 0, 0, 1, 0, 1, 0);
+```
+
+---
+
+## Algebra
+
+Clifford Algebra Cl(p, q, r) implementation for Geometric Algebra operations.
+
+**Module:** `src/multivector.js`
+
+### Constructor
+
+```javascript
+new Algebra(p, q, r = 0, basisNames = null)
+```
+
+**Parameters:**
+- `p` *(number)* — Number of positive-signature basis vectors
+- `q` *(number)* — Number of negative-signature basis vectors
+- `r` *(number)* — Number of zero-signature basis vectors (default: 0)
+- `basisNames` *(string[], optional)* — Custom basis vector names
+
+### Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `p`, `q`, `r` | number | Signature |
+| `dim` | number | Space dimension (p + q + r) |
+| `bladeCount` | number | Total blades (2^dim) |
+| `basisNames` | string[] | Basis vector names |
+
+### Methods
+
+#### `e(i)`
+
+Get basis vector eᵢ (1-indexed).
+
+```javascript
+const algebra = new Algebra(3, 0, 0);
+const e1 = algebra.e(1);  // e₁
+const e2 = algebra.e(2);  // e₂
+```
+
+#### `scalar(s)`
+
+Create scalar multivector.
+
+```javascript
+const half = algebra.scalar(0.5);
+```
+
+#### `zero()`
+
+Create zero multivector.
+
+#### `vector(components)`
+
+Create vector from components.
+
+```javascript
+const v = algebra.vector([1, 2, 3]);  // e₁ + 2e₂ + 3e₃
+```
+
+---
+
+## Multivector
+
+Multivector in a Clifford Algebra.
+
+### Constructor
+
+```javascript
+new Multivector(algebra, coeffs = {})
+```
+
+**Parameters:**
+- `algebra` *(Algebra)* — The parent algebra
+- `coeffs` *(Object)* — Coefficient map: blade bitmap → value
+
+### Methods
+
+#### Arithmetic
+
+```javascript
+const sum = a.add(b);
+const diff = a.sub(b);
+const scaled = a.scale(2);
+const neg = a.neg();
+```
+
+#### Products
+
+```javascript
+const geom = a.mul(b);    // Geometric product ab
+const outer = a.wedge(b); // Outer product a∧b
+const inner = a.dot(b);   // Inner product a·b
+```
+
+#### Grade Extraction
+
+```javascript
+const s = mv.scalar();      // Grade-0 (scalar part)
+const v = mv.grade(1);      // Grade-1 (vector part)
+const biv = mv.grade(2);    // Grade-2 (bivector part)
+```
+
+#### Norms and Duals
+
+```javascript
+const rev = mv.reverse();   // Reversion ~A
+const mag = mv.norm();      // |A| = √⟨A~A⟩₀
+const dual = mv.dual();     // Hodge dual
+```
+
+---
+
+## RiemannianGA
+
+Coordinate-free Riemannian geometry via Geometric Algebra.
+
+**Module:** `src/riemannian-ga.js`
+
+### Bivector Classes
+
+#### `Bivector2D`
+
+Bivector in 2D (single component e₁₂).
+
+```javascript
+const biv = new Bivector2D(1.5);  // 1.5 e₁∧e₂
+const rotated = biv.commutatorWithVector([1, 0]);  // Rotate vector
+```
+
+#### `Bivector3D`
+
+Bivector in 3D (three components: e₂₃, e₃₁, e₁₂).
+
+```javascript
+const biv = new Bivector3D(0, 0, 1);  // e₁∧e₂
+const biv2 = Bivector3D.fromWedge([1, 0, 0], [0, 1, 0]);
+```
+
+**Methods:**
+- `add(other)`, `sub(other)`, `scale(s)`, `neg()`
+- `norm()`, `axis()`, `angle()`
+- `commutatorWithVector(v)` — ω × v rotation
+
+### Manifold Classes
+
+| Class | Description | Curvature |
+|-------|-------------|-----------|
+| `Sphere2D(R)` | 2-sphere (embedded in R³) | K = 1/R² |
+| `Torus2D(R, r)` | Torus (R: major, r: minor) | K = cos(θ)/(r(R+r·cos(θ))) |
+| `HyperbolicPlane()` | Upper half-plane H² | K = −1 |
+| `Sphere3D(R)` | 3-sphere (embedded in R⁴) | K = 1/R² |
+| `HyperbolicSpace3D()` | Hyperbolic 3-space H³ | K = −1 |
+
+#### Example: Creating a Manifold
+
+```javascript
+const { Sphere2D, Curvature2Form } = require('./src/riemannian-ga.js');
+
+const sphere = new Sphere2D(1.0);  // Unit sphere
+const frame = sphere.frame([Math.PI/4, Math.PI/3]);  // Tangent frame at (θ, φ)
+const metric = frame.metric();  // Metric tensor gᵢⱼ
+```
+
+### ConnectionBivector
+
+Computes connection bivectors ωᵢ = ½ eʲ ∧ (∂ᵢeⱼ).
+
+```javascript
+const { ConnectionBivector } = require('./src/riemannian-ga.js');
+
+const connection = new ConnectionBivector(sphere);
+const omegas = connection.computeAt([Math.PI/4, 0]);  // Array of bivectors
+const omega_u = connection.along(coords, [1, 0]);    // ω(∂θ)
+```
+
+### Curvature2Form
+
+Computes curvature from connection: Ω = dω + ω∧ω.
+
+```javascript
+const { Curvature2Form } = require('./src/riemannian-ga.js');
+
+const curvature = new Curvature2Form(sphere);
+const K = curvature.gaussianCurvature([Math.PI/4, 0]);
+// K = 1.0 for unit sphere
+```
+
+**Methods:**
+- `gaussianCurvature(coords)` — Gaussian curvature K
+- `scalar()` — Scalar curvature R
+- `sectional(u, v, coords)` — Sectional curvature K(u, v)
+
+---
+
+## ProbabilityManifold
+
+Contact geometry of probability distributions (Information Geometry).
+
+**Module:** `src/information-geometry.js`
+
+Based on John Baez's Information Geometry series (Parts 18, 19).
+
+### Constructor
+
+```javascript
+new ProbabilityManifold(n)
+```
+
+**Parameters:**
+- `n` *(number)* — Number of microstates (dimension of probability vector)
+
+### Coordinates
+
+The extended phase space has dimension 2n + 1:
+- q^i: Probabilities (analogous to position)
+- p_i: Surprisals (conjugate variables, analogous to momentum)
+- S: Shannon entropy (analogous to action)
+
+### Methods
+
+#### `entropy(q)`
+
+Compute Shannon entropy S(q) = −Σ qᵢ ln(qᵢ).
+
+```javascript
+const manifold = new ProbabilityManifold(2);
+const S = manifold.entropy([0.3, 0.7]);
+// S ≈ 0.6109
+```
+
+#### `surprisal(q)`
+
+Compute surprisal pᵢ = −ln(qᵢ) − 1.
+
+```javascript
+const p = manifold.surprisal([0.3, 0.7]);
+// p = [0.204, -0.643]
+```
+
+#### `contactForm(q, p)`
+
+Construct contact form α = dS − pᵢ dqⁱ.
+
+```javascript
+const alpha = manifold.contactForm(q, p);  // Returns Multivector
+```
+
+#### `volumeForm(q, p)`
+
+Compute α ∧ (dα)ⁿ (non-zero verifies contact structure).
+
+```javascript
+const vol = manifold.volumeForm(q, p);
+console.log(vol.norm());  // Non-zero = valid contact manifold
+```
+
+#### `checkLegendrianCondition(q)`
+
+Verify that the probability distribution submanifold is Legendrian.
+
+```javascript
+const results = manifold.checkLegendrianCondition([0.3, 0.7]);
+// results = [{ k: 0, contraction: 0, passed: true }, ...]
+```
+
+---
+
+## Discrete Riemannian Geometry
+
+**Module:** `src/riemannian-discrete.js`
+
+### MeshCurvature2Form
+
+Computes discrete curvature on triangle meshes via angle defects.
+
+```javascript
+const { MeshCurvature2Form } = require('./src/riemannian-discrete.js');
+const { TriangleMesh } = require('./src/mesh.js');
+
+const mesh = TriangleMesh.createIcosahedron(1.0);
+const curvature = new MeshCurvature2Form(mesh);
+
+const defects = curvature.angleDefects();  // K_v at each vertex
+const totalK = curvature.totalCurvature(); // Σ K_v = 2πχ
+const chi = curvature.eulerCharacteristic(); // χ = V - E + F
+```
+
+### MeshConnectionBivector
+
+Computes connection bivectors at mesh edges (dihedral rotations).
+
+```javascript
+const { MeshConnectionBivector } = require('./src/riemannian-discrete.js');
+
+const connection = new MeshConnectionBivector(mesh);
+const omegas = connection.compute();  // Bivector3D[] per edge
+const omega_e = connection.at(edgeIdx);
 ```

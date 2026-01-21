@@ -11,6 +11,8 @@ A comprehensive guide to the mathematical foundations of Contact Thermodynamics.
 5. [Legendrian Submanifolds](#5-legendrian-submanifolds)
 6. [Thermodynamic Interpretation](#6-thermodynamic-interpretation)
 7. [Gravitational Extension](#7-gravitational-extension)
+8. [Riemannian Geometry via Geometric Algebra](#8-riemannian-geometry-via-geometric-algebra)
+9. [Information Geometry](#9-information-geometry)
 
 ---
 
@@ -385,6 +387,98 @@ The Laplacian solver respects these constraints, setting ∇²u = 0 at Dirichlet
 
 ---
 
+## 8. Riemannian Geometry via Geometric Algebra
+
+The library implements **coordinate-free Riemannian geometry** using Geometric Algebra (GA), eliminating Christoffel symbols in favor of bivector-valued forms.
+
+### The Connection Bivector
+
+Instead of Christoffel symbols Γᵏᵢⱼ, we use the **connection bivector**:
+
+$$\boxed{\omega_i = \frac{1}{2} e^j \wedge \partial_i e_j}$$
+
+This encodes how the tangent frame rotates as you move along the manifold.
+
+### Parallel Transport
+
+For a vector v transported along direction u:
+
+$$\nabla_u v = u \cdot \partial v + \omega(u) \times v$$
+
+The commutator ω × v performs infinitesimal rotation in the plane of ω.
+
+### Curvature 2-Form
+
+The curvature emerges as:
+
+$$\boxed{\Omega = d\omega + \omega \wedge \omega}$$
+
+This is the **Cartan structure equation**. For 2D surfaces, this reduces to Gaussian curvature K.
+
+### Key Results
+
+| Manifold | Curvature |
+|----------|-----------|
+| Sphere S²(R) | K = 1/R² (constant positive) |
+| Torus T² | K = cos(θ) / (r(R + r cos θ)) (variable) |
+| Hyperbolic Plane H² | K = −1 (constant negative) |
+
+### Gauss-Bonnet Theorem
+
+The total curvature is a topological invariant:
+
+$$\int_M K \, dA = 2\pi \chi(M)$$
+
+where χ = V − E + F is the Euler characteristic. Verified numerically in tests.
+
+### Holonomy
+
+Parallel transporting around a closed loop at colatitude θ on the sphere yields rotation:
+
+$$\text{Holonomy angle} = 2\pi(1 - \cos\theta) = \iint K \, dA$$
+
+---
+
+## 9. Information Geometry
+
+Probability distributions form a **contact manifold** with coordinates:
+
+| Variable | Description | Role |
+|----------|-------------|------|
+| qⁱ | Probabilities | Position (base) |
+| pᵢ = −ln(qⁱ) − 1 | Surprisal | Momentum (conjugate) |
+| S = −Σ qⁱ ln(qⁱ) | Shannon Entropy | Action |
+
+### Contact Form
+
+$$\alpha = dS - p_i \, dq^i$$
+
+This is the canonical contact form on the probability simplex.
+
+### Legendrian Condition
+
+Probability distributions satisfy α|_L = 0 automatically:
+
+$$dS = p_i \, dq^i \implies S = -\sum_i q^i \ln q^i$$
+
+Each distribution is a point on a **Legendrian submanifold**.
+
+### Fisher Metric
+
+The natural Riemannian metric on probability space is the **Fisher information**:
+
+$$g_{ij} = \mathbb{E}\left[\frac{\partial \ln p}{\partial q^i} \frac{\partial \ln p}{\partial q^j}\right] = \frac{\delta_{ij}}{q^i}$$
+
+This is related to the Hessian of entropy.
+
+### References (Baez)
+
+Based on John Baez's "Information Geometry" series:
+- Part 18: Legendre transform and contact geometry
+- Part 19: Surprisal as conjugate variable
+
+---
+
 ## References
 
 1. Arnold, V.I. — *Mathematical Methods of Classical Mechanics*
@@ -395,3 +489,5 @@ The Laplacian solver respects these constraints, setting ∇²u = 0 at Dirichlet
 6. Crane, K. — *Discrete Differential Geometry: An Applied Introduction* (CMU)
 7. Desbrun, M. et al. — "Discrete Exterior Calculus" (2005)
 8. Hestenes, D. & Sobczyk, G. — *Clifford Algebra to Geometric Calculus*
+9. Doran, C. & Lasenby, A. — *Geometric Algebra for Physicists*
+10. Baez, J. — "Information Geometry" blog series, The n-Category Café

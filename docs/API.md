@@ -799,6 +799,94 @@ const gradF = nabla.grad(f); // Float64Array on edges
 
 **Returns:** Float64Array — Vector field on edges
 
+---
+
+## Entropic Gravity
+
+Implementation of Bianconi's "Gravity from Entropy" framework, integrated with Contact Thermodynamics.
+
+### Logic
+
+Gravity emerges from the interplay between two metrics:
+- **g**: The "quantum" spacetime metric (operator)
+- **G**: The "classical" matter-induced metric (state)
+- **S(G||g)**: Relative entropy action generating dynamics
+
+### MatterInducedMetric
+
+Constructs the metric G induced by matter fields.
+
+#### Constructor
+
+```javascript
+new EntropicGravity.MatterInducedMetric(options)
+```
+
+**Parameters:**
+- `options` *(Object)*
+    - `scalarField` *(Function)*: φ(x) → number
+    - `vectorPotential` *(Function)*: A(x) → [A₀, A₁, A₂, A₃]
+    - `twoFormPotential` *(Function)*: B(x) → 4×4 antisymmetric matrix
+    - `ricciTensor` *(Function)*: R(x) → 4×4 matrix (Ricci curvature of g)
+
+#### Methods
+
+- `covariant(x, gInv)`: Returns G_μν
+- `contravariant(x, gInv)`: Returns G^μν
+- `fieldStrength(x)`: Computes F_μν = ∂_μA_ν - ∂_νA_μ
+
+### TwoMetricSystem
+
+Manages the pair (g, G).
+
+#### Constructor
+
+```javascript
+new EntropicGravity.TwoMetricSystem(g, G)
+```
+
+**Parameters:**
+- `g`: SpacetimeMetric instance
+- `G`: MatterInducedMetric instance
+
+#### Methods
+
+- `spacetimeMetric(x)`: Returns g_μν
+- `matterMetric(x)`: Returns G_μν
+- `metricRatio(x)`: Returns G · g⁻¹
+
+### RelativeEntropyAction
+
+Computes S(G||g).
+
+#### Methods
+
+- `localDensity(x)`: returns Tr(Gg⁻¹ ln(Gg⁻¹) - (Gg⁻¹ - I))
+- `integrand(x)`: returns local density * √|g|
+
+### EntropicGravityHamiltonian
+
+Contact Hamiltonian including the entropic potential.
+
+$$ H = H_{geo} + \alpha S(G||g) $$
+
+#### Constructor
+
+```javascript
+new EntropicGravity.EntropicGravityHamiltonian(manifold, system, options)
+```
+
+**Parameters:**
+- `manifold`: ContactManifold
+- `system`: TwoMetricSystem
+- `options`: { mass, entropicCoupling }
+
+#### Methods
+
+- `evaluate(pt)`: Returns H(pt)
+- `flow(pt, dt, steps)`: Integrates trajectory
+
+
 #### `div(V)`
 
 Divergence of vector field.
@@ -1338,3 +1426,160 @@ const connection = new MeshConnectionBivector(mesh);
 const omegas = connection.compute();  // Bivector3D[] per edge
 const omega_e = connection.at(edgeIdx);
 ```
+
+---
+
+## EntropicGravity (NEW)
+
+The `entropic-gravity` module implements Bianconi's "Gravity from Entropy" framework.
+
+### MatterInducedMetric
+
+Defines the metric $G_{\mu\nu}$ induced by topological matter fields.
+
+#### Constructor
+
+```javascript
+new EntropicGravity.MatterInducedMetric(options)
+```
+
+**Parameters:**
+- `options.scalarField` *(Function)* — $\phi(x) \to number$
+- `options.vectorPotential` *(Function)* — $A_\mu(x) \to [A_0, A_1, A_2, A_3]$
+- `options.twoFormPotential` *(Function)* — $B_{\mu\nu}(x) \to 4 \times 4$ matrix
+
+#### Methods
+
+- `covariant(x, gInv)`: Compute $G_{\mu\nu}$ at $x$.
+- `contravariant(x)`: Compute $G^{\mu\nu}$ at $x$.
+
+### TwoMetricSystem
+
+Manages the spacetime metric $g$ and matter metric $G$.
+
+#### Constructor
+
+```javascript
+new EntropicGravity.TwoMetricSystem(g, G)
+```
+
+**Parameters:**
+- `g` *(SpacetimeMetric)* — Spacetime metric
+- `G` *(MatterInducedMetric)* — Matter-induced metric
+
+#### Methods
+
+- `spacetimeMetric(x)`: Get $g_{\mu\nu}(x)$.
+- `matterMetric(x)`: Get $G_{\mu\nu}(x)$.
+- `metricDifference(x)`: Get $G_{\mu\nu} - g_{\mu\nu}$.
+- `metricRatio(x)`: Get $G \cdot g^{-1}$.
+
+### RelativeEntropyAction
+
+Computes the quantum relative entropy functional $S(G||g)$.
+
+$$ S(G||g) = \int d^4x \sqrt{|g|} \text{Tr}[G(\ln G - \ln g)] $$
+
+#### Constructor
+
+```javascript
+new EntropicGravity.RelativeEntropyAction(twoMetricSystem)
+```
+
+#### Methods
+
+- `localDensity(x)`: Compute integrand at point $x$.
+- `totalAction(bounds)`: Integrate action over a region.
+- `variationWrtMetric(x)`: Compute entropic stress-energy tensor $\delta S/\delta g^{\mu\nu}$.
+
+### EmergentCosmologicalConstant
+
+Computes the emergent $\Lambda_G$ field.
+
+$$ \Lambda_G = \frac{1}{4} \text{Tr}(G \cdot g^{-1} - 4I) $$
+
+#### Constructor
+
+```javascript
+new EntropicGravity.EmergentCosmologicalConstant(twoMetricSystem)
+```
+
+#### Methods
+
+- `localValue(x)`: Compute $\Lambda_G(x)$.
+- `classify(x)`: Returns 'de Sitter', 'anti-de Sitter', or 'Minkowski'.
+
+### EntropicGravityHamiltonian
+
+Combines GMET kinematics with Bianconi dynamics.
+
+$$ H = H_{geo} + \alpha S(G||g) $$
+
+#### Constructor
+
+```javascript
+new EntropicGravity.EntropicGravityHamiltonian(manifold, system, options)
+```
+
+**Parameters:**
+- `manifold` *(GrandContactManifold)* — 13D manifold
+- `system` *(TwoMetricSystem)* — The (g, G) system
+- `options.mass` *(number)* — Particle mass
+- `options.entropicCoupling` *(number)* — Strength $\alpha$
+
+#### Methods
+
+- `evaluate(coords)`: Compute H.
+- `flow(pt, dt, steps)`: Integrate trajectory.
+
+---
+
+## Discrete Mesh Entropic Gravity
+
+For 2D surfaces represented as triangle meshes, there is a simplified discrete formulation.
+
+### Key Differences from Continuum Module
+
+| Aspect | Continuum (`entropic-gravity.js`) | Discrete (`mesh-entropic-gravity.js`) |
+|--------|-----------------------------------|---------------------------------------|
+| Geometry | 4D spacetime | 2D surface mesh |
+| Metric g | Schwarzschild / FLRW | Implicit in edge lengths |
+| Metric G | Full 4×4 with φ, A, B fields | L² = l² + (Δφ)² per edge |
+| Entropy | Matrix trace formula | Area ratio: S = R log R - (R-1) |
+| Dynamics | Contact Hamiltonian flow | Gradient-based (planned) |
+
+### Discrete Formula
+
+Given a scalar matter field φ on vertices:
+
+1. **Perturbed Edge Lengths**: $L_{ij}^2 = l_{ij}^2 + (\phi_j - \phi_i)^2$
+2. **Perturbed Face Areas**: Computed via Heron's formula with $L$ lengths
+3. **Relative Entropy Density per Face**:
+   $$ s_f = R \ln R - (R - 1), \quad R = \frac{A_G^{(f)}}{A_g^{(f)}} $$
+4. **Total Entropy**: $S = \sum_f s_f \cdot A_g^{(f)}$
+
+### Usage Example
+
+```javascript
+const Mesh = require('../src/mesh.js');
+
+// Create sphere mesh
+const mesh = Mesh.TriangleMesh.createIcosahedron(5.0);
+
+// Define scalar field (Gaussian at north pole)
+const phi = new Float64Array(mesh.nVertices);
+// ... populate phi ...
+
+// Compute perturbed edge lengths
+const g_lengths = mesh.edgeLengths();
+const G_lengths = new Float64Array(mesh.nEdges);
+for (let e = 0; e < mesh.nEdges; e++) {
+    const v0 = mesh.edges[2*e], v1 = mesh.edges[2*e + 1];
+    const dphi = phi[v1] - phi[v0];
+    G_lengths[e] = Math.sqrt(g_lengths[e]**2 + dphi**2);
+}
+
+// Compute entropy density per face using Heron's formula
+// ... (see examples/mesh-entropic-gravity.js)
+```
+

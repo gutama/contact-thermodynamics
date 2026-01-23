@@ -1536,11 +1536,13 @@
     // MESH / FTGC IMPORTS (Discrete Geometric Calculus on Meshes)
     // ============================================================================
 
-    let MeshModule, MeshFTGCModule, MeshSolversModule;
+    let MeshModule, MeshFTGCModule, MeshSolversModule, EntropicGravityModule, MeshEntropicFlowModule;
     if (typeof require !== 'undefined') {
         MeshModule = require('./mesh.js');
         MeshFTGCModule = require('./mesh-ftgc.js');
         MeshSolversModule = require('./mesh-solvers.js');
+        EntropicGravityModule = require('./entropic-gravity.js');
+        MeshEntropicFlowModule = require('./mesh-entropic-flow.js');
     }
 
     // ============================================================================
@@ -1575,6 +1577,13 @@
         ...(MeshModule || {}),
         ...(MeshFTGCModule || {}),
         ...(MeshSolversModule || {}),
+
+        // Entropic Gravity (Bianconi Framework)
+        // Two-metric system (g, G), relative entropy action, modified Einstein equations
+        ...(EntropicGravityModule || {}),
+
+        // Entropic Gradient Flow on Meshes (Particles + Dynamic Spacetimes)
+        ...(MeshEntropicFlowModule || {}),
 
         // Riemannian Geometry via Geometric Calculus (NEW)
         // Coordinate-free formulations with connection bivectors

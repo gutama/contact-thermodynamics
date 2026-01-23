@@ -491,3 +491,45 @@ Based on John Baez's "Information Geometry" series:
 8. Hestenes, D. & Sobczyk, G. — *Clifford Algebra to Geometric Calculus*
 9. Doran, C. & Lasenby, A. — *Geometric Algebra for Physicists*
 10. Baez, J. — "Information Geometry" blog series, The n-Category Café
+11. Bianconi, G. — *The Entropy of Network Ensembles* (related framework)
+
+---
+
+## 10. Entropic Gravity from Relative Entropy
+
+This library implements the "Gravity from Entropy" framework, positing that gravity emerges from the information-theoretic distance between a "quantum" spacetime geometry and a "classical" matter-induced geometry.
+
+### The Two Metrics
+
+The theory introduces a dual metric system:
+
+1.  **Spacetime Metric ($g_{\mu\nu}$)**: Represents the quantum geometric operator. This is the background geometry.
+2.  **Matter-Induced Metric ($G_{\mu\nu}$)**: Represents the classical state defined by topological matter fields.
+
+$$ G_{\mu\nu} = g_{\mu\nu} + \sum_k \partial_\mu \phi_k \partial_\nu \phi_k + \dots $$
+
+where $\phi_k$ are matter fields (scalars, vectors, etc.).
+
+### Quantum Relative Entropy Action
+
+The dynamics are governed by minimizing the quantum relative entropy between the state $G$ and the operator $g$:
+
+$$ S(G || g) = \int d^4x \sqrt{|g|} \, \text{Tr} \left[ G g^{-1} \ln(G g^{-1}) - (G g^{-1} - I) \right] $$
+
+This action measures how much the matter-induced geometry $G$ "surprises" the background geometry $g$.
+
+### Emergent Dynamics
+
+1.  **Emergent Cosmological Constant**: The trace of the metric mismatch gives rise to a variable cosmological term:
+    $$ \Lambda_G = \frac{1}{4} \text{Tr}(G g^{-1} - 4I) $$
+
+2.  **Modified Einstein Equations**: Variation with respect to $g$ yields Einstein equations with an entropic stress-energy source.
+
+### Integration with Contact Mechanics
+
+In our GMET framework, we treat the entropic action $S(G||g)$ as a potential function added to the geometric Hamiltonian:
+
+$$ H_{total} = H_{geodesic} + \alpha_{coupling} \cdot S(G||g) $$
+
+Particles thus follow "entropic geodesics" — paths that balance inertial motion with the tendency to maximize information entropy (or minimize relative entropy divergence).
+

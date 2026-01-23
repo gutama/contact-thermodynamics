@@ -43,6 +43,10 @@ A JavaScript implementation of **Contact Geometry for Extended Thermodynamics** 
   - **Christoffel Symbols**: Automatic computation from spacetime metrics
   - **Covariant Derivative**: ∇ operator for vectors and tensors
   - **Parallel Transport**: Connection-preserving transport along curves
+- **Entropic Gravity** (NEW):
+  - **Matter-Induced Metric**: G_μν derived from matter fields
+  - **Relative Entropy Action**: S(G||g) generating dynamics
+  - **Emergent Parameters**: Cosmological constant Λ from metric mismatch
 - **Interactive Visualization**: Browser-based demos including **3D EM Wave** and **Riemannian Geodesics**
 
 ## 📐 Mathematical Foundation
@@ -220,6 +224,7 @@ contact-thermodynamics/
 │   ├── geometric-calculus.js # Discrete operators (grids)
 │   ├── riemannian-ga.js      # Coordinate-free Riemannian geometry
 │   ├── riemannian-discrete.js# Discrete Riemannian on meshes (NEW)
+│   ├── entropic-gravity.js   # Entropic Gravity (Bianconi) (NEW)
 │   ├── geodesic-ga.js        # Geodesic solver, parallel transport
 │   ├── mesh.js               # Triangle mesh data structure
 │   ├── mesh-ftgc.js          # FTGC operators on meshes

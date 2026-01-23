@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discrete Differential Geometry via Geometric Algebra</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #e8e8e8;
+            min-height: 100vh;
+        }
+        h1 {
+            text-align: center;
+            color: #00d9ff;
+            text-shadow: 0 0 10px rgba(0, 217, 255, 0.5);
+        }
+        h2 {
+            color: #7b68ee;
+            border-bottom: 2px solid #7b68ee;
+            padding-bottom: 8px;
+        }
+        h3 {
+            color: #ff6b9d;
+        }
+        .section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .formula {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            border-left: 4px solid #00d9ff;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+        .result {
+            background: rgba(0, 100, 0, 0.2);
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #00ff88;
+            margin: 10px 0;
+        }
+        .error {
+            background: rgba(100, 0, 0, 0.2);
+            border-left-color: #ff4444;
+        }
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .test-card {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            padding: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .test-card h4 {
+            margin-top: 0;
+            color: #ffd700;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        th {
+            background: rgba(0, 217, 255, 0.2);
+            color: #00d9ff;
+        }
+        .pass { color: #00ff88; }
+        .fail { color: #ff4444; }
+        canvas {
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            background: #000;
+        }
+        .canvas-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+        code {
+            background: rgba(0, 217, 255, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+        .insight {
+            background: rgba(123, 104, 238, 0.2);
+            border-left: 4px solid #7b68ee;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🌀 Discrete Differential Geometry via Geometric Algebra</h1>
+    
+    <div class="section">
+        <h2>Overview</h2>
+        <p>This demonstration shows how <strong>Geometric Algebra</strong> naturally expresses discrete curvature concepts from Keenan Crane's DDG course. The key insight is that the <strong>wedge product computes determinants</strong>, which are fundamental to signed areas and volumes needed for curvature.</p>
+        
+        <div class="insight">
+            <strong>Key Connection:</strong> The wedge product of n vectors equals the determinant of those vectors times the pseudoscalar:
+            <div class="formula">a ∧ b ∧ ... ∧ n = det([a, b, ..., n]) · I</div>
+            This provides coordinate-free computation of:
+            <ul>
+                <li><strong>Signed areas</strong> (via 2-blade magnitude)</li>
+                <li><strong>Signed volumes</strong> (via 3-blade magnitude)</li>
+                <li><strong>Triangle normals</strong> (via Euclidean part of join)</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>1. Wedge Product ↔ Determinant Connection</h2>
+        
+        <div class="formula">
+            <strong>2D:</strong> a ∧ b = (a₁b₂ - a₂b₁) e₁₂ = det([a,b]) e₁₂<br><br>
+            <strong>3D:</strong> a ∧ b ∧ c = det([a,b,c]) e₁₂₃
+        </div>
+        
+        <h3>Test: Triangle Area via Wedge Product</h3>
+        <div id="wedge-test-results"></div>
+    </div>
+
+    <div class="section">
+        <h2>2. Discrete Gaussian Curvature (Angle Defect)</h2>
+        
+        <div class="formula">
+            <strong>Interior vertex:</strong> K_i = 2π - Σ θⱼ<br>
+            <strong>Boundary vertex:</strong> K_i = π - Σ θⱼ
+        </div>
+        
+        <div class="insight">
+            <strong>Gauss-Bonnet Theorem:</strong> ∫K dA = 2πχ<br>
+            For discrete surfaces: Σ K_i = 2π × (Euler characteristic)
+        </div>
+        
+        <div id="gaussian-test-results"></div>
+    </div>
+
+    <div class="section">
+        <h2>3. Discrete Mean Curvature (Cotan-Laplace)</h2>
+        
+        <div class="formula">
+            H⃗_i = (1/2A_i) Σ (cot α_ij + cot β_ij)(v_j - v_i)
+        </div>
+        
+        <p>The <strong>cotangent weights</strong> naturally arise from the ratio of triangle areas, which are wedge product magnitudes.</p>
+        
+        <div id="mean-test-results"></div>
+    </div>
+
+    <div class="section">
+        <h2>4. CGA Curvature via Osculating Circles</h2>
+        
+        <p>In <strong>Conformal Geometric Algebra</strong>, circles are first-class objects. The osculating circle at a curve point directly encodes curvature: κ = 1/r</p>
+        
+        <div class="formula">
+            Circle through P₁, P₂, P₃ = P₁ ∧ P₂ ∧ P₃<br>
+            Curvature κ = 1/radius(circle)
+        </div>
+        
+        <div id="cga-test-results"></div>
+    </div>
+
+    <div class="section">
+        <h2>5. PGA Mesh Operations ("Clean up your Mesh!")</h2>
+        
+        <div class="formula">
+            <strong>Edge:</strong> E = v₀ ∨ v₁, Length = ‖E‖<br>
+            <strong>Triangle:</strong> T = v₀ ∨ v₁ ∨ v₂, Area = ½‖T‖<br>
+            <strong>Tetrahedron:</strong> V = v₀ ∨ v₁ ∨ v₂ ∨ v₃, Volume = ⅙‖V‖
+        </div>
+        
+        <div class="insight">
+            <strong>"Mind the Gap" Technique:</strong><br>
+            Mesh Volume = (1/6) × ‖Σ faces‖_∞ (ideal norm)<br>
+            This computes volume from boundary faces without tetrahedralization!
+        </div>
+        
+        <div id="pga-test-results"></div>
+    </div>
+
+    <div class="section">
+        <h2>6. Visualization: Curvature on Unit Sphere</h2>
+        <div class="canvas-container">
+            <canvas id="curvature-canvas" width="600" height="400"></canvas>
+        </div>
+        <p id="sphere-info"></p>
+    </div>
+
+    <div class="section">
+        <h2>Summary of Results</h2>
+        <table id="summary-table">
+            <thead>
+                <tr>
+                    <th>Test</th>
+                    <th>Expected</th>
+                    <th>Computed</th>
+                    <th>Error</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <script src="ga_vanilla.js"></script>
+    <script src="ga_discrete_curvature.js"></script>
+    <script>
+        // ============================================================================
+        // Test Runner
+        // ============================================================================
+        
+        const results = [];
+        const summaryBody = document.querySelector('#summary-table tbody');
+        
+        function addResult(name, expected, computed, tolerance = 0.01) {
+            const error = Math.abs(expected - computed);
+            const pass = error < tolerance;
+            results.push({ name, expected, computed, error, pass });
+            
+            const row = summaryBody.insertRow();
+            row.innerHTML = `
+                <td>${name}</td>
+                <td>${expected.toFixed(6)}</td>
+                <td>${computed.toFixed(6)}</td>
+                <td>${error.toFixed(6)}</td>
+                <td class="${pass ? 'pass' : 'fail'}">${pass ? '✓ PASS' : '✗ FAIL'}</td>
+            `;
+        }
+
+        // ============================================================================
+        // 1. Wedge Product Tests
+        // ============================================================================
+        
+        (function() {
+            const container = document.getElementById('wedge-test-results');
+            let html = '<div class="test-grid">';
+            
+            // Test 1: Triangle area
+            const v0 = [0, 0, 0];
+            const v1 = [1, 0, 0];
+            const v2 = [0, 1, 0];
+            
+            const area = DDG.WedgeDeterminant.triangleArea(v0, v1, v2);
+            const expectedArea = 0.5;
+            
+            html += `
+                <div class="test-card">
+                    <h4>Triangle Area (unit right triangle)</h4>
+                    <p>Vertices: (0,0,0), (1,0,0), (0,1,0)</p>
+                    <p>Area = ½|e₁ ∧ e₂| = ½ × 1 = <strong>${area.toFixed(4)}</strong></p>
+                    <p class="${Math.abs(area - expectedArea) < 0.001 ? 'pass' : 'fail'}">
+                        Expected: ${expectedArea}
+                    </p>
+                </div>
+            `;
+            addResult('Triangle Area (wedge)', expectedArea, area);
+            
+            // Test 2: Tetrahedron volume
+            const v3 = [0, 0, 1];
+            const volume = DDG.WedgeDeterminant.tetraVolume(v0, v1, v2, v3);
+            const expectedVolume = 1/6;
+            
+            html += `
+                <div class="test-card">
+                    <h4>Tetrahedron Volume</h4>
+                    <p>Vertices: origin + unit axes</p>
+                    <p>Volume = ⅙|e₁ ∧ e₂ ∧ e₃| = <strong>${volume.toFixed(4)}</strong></p>
+                    <p class="${Math.abs(volume - expectedVolume) < 0.001 ? 'pass' : 'fail'}">
+                        Expected: ${expectedVolume.toFixed(4)}
+                    </p>
+                </div>
+            `;
+            addResult('Tetra Volume (wedge)', expectedVolume, volume);
+            
+            // Test 3: 2D Determinant
+            const det = DDG.WedgeDeterminant.det2D([3, 1], [2, 4]);
+            const expectedDet = 3*4 - 1*2; // = 10
+            
+            html += `
+                <div class="test-card">
+                    <h4>2D Determinant</h4>
+                    <p>det([3,1], [2,4]) = 3×4 - 1×2 = <strong>${det}</strong></p>
+                    <p class="${det === expectedDet ? 'pass' : 'fail'}">
+                        Expected: ${expectedDet}
+                    </p>
+                </div>
+            `;
+            addResult('2D Determinant', expectedDet, det);
+            
+            html += '</div>';
+            container.innerHTML = html;
+        })();
+
+        // ============================================================================
+        // 2. Gaussian Curvature Tests
+        // ============================================================================
+        
+        (function() {
+            const container = document.getElementById('gaussian-test-results');
+            let html = '<div class="test-grid">';
+            
+            // Test on icosphere (should have K > 0 everywhere, total = 4π)
+            const sphere = DDG.Primitives.icosphere(2);
+            const curvature = new DDG.DiscreteCurvature();
+            curvature.loadMesh(sphere.vertices, sphere.faces);
+            
+            const gb = curvature.verifyGaussBonnet();
+            
+            html += `
+                <div class="test-card">
+                    <h4>Icosphere (χ = 2)</h4>
+                    <p>Vertices: ${sphere.vertices.length}, Faces: ${sphere.faces.length}</p>
+                    <p>Euler χ = V - E + F = <strong>${gb.eulerCharacteristic}</strong></p>
+                    <p>Total K = <strong>${gb.totalGaussianCurvature.toFixed(4)}</strong></p>
+                    <p>Expected (2πχ) = <strong>${gb.expected.toFixed(4)}</strong></p>
+                    <p class="${gb.verified ? 'pass' : 'fail'}">
+                        Error: ${gb.error.toFixed(6)} ${gb.verified ? '✓' : '✗'}
+                    </p>
+                </div>
+            `;
+            addResult('Gauss-Bonnet (sphere)', gb.expected, gb.totalGaussianCurvature, 0.1);
+            
+            // Test on torus (should have K alternating +/-, total = 0)
+            const torus = DDG.Primitives.torus(2, 0.5, 24, 12);
+            curvature.loadMesh(torus.vertices, torus.faces);
+            
+            const gbTorus = curvature.verifyGaussBonnet();
+            
+            html += `
+                <div class="test-card">
+                    <h4>Torus (χ = 0)</h4>
+                    <p>Vertices: ${torus.vertices.length}, Faces: ${torus.faces.length}</p>
+                    <p>Euler χ = <strong>${gbTorus.eulerCharacteristic}</strong></p>
+                    <p>Total K = <strong>${gbTorus.totalGaussianCurvature.toFixed(4)}</strong></p>
+                    <p>Expected (2πχ) = <strong>${gbTorus.expected.toFixed(4)}</strong></p>
+                    <p class="${gbTorus.verified ? 'pass' : 'fail'}">
+                        Error: ${gbTorus.error.toFixed(6)} ${gbTorus.verified ? '✓' : '✗'}
+                    </p>
+                </div>
+            `;
+            addResult('Gauss-Bonnet (torus)', gbTorus.expected, gbTorus.totalGaussianCurvature, 0.1);
+            
+            // Test individual vertex curvature on sphere (should be ~4π/V)
+            const avgK = gb.totalGaussianCurvature / sphere.vertices.length;
+            const K0 = curvature.gaussianCurvature(0);
+            
+            html += `
+                <div class="test-card">
+                    <h4>Vertex Curvature (Sphere)</h4>
+                    <p>Sample vertex K = <strong>${K0.toFixed(4)}</strong></p>
+                    <p>Average K = 4π/V = <strong>${avgK.toFixed(4)}</strong></p>
+                    <p>Note: Individual vertices vary due to triangulation</p>
+                </div>
+            `;
+            
+            html += '</div>';
+            container.innerHTML = html;
+        })();
+
+        // ============================================================================
+        // 3. Mean Curvature Tests
+        // ============================================================================
+        
+        (function() {
+            const container = document.getElementById('mean-test-results');
+            let html = '<div class="test-grid">';
+            
+            // Test on unit sphere (H should be 1 everywhere)
+            const sphere = DDG.Primitives.icosphere(2);
+            const curvature = new DDG.DiscreteCurvature();
+            curvature.loadMesh(sphere.vertices, sphere.faces);
+            
+            // Sample mean curvature at several vertices
+            let sumH = 0;
+            const sampleSize = Math.min(20, sphere.vertices.length);
+            for (let i = 0; i < sampleSize; i++) {
+                sumH += curvature.meanCurvature(i);
+            }
+            const avgH = sumH / sampleSize;
+            
+            html += `
+                <div class="test-card">
+                    <h4>Mean Curvature (Unit Sphere)</h4>
+                    <p>For unit sphere: H = 1/r = 1</p>
+                    <p>Computed average H = <strong>${avgH.toFixed(4)}</strong></p>
+                    <p class="${Math.abs(avgH - 1) < 0.2 ? 'pass' : 'fail'}">
+                        ${Math.abs(avgH - 1) < 0.2 ? '✓ Close to 1' : '✗ Deviation from 1'}
+                    </p>
+                </div>
+            `;
+            addResult('Mean Curvature (sphere)', 1.0, avgH, 0.3);
+            
+            // Principal curvatures at a vertex
+            const [k1, k2] = curvature.principalCurvatures(0);
+            
+            html += `
+                <div class="test-card">
+                    <h4>Principal Curvatures</h4>
+                    <p>κ₁ = <strong>${k1.toFixed(4)}</strong></p>
+                    <p>κ₂ = <strong>${k2.toFixed(4)}</strong></p>
+                    <p>For sphere: κ₁ = κ₂ = 1/r</p>
+                    <p>H = (κ₁ + κ₂)/2 = ${((k1 + k2) / 2).toFixed(4)}</p>
+                    <p>K = κ₁ × κ₂ = ${(k1 * k2).toFixed(4)}</p>
+                </div>
+            `;
+            
+            html += '</div>';
+            container.innerHTML = html;
+        })();
+
+        // ============================================================================
+        // 4. CGA Curvature Tests
+        // ============================================================================
+        
+        (function() {
+            const container = document.getElementById('cga-test-results');
+            let html = '<div class="test-grid">';
+            
+            // Create CGA algebra
+            const cga = GA.cga3d();
+            const cgaCurv = new DDG.CGACurvature(cga);
+            
+            // Test osculating circle curvature
+            // Points on a circle of radius 2
+            const r = 2;
+            const p0 = [r, 0, 0];
+            const p1 = [r * Math.cos(0.1), r * Math.sin(0.1), 0];
+            const p2 = [r * Math.cos(0.2), r * Math.sin(0.2), 0];
+            
+            // The osculating circle should have radius 2, curvature 0.5
+            const circle = cgaCurv.circleThrough3(p0, p1, p2);
+            
+            html += `
+                <div class="test-card">
+                    <h4>CGA Circle Fitting</h4>
+                    <p>3 points on circle of radius 2</p>
+                    <p>Circle multivector created via P₁ ∧ P₂ ∧ P₃</p>
+                    <p>Expected curvature: 1/2 = 0.5</p>
+                    <p class="pass">✓ Circle object constructed</p>
+                </div>
+            `;
+            
+            // Test sphere through 4 points
+            const sp1 = [1, 0, 0], sp2 = [-1, 0, 0], sp3 = [0, 1, 0], sp4 = [0, 0, 1];
+            const sphere = cgaCurv.sphereThrough4(sp1, sp2, sp3, sp4);
+            
+            html += `
+                <div class="test-card">
+                    <h4>CGA Sphere Fitting</h4>
+                    <p>4 points on unit sphere</p>
+                    <p>Sphere = P₁ ∧ P₂ ∧ P₃ ∧ P₄</p>
+                    <p>For unit sphere: K = 1</p>
+                    <p class="pass">✓ Sphere object constructed</p>
+                </div>
+            `;
+            
+            // CGA conformal point embedding
+            const testPoint = cga.point(1, 2, 3);
+            const coords = cga.pointCoords(testPoint);
+            
+            html += `
+                <div class="test-card">
+                    <h4>CGA Point Embedding</h4>
+                    <p>Original: (1, 2, 3)</p>
+                    <p>CGA: X = x + ½x²n∞ + n₀</p>
+                    <p>Extracted: (${coords[0].toFixed(2)}, ${coords[1].toFixed(2)}, ${coords[2].toFixed(2)})</p>
+                    <p class="${Math.abs(coords[0] - 1) < 0.01 ? 'pass' : 'fail'}">
+                        ${Math.abs(coords[0] - 1) < 0.01 ? '✓ Roundtrip OK' : '✗ Error'}
+                    </p>
+                </div>
+            `;
+            
+            html += '</div>';
+            container.innerHTML = html;
+        })();
+
+        // ============================================================================
+        // 5. PGA Mesh Operations Tests
+        // ============================================================================
+        
+        (function() {
+            const container = document.getElementById('pga-test-results');
+            let html = '<div class="test-grid">';
+            
+            const pga = GA.pga3d();
+            const pgaCurv = new DDG.PGACurvature(pga);
+            
+            // Test edge length
+            const edgeLen = pgaCurv.edgeLength([0, 0, 0], [3, 4, 0]);
+            const expectedLen = 5; // 3-4-5 triangle
+            
+            html += `
+                <div class="test-card">
+                    <h4>PGA Edge Length</h4>
+                    <p>Edge: (0,0,0) to (3,4,0)</p>
+                    <p>‖v₀ ∨ v₁‖ = <strong>${edgeLen.toFixed(4)}</strong></p>
+                    <p class="${Math.abs(edgeLen - expectedLen) < 0.01 ? 'pass' : 'fail'}">
+                        Expected: ${expectedLen}
+                    </p>
+                </div>
+            `;
+            addResult('PGA Edge Length', expectedLen, edgeLen);
+            
+            // Test triangle area via PGA
+            const triArea = pgaCurv.triangleArea([0,0,0], [2,0,0], [0,3,0]);
+            const expectedTriArea = 3; // ½ × 2 × 3 = 3
+            
+            html += `
+                <div class="test-card">
+                    <h4>PGA Triangle Area</h4>
+                    <p>Triangle: (0,0,0), (2,0,0), (0,3,0)</p>
+                    <p>½‖v₀ ∨ v₁ ∨ v₂‖ = <strong>${triArea.toFixed(4)}</strong></p>
+                    <p class="${Math.abs(triArea - expectedTriArea) < 0.01 ? 'pass' : 'fail'}">
+                        Expected: ${expectedTriArea}
+                    </p>
+                </div>
+            `;
+            addResult('PGA Triangle Area', expectedTriArea, triArea);
+            
+            // Test triangle normal
+            const normal = pgaCurv.triangleNormal([0,0,0], [1,0,0], [0,1,0]);
+            
+            html += `
+                <div class="test-card">
+                    <h4>PGA Triangle Normal</h4>
+                    <p>XY-plane triangle → normal should be (0,0,1)</p>
+                    <p>Computed: (${normal[0].toFixed(2)}, ${normal[1].toFixed(2)}, ${normal[2].toFixed(2)})</p>
+                    <p class="${Math.abs(normal[2] - 1) < 0.01 ? 'pass' : 'fail'}">
+                        ${Math.abs(normal[2] - 1) < 0.01 ? '✓ Correct' : '✗ Error'}
+                    </p>
+                </div>
+            `;
+            
+            html += '</div>';
+            container.innerHTML = html;
+        })();
+
+        // ============================================================================
+        // 6. Visualization
+        // ============================================================================
+        
+        (function() {
+            const canvas = document.getElementById('curvature-canvas');
+            const ctx = canvas.getContext('2d');
+            const info = document.getElementById('sphere-info');
+            
+            // Generate icosphere and compute curvature
+            const sphere = DDG.Primitives.icosphere(1);
+            const curvature = new DDG.DiscreteCurvature();
+            curvature.loadMesh(sphere.vertices, sphere.faces);
+            
+            // Compute curvature at each vertex
+            const vertexCurvature = sphere.vertices.map((_, i) => curvature.gaussianCurvature(i));
+            const maxK = Math.max(...vertexCurvature);
+            const minK = Math.min(...vertexCurvature);
+            
+            // Simple orthographic projection
+            const scale = 150;
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            
+            // Rotation angle
+            let angle = 0;
+            
+            function draw() {
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Rotate vertices
+                const cosA = Math.cos(angle);
+                const sinA = Math.sin(angle);
+                
+                const projected = sphere.vertices.map(v => {
+                    // Rotate around Y
+                    const x = v[0] * cosA + v[2] * sinA;
+                    const z = -v[0] * sinA + v[2] * cosA;
+                    const y = v[1];
+                    return { x: cx + x * scale, y: cy - y * scale, z: z };
+                });
+                
+                // Sort faces by depth (painter's algorithm)
+                const facesWithDepth = sphere.faces.map((f, i) => {
+                    const avgZ = (projected[f[0]].z + projected[f[1]].z + projected[f[2]].z) / 3;
+                    return { face: f, depth: avgZ, idx: i };
+                }).sort((a, b) => a.depth - b.depth);
+                
+                // Draw faces
+                for (const { face: f } of facesWithDepth) {
+                    const avgK = (vertexCurvature[f[0]] + vertexCurvature[f[1]] + vertexCurvature[f[2]]) / 3;
+                    const t = (avgK - minK) / (maxK - minK + 0.001);
+                    
+                    // Color: blue (low) -> green -> red (high)
+                    const r = Math.floor(255 * t);
+                    const g = Math.floor(255 * (1 - Math.abs(t - 0.5) * 2));
+                    const b = Math.floor(255 * (1 - t));
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(projected[f[0]].x, projected[f[0]].y);
+                    ctx.lineTo(projected[f[1]].x, projected[f[1]].y);
+                    ctx.lineTo(projected[f[2]].x, projected[f[2]].y);
+                    ctx.closePath();
+                    
+                    ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+                    ctx.fill();
+                    ctx.strokeStyle = `rgba(255, 255, 255, 0.1)`;
+                    ctx.stroke();
+                }
+                
+                angle += 0.01;
+                requestAnimationFrame(draw);
+            }
+            
+            draw();
+            
+            const gb = curvature.verifyGaussBonnet();
+            info.innerHTML = `
+                <strong>Icosphere (subdivision level 1):</strong> 
+                ${sphere.vertices.length} vertices, ${sphere.faces.length} faces | 
+                Total K = ${gb.totalGaussianCurvature.toFixed(3)} | 
+                2πχ = ${gb.expected.toFixed(3)} | 
+                Error: ${gb.error.toFixed(4)}
+            `;
+        })();
+
+        // Final summary
+        console.log('All tests completed:', results);
+    </script>
+</body>
+</html>

@@ -24,6 +24,11 @@ A JavaScript implementation of **Contact Geometry for Extended Thermodynamics** 
   - **Parallel Transport & Holonomy**: Transport vectors around loops
   - **Gauss-Bonnet Integration**: Verify ∫∫K dA = 2πχ(M)
   - **Manifolds**: Sphere, Torus, Hyperbolic Plane with verified curvature
+- **Spacetime Geometric Algebra** (NEW):
+  - **Spacetime Algebra**: Direct Cl(1,3) implementation for General Relativity
+  - **Tetrad Formalism**: Automatic $e_a^\mu$ extraction from metrics
+  - **Spacetime Connection**: Spin connection bivector $\omega_\mu$ without Christoffel symbols
+  - **Entropic Force**: $S \approx |\omega|^2$ curvature potential driving motion
 - **Discrete Riemannian Geometry** (NEW):
   - **Mesh Connection Bivector**: Dihedral rotation at edges
   - **Angle Defect Curvature**: K = 2π - Σθ at vertices

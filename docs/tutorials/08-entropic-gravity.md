@@ -117,3 +117,28 @@ console.log('Change in entropy:', p_final.get('S') - p0.get('S'));
 - **Kinematics**: Provided by GMET (13D contact manifold).
 - **Dynamics**: Selected by Bianconi's principle (minimizing relative entropy).
 - **Emergence**: Gravity and $\Lambda$ emerge from the information-theoretic distance between the quantum ($g$) and classical ($G$) geometries.
+
+## Geometric Algebra Formulation
+
+The module now supports a coordinate-free formulation using **Spacetime Geometric Algebra** (Cl(1,3)).
+
+### Why GA?
+Standard Entropic Gravity minimizes $S(G||g)$. In GA, we can express the "entropic potential" directly via the **Connection Bivector Field** $\omega_\mu$.
+
+$$ H_{ent} \approx \alpha \langle \omega_\mu \omega^\mu \rangle $$
+
+This treats gravity as a gauge field strength rather than a metric deformation.
+
+### Usage
+
+Enable GA mode in the Hamiltonian:
+
+```javascript
+const H_ga = new EntropicGravity.EntropicGravityHamiltonian(M13, system, {
+    mass: 1.0,
+    entropicCoupling: 0.01,
+    useGA: true  // <--- Activates Cl(1,3) solver
+});
+```
+
+This uses `SpacetimeManifoldGA` to compute tetrads and spin connections automatically from the metric.

@@ -1,0 +1,1597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geodesics & Global Topology in Geometric Calculus</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3e 100%);
+            color: #e8e8e8;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        .container { max-width: 1600px; margin: 0 auto; padding: 20px; }
+        
+        header {
+            text-align: center;
+            padding: 30px 0;
+            border-bottom: 1px solid rgba(100, 200, 255, 0.2);
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            font-size: 2.4em;
+            background: linear-gradient(135deg, #64ffda 0%, #48c9b0 50%, #ffd700 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle { color: #8892b0; font-size: 1.1em; }
+        
+        .unified-equation {
+            background: rgba(100, 255, 218, 0.1);
+            border: 1px solid rgba(100, 255, 218, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px auto;
+            max-width: 800px;
+            font-family: 'Times New Roman', serif;
+            font-size: 1.1em;
+            text-align: center;
+        }
+        
+        .unified-equation .eq { 
+            color: #64ffda; 
+            font-size: 1.2em;
+            line-height: 2;
+        }
+        
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: 20px;
+        }
+        
+        @media (max-width: 1100px) {
+            .main-grid { grid-template-columns: 1fr; }
+        }
+        
+        .canvas-container {
+            background: #0f0f1f;
+            border-radius: 12px;
+            padding: 10px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            position: relative;
+        }
+        
+        #canvas3d {
+            width: 100%;
+            height: 600px;
+            border-radius: 8px;
+            display: block;
+        }
+        
+        .info-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 0.9em;
+            pointer-events: none;
+        }
+        
+        .info-overlay h4 { color: #64ffda; margin-bottom: 8px; }
+        .info-overlay .value { color: #ffd700; font-family: monospace; }
+        
+        .controls { display: flex; flex-direction: column; gap: 15px; }
+        
+        .panel {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 18px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .panel h3 {
+            color: #64ffda;
+            margin-bottom: 15px;
+            font-size: 1em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .panel h3::before {
+            content: '';
+            width: 4px;
+            height: 18px;
+            background: linear-gradient(180deg, #64ffda, #48c9b0);
+            border-radius: 2px;
+        }
+        
+        .btn-group { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+        
+        button {
+            padding: 10px 14px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85em;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #64ffda, #48c9b0);
+            color: #0a0a1a;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(100, 255, 218, 0.4);
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #e8e8e8;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .btn-secondary:hover { background: rgba(255, 255, 255, 0.15); }
+        .btn-secondary.active {
+            background: rgba(100, 255, 218, 0.2);
+            border-color: #64ffda;
+            color: #64ffda;
+        }
+        
+        .slider-group { margin: 12px 0; }
+        
+        .slider-group label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            color: #8892b0;
+            font-size: 0.85em;
+        }
+        
+        .slider-group label span { color: #64ffda; }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #64ffda;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(100, 255, 218, 0.5);
+        }
+        
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+            font-size: 0.8em;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        
+        .stats {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 12px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.85em;
+        }
+        
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+        }
+        
+        .stats-label { color: #8892b0; }
+        .stats-value { color: #ffd700; }
+        .stats-verified { color: #64ffda; }
+        
+        .theory-section {
+            margin-top: 30px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        
+        .theory-card {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .theory-card h4 {
+            color: #ffd700;
+            margin-bottom: 12px;
+            font-size: 1em;
+        }
+        
+        .theory-card p {
+            color: #8892b0;
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+        
+        .theory-card .formula {
+            background: rgba(100, 255, 218, 0.1);
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-family: 'Times New Roman', serif;
+            color: #64ffda;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Geodesics & Global Topology</h1>
+            <p class="subtitle">Unified Framework via Geometric Calculus</p>
+            
+            <div class="unified-equation">
+                <div class="eq">
+                    <strong>Local motion:</strong> ∇<sub>v</sub>v = 0 (Geodesic Equation)<br>
+                    <strong>Boundary → Curvature → Topology:</strong><br>
+                    ∫<sub>∂M</sub> n(∂A) = ∫<sub>M</sub> ∂²A = ∫<sub>M</sub> 𝒦 = 2π χ(M) = Σ index<sub>p</sub>
+                </div>
+            </div>
+        </header>
+        
+        <div class="main-grid">
+            <div class="canvas-container">
+                <canvas id="canvas3d"></canvas>
+                <div class="info-overlay" id="infoOverlay">
+                    <h4>Current View</h4>
+                    <div id="currentInfo">Select a demo to begin</div>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <div class="panel">
+                    <h3>Demo Selection</h3>
+                    <div class="btn-group">
+                        <button class="btn-primary" onclick="setDemo('geodesic')">Geodesics</button>
+                        <button class="btn-secondary" onclick="setDemo('gaussBonnet')">Gauss-Bonnet</button>
+                        <button class="btn-secondary" onclick="setDemo('poincare')">Poincaré-Hopf</button>
+                        <button class="btn-secondary" onclick="setDemo('transport')">Parallel Transport</button>
+                        <button class="btn-secondary" onclick="setDemo('curvatureFlow')">Curvature Flow</button>
+                    </div>
+                </div>
+                
+                <div class="panel">
+                    <h3>Surface</h3>
+                    <div class="btn-group">
+                        <button class="btn-secondary active" id="btnSphere" onclick="setSurface('sphere')">Sphere χ=2</button>
+                        <button class="btn-secondary" id="btnTorus" onclick="setSurface('torus')">Torus χ=0</button>
+                        <button class="btn-secondary" id="btnSaddle" onclick="setSurface('saddle')">Saddle</button>
+                    </div>
+                    
+                    <div class="slider-group">
+                        <label>Radius <span id="radiusVal">1.0</span></label>
+                        <input type="range" id="radiusSlider" min="0.5" max="2" step="0.1" value="1" onchange="updateRadius()">
+                    </div>
+                    
+                    <div class="slider-group">
+                        <label>Resolution <span id="resVal">32</span></label>
+                        <input type="range" id="resSlider" min="8" max="64" step="4" value="32" onchange="updateResolution()">
+                    </div>
+                </div>
+                
+                <div class="panel">
+                    <h3>Animation</h3>
+                    <div class="btn-group">
+                        <button class="btn-primary" id="playBtn" onclick="toggleAnimation()">▶ Play</button>
+                        <button class="btn-secondary" onclick="resetAnimation()">↺ Reset</button>
+                        <button class="btn-secondary" onclick="stepAnimation()">→ Step</button>
+                    </div>
+                    
+                    <div class="slider-group">
+                        <label>Speed <span id="speedVal">1.0</span>x</label>
+                        <input type="range" id="speedSlider" min="0.1" max="3" step="0.1" value="1" onchange="updateSpeed()">
+                    </div>
+                </div>
+                
+                <div class="panel">
+                    <h3>Verification</h3>
+                    <div class="stats" id="statsPanel">
+                        <div class="stats-row">
+                            <span class="stats-label">Euler χ:</span>
+                            <span class="stats-value" id="eulerChar">—</span>
+                        </div>
+                        <div class="stats-row">
+                            <span class="stats-label">∫K dA:</span>
+                            <span class="stats-value" id="totalK">—</span>
+                        </div>
+                        <div class="stats-row">
+                            <span class="stats-label">2πχ:</span>
+                            <span class="stats-value" id="expected2pi">—</span>
+                        </div>
+                        <div class="stats-row">
+                            <span class="stats-label">Σ index:</span>
+                            <span class="stats-value" id="indexSum">—</span>
+                        </div>
+                        <div class="stats-row">
+                            <span class="stats-label">Status:</span>
+                            <span class="stats-verified" id="verifyStatus">—</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="panel">
+                    <h3>Legend</h3>
+                    <div class="legend">
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #64ffda;"></div>
+                            <span>Geodesic</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #ffd700;"></div>
+                            <span>Vector Field</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #ff6b6b;"></div>
+                            <span>Singularity (+1)</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #4dabf7;"></div>
+                            <span>Transport</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="theory-section">
+            <div class="theory-card">
+                <h4>1. Geodesic Equation</h4>
+                <div class="formula">∇<sub>v</sub>v = 0</div>
+                <p>Geodesics are curves that locally minimize distance. On a sphere, they are great circles. The covariant derivative ∇<sub>v</sub>v measures how velocity changes along the path—zero means "straightest possible".</p>
+            </div>
+            
+            <div class="theory-card">
+                <h4>2. Gauss-Bonnet Theorem</h4>
+                <div class="formula">∫<sub>M</sub> K dA = 2π χ(M)</div>
+                <p>Total Gaussian curvature equals 2π times the Euler characteristic. For a sphere (χ=2): K=1/R², Area=4πR², so ∫K dA = 4π = 2π(2). This is a topological invariant!</p>
+            </div>
+            
+            <div class="theory-card">
+                <h4>3. Poincaré-Hopf Theorem</h4>
+                <div class="formula">Σ index<sub>p</sub> = χ(M)</div>
+                <p>Sum of indices of all singularities of any vector field equals the Euler characteristic. A "hairy ball" on S² must have singularities with total index 2—you can't comb it flat!</p>
+            </div>
+            
+            <div class="theory-card">
+                <h4>4. Parallel Transport & Holonomy</h4>
+                <div class="formula">∮ Ω · v = ∫∫ K dA</div>
+                <p>Transporting a vector around a closed loop on a curved surface rotates it. The total rotation (holonomy) equals the enclosed curvature—this is how curvature manifests locally!</p>
+            </div>
+        </div>
+    </div>
+
+<script>
+// ============================================================================
+// GEOMETRIC ALGEBRA CORE - Minimal implementation for visualization
+// ============================================================================
+
+const GA = {
+    // 3D rotations using quaternion-like rotors
+    Rotor3D: class {
+        constructor(s, yz, zx, xy) {
+            this.s = s;    // scalar
+            this.yz = yz;  // e23
+            this.zx = zx;  // e31
+            this.xy = xy;  // e12
+        }
+        
+        static fromAxisAngle(ax, ay, az, angle) {
+            const len = Math.sqrt(ax*ax + ay*ay + az*az);
+            if (len < 1e-10) return new GA.Rotor3D(1, 0, 0, 0);
+            const half = angle / 2;
+            const s = Math.sin(half) / len;
+            return new GA.Rotor3D(Math.cos(half), ax*s, ay*s, az*s);
+        }
+        
+        apply(x, y, z) {
+            // Optimized sandwich product using quaternion formula
+            const {s, yz, zx, xy} = this;
+            const t0 = 2*(yz*x + zx*y + xy*z);
+            const t1 = s*s - (yz*yz + zx*zx + xy*xy);
+            return [
+                t1*x + 2*s*(zx*z - xy*y) + t0*yz,
+                t1*y + 2*s*(xy*x - yz*z) + t0*zx,
+                t1*z + 2*s*(yz*y - zx*x) + t0*xy
+            ];
+        }
+        
+        mul(other) {
+            const a = this, b = other;
+            return new GA.Rotor3D(
+                a.s*b.s - a.yz*b.yz - a.zx*b.zx - a.xy*b.xy,
+                a.s*b.yz + a.yz*b.s + a.zx*b.xy - a.xy*b.zx,
+                a.s*b.zx + a.zx*b.s + a.xy*b.yz - a.yz*b.xy,
+                a.s*b.xy + a.xy*b.s + a.yz*b.zx - a.zx*b.yz
+            );
+        }
+    },
+    
+    // Vector operations
+    vec3: {
+        add: (a, b) => [a[0]+b[0], a[1]+b[1], a[2]+b[2]],
+        sub: (a, b) => [a[0]-b[0], a[1]-b[1], a[2]-b[2]],
+        scale: (v, s) => [v[0]*s, v[1]*s, v[2]*s],
+        dot: (a, b) => a[0]*b[0] + a[1]*b[1] + a[2]*b[2],
+        cross: (a, b) => [
+            a[1]*b[2] - a[2]*b[1],
+            a[2]*b[0] - a[0]*b[2],
+            a[0]*b[1] - a[1]*b[0]
+        ],
+        len: v => Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]),
+        normalize: v => {
+            const l = Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+            return l > 1e-10 ? [v[0]/l, v[1]/l, v[2]/l] : [0, 0, 1];
+        },
+        lerp: (a, b, t) => [
+            a[0] + (b[0]-a[0])*t,
+            a[1] + (b[1]-a[1])*t,
+            a[2] + (b[2]-a[2])*t
+        ]
+    }
+};
+
+// ============================================================================
+// DISCRETE DIFFERENTIAL GEOMETRY
+// ============================================================================
+
+class DiscreteSurface {
+    constructor() {
+        this.vertices = [];
+        this.faces = [];
+        this.normals = [];
+        this.colors = [];
+    }
+    
+    // Create UV sphere mesh
+    createSphere(radius, segments) {
+        this.vertices = [];
+        this.faces = [];
+        this.normals = [];
+        
+        const R = radius;
+        const seg = segments;
+        
+        // Generate vertices
+        for (let lat = 0; lat <= seg; lat++) {
+            const theta = lat * Math.PI / seg;
+            const sinT = Math.sin(theta);
+            const cosT = Math.cos(theta);
+            
+            for (let lon = 0; lon <= seg; lon++) {
+                const phi = lon * 2 * Math.PI / seg;
+                const x = R * sinT * Math.cos(phi);
+                const y = R * cosT;
+                const z = R * sinT * Math.sin(phi);
+                
+                this.vertices.push([x, y, z]);
+                this.normals.push(GA.vec3.normalize([x, y, z]));
+            }
+        }
+        
+        // Generate faces
+        for (let lat = 0; lat < seg; lat++) {
+            for (let lon = 0; lon < seg; lon++) {
+                const i0 = lat * (seg + 1) + lon;
+                const i1 = i0 + 1;
+                const i2 = i0 + seg + 1;
+                const i3 = i2 + 1;
+                
+                this.faces.push([i0, i2, i1]);
+                this.faces.push([i1, i2, i3]);
+            }
+        }
+        
+        this.computeGaussianCurvature(1/R/R); // K = 1/R² for sphere
+    }
+    
+    // Create torus mesh
+    createTorus(R, r, nu, nv) {
+        this.vertices = [];
+        this.faces = [];
+        this.normals = [];
+        
+        for (let i = 0; i <= nu; i++) {
+            const u = i * 2 * Math.PI / nu;
+            const cosU = Math.cos(u), sinU = Math.sin(u);
+            
+            for (let j = 0; j <= nv; j++) {
+                const v = j * 2 * Math.PI / nv;
+                const cosV = Math.cos(v), sinV = Math.sin(v);
+                
+                const x = (R + r * cosV) * cosU;
+                const y = r * sinV;
+                const z = (R + r * cosV) * sinU;
+                
+                this.vertices.push([x, y, z]);
+                
+                // Normal for torus
+                const nx = cosV * cosU;
+                const ny = sinV;
+                const nz = cosV * sinU;
+                this.normals.push(GA.vec3.normalize([nx, ny, nz]));
+            }
+        }
+        
+        for (let i = 0; i < nu; i++) {
+            for (let j = 0; j < nv; j++) {
+                const i0 = i * (nv + 1) + j;
+                const i1 = i0 + 1;
+                const i2 = i0 + nv + 1;
+                const i3 = i2 + 1;
+                
+                this.faces.push([i0, i2, i1]);
+                this.faces.push([i1, i2, i3]);
+            }
+        }
+        
+        // Torus curvature varies: K = cosv / (r(R + r*cosv))
+        this.computeTorusCurvature(R, r, nu, nv);
+    }
+    
+    // Create saddle surface
+    createSaddle(size, segments) {
+        this.vertices = [];
+        this.faces = [];
+        this.normals = [];
+        
+        const s = size / 2;
+        const n = segments;
+        
+        for (let i = 0; i <= n; i++) {
+            for (let j = 0; j <= n; j++) {
+                const x = -s + 2*s*i/n;
+                const z = -s + 2*s*j/n;
+                const y = (x*x - z*z) * 0.5; // Hyperbolic paraboloid
+                
+                this.vertices.push([x, y, z]);
+                
+                // Normal from gradient
+                const nx = -x;
+                const ny = 1;
+                const nz = z;
+                this.normals.push(GA.vec3.normalize([nx, ny, nz]));
+            }
+        }
+        
+        for (let i = 0; i < n; i++) {
+            for (let j = 0; j < n; j++) {
+                const i0 = i * (n + 1) + j;
+                const i1 = i0 + 1;
+                const i2 = i0 + n + 1;
+                const i3 = i2 + 1;
+                
+                this.faces.push([i0, i2, i1]);
+                this.faces.push([i1, i2, i3]);
+            }
+        }
+        
+        this.computeSaddleCurvature(n);
+    }
+    
+    computeGaussianCurvature(constantK) {
+        this.curvatures = this.vertices.map(() => constantK);
+        this.colors = this.curvatures.map(k => this.curvatureToColor(k));
+    }
+    
+    computeTorusCurvature(R, r, nu, nv) {
+        this.curvatures = [];
+        for (let i = 0; i <= nu; i++) {
+            for (let j = 0; j <= nv; j++) {
+                const v = j * 2 * Math.PI / nv;
+                const cosV = Math.cos(v);
+                const K = cosV / (r * (R + r * cosV));
+                this.curvatures.push(K);
+            }
+        }
+        this.colors = this.curvatures.map(k => this.curvatureToColor(k));
+    }
+    
+    computeSaddleCurvature(n) {
+        this.curvatures = [];
+        for (let i = 0; i <= n; i++) {
+            for (let j = 0; j <= n; j++) {
+                // Approximate K < 0 for saddle
+                this.curvatures.push(-0.5);
+            }
+        }
+        this.colors = this.curvatures.map(k => this.curvatureToColor(k));
+    }
+    
+    curvatureToColor(K) {
+        // Blue (K<0) -> White (K=0) -> Red/Gold (K>0)
+        const t = Math.tanh(K * 2);
+        if (t > 0) {
+            return [1, 1-t*0.6, 1-t]; // White to gold/red
+        } else {
+            return [1+t, 1+t*0.4, 1]; // White to blue
+        }
+    }
+    
+    totalGaussianCurvature() {
+        let totalK = 0;
+        const areas = this.computeFaceAreas();
+        
+        for (let i = 0; i < this.faces.length; i++) {
+            const [i0, i1, i2] = this.faces[i];
+            const avgK = (this.curvatures[i0] + this.curvatures[i1] + this.curvatures[i2]) / 3;
+            totalK += avgK * areas[i];
+        }
+        return totalK;
+    }
+    
+    computeFaceAreas() {
+        return this.faces.map(([i0, i1, i2]) => {
+            const v0 = this.vertices[i0];
+            const v1 = this.vertices[i1];
+            const v2 = this.vertices[i2];
+            const e1 = GA.vec3.sub(v1, v0);
+            const e2 = GA.vec3.sub(v2, v0);
+            return GA.vec3.len(GA.vec3.cross(e1, e2)) / 2;
+        });
+    }
+    
+    eulerCharacteristic() {
+        const V = new Set();
+        const E = new Set();
+        
+        for (const [i0, i1, i2] of this.faces) {
+            V.add(i0).add(i1).add(i2);
+            
+            const edges = [[i0,i1], [i1,i2], [i2,i0]].map(
+                e => e.sort().join(',')
+            );
+            edges.forEach(e => E.add(e));
+        }
+        
+        return V.size - E.size + this.faces.length;
+    }
+}
+
+// ============================================================================
+// GEODESIC TRACER
+// ============================================================================
+
+class GeodesicTracer {
+    constructor(surface, radius = 1) {
+        this.surface = surface;
+        this.radius = radius;
+        this.geodesics = [];
+    }
+    
+    // Trace geodesic on sphere (great circle) using ∇_v v = 0
+    traceGeodesicOnSphere(start, velocity, dt = 0.02, steps = 200) {
+        const points = [start.slice()];
+        let pos = start.slice();
+        let vel = velocity.slice();
+        const R = this.radius;
+        
+        for (let i = 0; i < steps; i++) {
+            // Project to surface (sphere)
+            const r = GA.vec3.len(pos);
+            pos = GA.vec3.scale(pos, R / r);
+            
+            // Geodesic equation: ∇_v v = 0
+            // On sphere: dv/dt = -(v·v/R²)n = -(|v|²/R²)p
+            const vv = GA.vec3.dot(vel, vel);
+            const acc = GA.vec3.scale(pos, -vv / (R * R));
+            
+            // Update
+            vel = GA.vec3.add(vel, GA.vec3.scale(acc, dt));
+            pos = GA.vec3.add(pos, GA.vec3.scale(vel, dt));
+            
+            // Keep velocity tangent to sphere
+            const n = GA.vec3.normalize(pos);
+            vel = GA.vec3.sub(vel, GA.vec3.scale(n, GA.vec3.dot(vel, n)));
+            
+            points.push(pos.slice());
+        }
+        
+        this.geodesics.push({points, color: [0.4, 1, 0.85]});
+        return points;
+    }
+    
+    // Trace geodesic on torus - circles at constant u
+    traceGeodesicOnTorus(uFixed, numPoints, R, r) {
+        const points = [];
+        for (let i = 0; i <= numPoints; i++) {
+            const v = i / numPoints * 2 * Math.PI;
+            const x = (R + r * Math.cos(v)) * Math.cos(uFixed);
+            const y = r * Math.sin(v);
+            const z = (R + r * Math.cos(v)) * Math.sin(uFixed);
+            points.push([x, y, z]);
+        }
+        this.geodesics.push({points, color: [0.4, 1, 0.85]});
+        return points;
+    }
+    
+    // Trace meridian on torus - circles at constant v
+    traceMeridianOnTorus(vFixed, numPoints, R, r) {
+        const points = [];
+        for (let i = 0; i <= numPoints; i++) {
+            const u = i / numPoints * 2 * Math.PI;
+            const x = (R + r * Math.cos(vFixed)) * Math.cos(u);
+            const y = r * Math.sin(vFixed);
+            const z = (R + r * Math.cos(vFixed)) * Math.sin(u);
+            points.push([x, y, z]);
+        }
+        this.geodesics.push({points, color: [1, 0.6, 0.4]});
+        return points;
+    }
+    
+    // Trace geodesic on saddle surface z = (x² - y²)/2
+    traceGeodesicOnSaddle(x0, z0, vx, vz, numPoints, size) {
+        const points = [];
+        const halfSize = size / 2;
+        
+        for (let i = 0; i <= numPoints; i++) {
+            const t = (i / numPoints - 0.5) * 2;
+            const x = x0 + vx * t * halfSize;
+            const z = z0 + vz * t * halfSize;
+            
+            // Clamp to surface bounds
+            const cx = Math.max(-halfSize, Math.min(halfSize, x));
+            const cz = Math.max(-halfSize, Math.min(halfSize, z));
+            const y = (cx * cx - cz * cz) * 0.5;
+            
+            points.push([cx, y, cz]);
+        }
+        this.geodesics.push({points, color: [0.4, 1, 0.85]});
+        return points;
+    }
+}
+
+// ============================================================================
+// VECTOR FIELD (for Poincaré-Hopf)
+// ============================================================================
+
+class VectorField {
+    constructor(surface) {
+        this.surface = surface;
+        this.vectors = [];
+        this.singularities = [];
+        this.surfaceType = 'sphere';
+    }
+    
+    // Create field pointing "eastward" - has singularities at poles for sphere
+    createLatitudeField() {
+        this.vectors = this.surface.vertices.map((v, i) => {
+            const n = this.surface.normals[i];
+            // East direction: perpendicular to both n and "up"
+            const up = [0, 1, 0];
+            let east = GA.vec3.cross(up, n);
+            const len = GA.vec3.len(east);
+            
+            if (len < 0.1) {
+                // Near poles - singularity
+                return {v: [0, 0, 0], singular: true};
+            }
+            
+            return {v: GA.vec3.scale(east, 0.1 / len), singular: false};
+        });
+        
+        // Find singularities based on surface type
+        this.singularities = [];
+        
+        if (this.surfaceType === 'sphere' || this.surfaceType === 'saddle') {
+            // Find poles (max/min Y vertices)
+            let maxY = -Infinity, minY = Infinity;
+            let northIdx = 0, southIdx = 0;
+            this.surface.vertices.forEach((v, i) => {
+                if (v[1] > maxY) { maxY = v[1]; northIdx = i; }
+                if (v[1] < minY) { minY = v[1]; southIdx = i; }
+            });
+            
+            this.singularities = [
+                {pos: this.surface.vertices[northIdx], index: 1},
+                {pos: this.surface.vertices[southIdx], index: 1}
+            ];
+        }
+        // Torus has no singularities (χ=0) - the field wraps smoothly!
+    }
+    
+    // Create a field for torus that has no singularities
+    createTorusField() {
+        this.vectors = this.surface.vertices.map((v, i) => {
+            // Tangent to the major circle (around the hole)
+            const angle = Math.atan2(v[2], v[0]);
+            const tangent = [-Math.sin(angle), 0, Math.cos(angle)];
+            return {v: GA.vec3.scale(tangent, 0.08), singular: false};
+        });
+        this.singularities = []; // No singularities on torus!
+    }
+    
+    totalIndex() {
+        return this.singularities.reduce((sum, s) => sum + s.index, 0);
+    }
+}
+
+// ============================================================================
+// PARALLEL TRANSPORT
+// ============================================================================
+
+class ParallelTransporter {
+    constructor(radius = 1) {
+        this.radius = radius;
+        this.path = [];
+        this.transportedVectors = [];
+    }
+    
+    // Transport a vector along a geodesic path on sphere
+    transportAlong(geodesicPoints, initialVector) {
+        const R = this.radius;
+        this.path = geodesicPoints;
+        this.transportedVectors = [];
+        
+        let vec = initialVector.slice();
+        
+        for (let i = 0; i < geodesicPoints.length; i++) {
+            const pos = geodesicPoints[i];
+            const n = GA.vec3.normalize(pos);
+            
+            // Project vector to tangent plane
+            vec = GA.vec3.sub(vec, GA.vec3.scale(n, GA.vec3.dot(vec, n)));
+            vec = GA.vec3.normalize(vec);
+            vec = GA.vec3.scale(vec, 0.15);
+            
+            this.transportedVectors.push({
+                pos: pos,
+                vec: vec.slice()
+            });
+            
+            // For next step: parallel transport preserves length and angle
+            // On a geodesic, this is automatic in tangent plane
+            if (i < geodesicPoints.length - 1) {
+                const nextPos = geodesicPoints[i + 1];
+                const nextN = GA.vec3.normalize(nextPos);
+                
+                // Rotate vector to next tangent plane
+                const axis = GA.vec3.cross(n, nextN);
+                const axisLen = GA.vec3.len(axis);
+                
+                if (axisLen > 1e-10) {
+                    const angle = Math.asin(Math.min(1, axisLen));
+                    const normAxis = GA.vec3.scale(axis, 1/axisLen);
+                    const rotor = GA.Rotor3D.fromAxisAngle(
+                        normAxis[0], normAxis[1], normAxis[2], angle
+                    );
+                    vec = rotor.apply(vec[0], vec[1], vec[2]);
+                }
+            }
+        }
+    }
+    
+    // Compute holonomy (rotation after closed loop)
+    computeHolonomy(closedPath) {
+        if (closedPath.length < 3) return 0;
+        
+        // Transport unit vector around loop
+        const start = closedPath[0];
+        const n0 = GA.vec3.normalize(start);
+        
+        // Initial tangent vector
+        let vec = GA.vec3.normalize(GA.vec3.cross([0, 1, 0], n0));
+        if (GA.vec3.len(vec) < 0.1) {
+            vec = GA.vec3.normalize(GA.vec3.cross([1, 0, 0], n0));
+        }
+        const initialVec = vec.slice();
+        
+        // Transport around
+        for (let i = 0; i < closedPath.length - 1; i++) {
+            const pos = closedPath[i];
+            const nextPos = closedPath[i + 1];
+            const n = GA.vec3.normalize(pos);
+            const nextN = GA.vec3.normalize(nextPos);
+            
+            const axis = GA.vec3.cross(n, nextN);
+            const axisLen = GA.vec3.len(axis);
+            
+            if (axisLen > 1e-10) {
+                const angle = Math.asin(Math.min(1, axisLen));
+                const normAxis = GA.vec3.scale(axis, 1/axisLen);
+                const rotor = GA.Rotor3D.fromAxisAngle(
+                    normAxis[0], normAxis[1], normAxis[2], angle
+                );
+                vec = rotor.apply(vec[0], vec[1], vec[2]);
+            }
+        }
+        
+        // Project back to tangent plane
+        vec = GA.vec3.sub(vec, GA.vec3.scale(n0, GA.vec3.dot(vec, n0)));
+        vec = GA.vec3.normalize(vec);
+        
+        // Compute angle between initial and final
+        const dot = GA.vec3.dot(initialVec, vec);
+        const cross = GA.vec3.cross(initialVec, vec);
+        const sign = Math.sign(GA.vec3.dot(cross, n0));
+        
+        return sign * Math.acos(Math.max(-1, Math.min(1, dot)));
+    }
+}
+
+// ============================================================================
+// 3D RENDERER (Canvas-based, no dependencies)
+// ============================================================================
+
+class Renderer3D {
+    constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.width = 0;
+        this.height = 0;
+        
+        // Camera
+        this.camDist = 4;
+        this.camTheta = Math.PI / 4;
+        this.camPhi = Math.PI / 6;
+        
+        // Auto-rotation
+        this.autoRotate = true;
+        this.rotateSpeed = 0.005;
+        
+        this.resize();
+        this.setupInteraction();
+    }
+    
+    resize() {
+        const rect = this.canvas.parentElement.getBoundingClientRect();
+        this.width = rect.width - 20;
+        this.height = 600;
+        this.canvas.width = this.width * window.devicePixelRatio;
+        this.canvas.height = this.height * window.devicePixelRatio;
+        this.canvas.style.width = this.width + 'px';
+        this.canvas.style.height = this.height + 'px';
+        this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    }
+    
+    setupInteraction() {
+        let dragging = false;
+        let lastX, lastY;
+        
+        this.canvas.addEventListener('mousedown', e => {
+            dragging = true;
+            lastX = e.clientX;
+            lastY = e.clientY;
+            this.autoRotate = false;
+        });
+        
+        window.addEventListener('mouseup', () => dragging = false);
+        
+        this.canvas.addEventListener('mousemove', e => {
+            if (!dragging) return;
+            const dx = e.clientX - lastX;
+            const dy = e.clientY - lastY;
+            this.camTheta += dx * 0.01;
+            this.camPhi = Math.max(-Math.PI/2 + 0.1, 
+                          Math.min(Math.PI/2 - 0.1, this.camPhi + dy * 0.01));
+            lastX = e.clientX;
+            lastY = e.clientY;
+        });
+        
+        this.canvas.addEventListener('wheel', e => {
+            e.preventDefault();
+            this.camDist = Math.max(2, Math.min(10, this.camDist + e.deltaY * 0.005));
+        });
+    }
+    
+    project(p) {
+        // Camera position
+        const camX = this.camDist * Math.cos(this.camPhi) * Math.cos(this.camTheta);
+        const camY = this.camDist * Math.sin(this.camPhi);
+        const camZ = this.camDist * Math.cos(this.camPhi) * Math.sin(this.camTheta);
+        
+        // View direction (toward origin)
+        const vd = GA.vec3.normalize([-camX, -camY, -camZ]);
+        const up = [0, 1, 0];
+        const right = GA.vec3.normalize(GA.vec3.cross(vd, up));
+        const realUp = GA.vec3.cross(right, vd);
+        
+        // Transform point
+        const rel = [p[0] - camX, p[1] - camY, p[2] - camZ];
+        const x = GA.vec3.dot(rel, right);
+        const y = GA.vec3.dot(rel, realUp);
+        const z = GA.vec3.dot(rel, vd);
+        
+        // Perspective projection
+        const fov = 2;
+        const scale = this.height / fov;
+        
+        if (z < 0.1) return null;
+        
+        return {
+            x: this.width/2 + x * scale / z,
+            y: this.height/2 - y * scale / z,
+            z: z
+        };
+    }
+    
+    clear() {
+        this.ctx.fillStyle = '#0f0f1f';
+        this.ctx.fillRect(0, 0, this.width, this.height);
+        
+        // Grid
+        this.ctx.strokeStyle = 'rgba(100, 255, 218, 0.1)';
+        this.ctx.lineWidth = 1;
+        
+        for (let x = -2; x <= 2; x += 0.5) {
+            const p1 = this.project([x, 0, -2]);
+            const p2 = this.project([x, 0, 2]);
+            if (p1 && p2) {
+                this.ctx.beginPath();
+                this.ctx.moveTo(p1.x, p1.y);
+                this.ctx.lineTo(p2.x, p2.y);
+                this.ctx.stroke();
+            }
+        }
+        
+        for (let z = -2; z <= 2; z += 0.5) {
+            const p1 = this.project([-2, 0, z]);
+            const p2 = this.project([2, 0, z]);
+            if (p1 && p2) {
+                this.ctx.beginPath();
+                this.ctx.moveTo(p1.x, p1.y);
+                this.ctx.lineTo(p2.x, p2.y);
+                this.ctx.stroke();
+            }
+        }
+    }
+    
+    drawMesh(surface, wireframe = false) {
+        // Collect triangles with depth
+        const triangles = [];
+        
+        for (let i = 0; i < surface.faces.length; i++) {
+            const [i0, i1, i2] = surface.faces[i];
+            const v0 = surface.vertices[i0];
+            const v1 = surface.vertices[i1];
+            const v2 = surface.vertices[i2];
+            
+            const p0 = this.project(v0);
+            const p1 = this.project(v1);
+            const p2 = this.project(v2);
+            
+            if (!p0 || !p1 || !p2) continue;
+            
+            const avgZ = (p0.z + p1.z + p2.z) / 3;
+            
+            // Face normal for lighting
+            const e1 = GA.vec3.sub(v1, v0);
+            const e2 = GA.vec3.sub(v2, v0);
+            const faceN = GA.vec3.normalize(GA.vec3.cross(e1, e2));
+            const light = [0.5, 0.8, 0.3];
+            const lightN = GA.vec3.normalize(light);
+            const diffuse = Math.max(0.2, Math.abs(GA.vec3.dot(faceN, lightN)));
+            
+            // Get color from curvature
+            let color = surface.colors ? 
+                (surface.colors[i0] || [0.3, 0.6, 0.5]) : [0.3, 0.6, 0.5];
+            
+            triangles.push({
+                p0, p1, p2, avgZ, diffuse, color
+            });
+        }
+        
+        // Sort by depth (far to near)
+        triangles.sort((a, b) => b.avgZ - a.avgZ);
+        
+        // Draw
+        for (const tri of triangles) {
+            const {p0, p1, p2, diffuse, color} = tri;
+            
+            const r = Math.floor(color[0] * diffuse * 255);
+            const g = Math.floor(color[1] * diffuse * 255);
+            const b = Math.floor(color[2] * diffuse * 255);
+            
+            this.ctx.fillStyle = `rgb(${r},${g},${b})`;
+            this.ctx.strokeStyle = wireframe ? 
+                'rgba(100, 255, 218, 0.3)' : `rgba(${r},${g},${b},0.5)`;
+            this.ctx.lineWidth = wireframe ? 1 : 0.5;
+            
+            this.ctx.beginPath();
+            this.ctx.moveTo(p0.x, p0.y);
+            this.ctx.lineTo(p1.x, p1.y);
+            this.ctx.lineTo(p2.x, p2.y);
+            this.ctx.closePath();
+            
+            if (!wireframe) this.ctx.fill();
+            this.ctx.stroke();
+        }
+    }
+    
+    drawGeodesics(geodesics) {
+        for (const geo of geodesics) {
+            const projected = geo.points.map(p => this.project(p)).filter(p => p);
+            
+            if (projected.length < 2) continue;
+            
+            this.ctx.strokeStyle = `rgba(${Math.floor(geo.color[0]*255)},${Math.floor(geo.color[1]*255)},${Math.floor(geo.color[2]*255)},0.9)`;
+            this.ctx.lineWidth = 3;
+            this.ctx.lineCap = 'round';
+            
+            this.ctx.beginPath();
+            this.ctx.moveTo(projected[0].x, projected[0].y);
+            for (let i = 1; i < projected.length; i++) {
+                this.ctx.lineTo(projected[i].x, projected[i].y);
+            }
+            this.ctx.stroke();
+            
+            // Glow effect
+            this.ctx.strokeStyle = `rgba(${Math.floor(geo.color[0]*255)},${Math.floor(geo.color[1]*255)},${Math.floor(geo.color[2]*255)},0.3)`;
+            this.ctx.lineWidth = 8;
+            this.ctx.stroke();
+        }
+    }
+    
+    drawVectorField(field, surface) {
+        for (let i = 0; i < field.vectors.length; i += 3) { // Skip some for clarity
+            const vec = field.vectors[i];
+            if (!vec || vec.singular) continue;
+            
+            const pos = surface.vertices[i];
+            const end = GA.vec3.add(pos, vec.v);
+            
+            const p0 = this.project(pos);
+            const p1 = this.project(end);
+            
+            if (!p0 || !p1) continue;
+            
+            // Arrow
+            this.ctx.strokeStyle = 'rgba(255, 215, 0, 0.7)';
+            this.ctx.lineWidth = 1.5;
+            
+            this.ctx.beginPath();
+            this.ctx.moveTo(p0.x, p0.y);
+            this.ctx.lineTo(p1.x, p1.y);
+            this.ctx.stroke();
+        }
+        
+        // Draw singularities
+        for (const sing of field.singularities) {
+            const p = this.project(sing.pos);
+            if (!p) continue;
+            
+            this.ctx.fillStyle = '#ff6b6b';
+            this.ctx.beginPath();
+            this.ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            this.ctx.fillStyle = '#fff';
+            this.ctx.font = 'bold 12px sans-serif';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText(`+${sing.index}`, p.x, p.y + 4);
+        }
+    }
+    
+    drawTransportedVectors(transporter) {
+        for (let i = 0; i < transporter.transportedVectors.length; i += 5) {
+            const tv = transporter.transportedVectors[i];
+            const pos = tv.pos;
+            const end = GA.vec3.add(pos, tv.vec);
+            
+            const p0 = this.project(pos);
+            const p1 = this.project(end);
+            
+            if (!p0 || !p1) continue;
+            
+            this.ctx.strokeStyle = 'rgba(77, 171, 247, 0.9)';
+            this.ctx.lineWidth = 2;
+            
+            this.ctx.beginPath();
+            this.ctx.moveTo(p0.x, p0.y);
+            this.ctx.lineTo(p1.x, p1.y);
+            this.ctx.stroke();
+            
+            // Arrowhead
+            const dx = p1.x - p0.x;
+            const dy = p1.y - p0.y;
+            const angle = Math.atan2(dy, dx);
+            
+            this.ctx.fillStyle = 'rgba(77, 171, 247, 0.9)';
+            this.ctx.beginPath();
+            this.ctx.moveTo(p1.x, p1.y);
+            this.ctx.lineTo(p1.x - 8*Math.cos(angle-0.3), p1.y - 8*Math.sin(angle-0.3));
+            this.ctx.lineTo(p1.x - 8*Math.cos(angle+0.3), p1.y - 8*Math.sin(angle+0.3));
+            this.ctx.closePath();
+            this.ctx.fill();
+        }
+    }
+    
+    drawPoint(pos, color, size = 6) {
+        const p = this.project(pos);
+        if (!p) return;
+        
+        this.ctx.fillStyle = color;
+        this.ctx.beginPath();
+        this.ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
+        this.ctx.fill();
+    }
+}
+
+// ============================================================================
+// MAIN APPLICATION
+// ============================================================================
+
+let renderer, surface, geodesicTracer, vectorField, transporter;
+let currentDemo = 'geodesic';
+let currentSurface = 'sphere';
+let radius = 1;
+let resolution = 32;
+let animating = false;
+let animTime = 0;
+let animSpeed = 1;
+
+function init() {
+    const canvas = document.getElementById('canvas3d');
+    renderer = new Renderer3D(canvas);
+    
+    surface = new DiscreteSurface();
+    surface.createSphere(radius, resolution);
+    
+    geodesicTracer = new GeodesicTracer(surface, radius);
+    vectorField = new VectorField(surface);
+    transporter = new ParallelTransporter(radius);
+    
+    setupDemo();
+    animate();
+}
+
+function setupDemo() {
+    geodesicTracer.geodesics = [];
+    geodesicTracer.radius = radius; // Update radius
+    
+    switch (currentDemo) {
+        case 'geodesic':
+            if (currentSurface === 'sphere') {
+                // Great circles on sphere
+                geodesicTracer.traceGeodesicOnSphere(
+                    [radius, 0, 0], [0, 0.3, 0.3], 0.02, 300
+                );
+                geodesicTracer.traceGeodesicOnSphere(
+                    [0, radius, 0], [0.3, 0, 0.2], 0.02, 300
+                );
+                geodesicTracer.traceGeodesicOnSphere(
+                    [0, 0, radius], [0.2, 0.3, 0], 0.02, 300
+                );
+            } else if (currentSurface === 'torus') {
+                // Geodesics on torus - circles around major and minor radii
+                geodesicTracer.traceGeodesicOnTorus(0, 100, radius * 1.5, radius * 0.5);
+                geodesicTracer.traceGeodesicOnTorus(Math.PI/2, 100, radius * 1.5, radius * 0.5);
+                geodesicTracer.traceGeodesicOnTorus(Math.PI, 100, radius * 1.5, radius * 0.5);
+                // Meridian circles
+                geodesicTracer.traceMeridianOnTorus(0, 100, radius * 1.5, radius * 0.5);
+                geodesicTracer.traceMeridianOnTorus(Math.PI/2, 100, radius * 1.5, radius * 0.5);
+            } else if (currentSurface === 'saddle') {
+                // Lines on saddle surface
+                geodesicTracer.traceGeodesicOnSaddle(0, 0, 1, 0, 100, radius * 3);
+                geodesicTracer.traceGeodesicOnSaddle(0, 0, 0.7, 0.7, 100, radius * 3);
+                geodesicTracer.traceGeodesicOnSaddle(0, 0, 0, 1, 100, radius * 3);
+            }
+            break;
+            
+        case 'gaussBonnet':
+            // Just show the surface with curvature coloring
+            break;
+            
+        case 'poincare':
+            vectorField = new VectorField(surface);
+            vectorField.surfaceType = currentSurface;
+            if (currentSurface === 'torus') {
+                vectorField.createTorusField();
+            } else {
+                vectorField.createLatitudeField();
+            }
+            break;
+            
+        case 'transport':
+            if (currentSurface === 'sphere') {
+                // Create a closed geodesic loop on sphere
+                const loopPoints = [];
+                const n = 80;
+                // Triangle path on sphere
+                for (let i = 0; i <= n/3; i++) {
+                    const t = i / (n/3) * Math.PI / 2;
+                    loopPoints.push([
+                        radius * Math.cos(t),
+                        radius * Math.sin(t),
+                        0
+                    ]);
+                }
+                for (let i = 0; i <= n/3; i++) {
+                    const t = i / (n/3) * Math.PI / 2;
+                    loopPoints.push([
+                        0,
+                        radius * Math.cos(t),
+                        radius * Math.sin(t)
+                    ]);
+                }
+                for (let i = 0; i <= n/3; i++) {
+                    const t = i / (n/3) * Math.PI / 2;
+                    loopPoints.push([
+                        radius * Math.sin(t),
+                        0,
+                        radius * Math.cos(t)
+                    ]);
+                }
+                geodesicTracer.geodesics.push({points: loopPoints, color: [0.4, 1, 0.85]});
+                transporter.radius = radius;
+                transporter.transportAlong(loopPoints, [0, 0.15, 0]);
+            } else if (currentSurface === 'torus') {
+                // Loop around torus
+                const loopPoints = [];
+                const R = radius * 1.5, r = radius * 0.5;
+                for (let i = 0; i <= 60; i++) {
+                    const u = i / 60 * 2 * Math.PI;
+                    loopPoints.push([
+                        (R + r) * Math.cos(u),
+                        0,
+                        (R + r) * Math.sin(u)
+                    ]);
+                }
+                geodesicTracer.geodesics.push({points: loopPoints, color: [0.4, 1, 0.85]});
+                transporter.transportAlong(loopPoints, [0, 0.15, 0]);
+            } else {
+                // Saddle path
+                const loopPoints = [];
+                for (let i = 0; i <= 60; i++) {
+                    const t = (i / 60 - 0.5) * radius * 2;
+                    loopPoints.push([t, t*t * 0.5 - 0.5, 0]);
+                }
+                geodesicTracer.geodesics.push({points: loopPoints, color: [0.4, 1, 0.85]});
+                transporter.transportAlong(loopPoints, [0, 0.15, 0]);
+            }
+            break;
+            
+        case 'curvatureFlow':
+            // Animate mean curvature flow (simplified)
+            break;
+    }
+    
+    updateStats();
+}
+
+function updateStats() {
+    let chi;
+    if (currentSurface === 'sphere') chi = 2;
+    else if (currentSurface === 'torus') chi = 0;
+    else chi = 1; // Saddle (open surface, depends on boundary)
+    
+    const totalK = surface.totalGaussianCurvature();
+    const expected = 2 * Math.PI * chi;
+    
+    document.getElementById('eulerChar').textContent = chi;
+    document.getElementById('totalK').textContent = totalK.toFixed(4);
+    document.getElementById('expected2pi').textContent = expected.toFixed(4);
+    
+    if (currentDemo === 'poincare') {
+        const indexSum = vectorField.totalIndex();
+        document.getElementById('indexSum').textContent = indexSum;
+        document.getElementById('verifyStatus').textContent = 
+            indexSum === chi ? '✓ Poincaré-Hopf Verified' : '...';
+    } else {
+        document.getElementById('indexSum').textContent = '—';
+        const error = Math.abs(totalK - expected);
+        if (currentSurface === 'saddle') {
+            document.getElementById('verifyStatus').textContent = 'K < 0 (negative curvature)';
+        } else {
+            document.getElementById('verifyStatus').textContent = 
+                error < 0.5 ? '✓ Gauss-Bonnet Verified' : `Error: ${error.toFixed(3)}`;
+        }
+    }
+    
+    // Update info overlay
+    const infoDiv = document.getElementById('currentInfo');
+    switch (currentDemo) {
+        case 'geodesic':
+            let geoDesc = '';
+            if (currentSurface === 'sphere') {
+                geoDesc = 'Great circles minimize distance on sphere.';
+            } else if (currentSurface === 'torus') {
+                geoDesc = '<span style="color:#64ffda">Cyan:</span> poloidal, <span style="color:#ff9966">Orange:</span> toroidal';
+            } else {
+                geoDesc = 'Straight lines on saddle (hyperbolic paraboloid)';
+            }
+            infoDiv.innerHTML = `
+                <strong>Geodesic Equation:</strong> ∇<sub>v</sub>v = 0<br>
+                ${geoDesc}<br>
+                <span style="color:#64ffda">Drag to rotate view</span>
+            `;
+            break;
+        case 'gaussBonnet':
+            infoDiv.innerHTML = `
+                <strong>Gauss-Bonnet:</strong> ∫K dA = 2πχ<br>
+                Colors: <span style="color:#ffd700">K>0</span> | 
+                <span style="color:#fff">K=0</span> | 
+                <span style="color:#4dabf7">K<0</span><br>
+                ${currentSurface === 'sphere' ? 'Sphere: K = 1/R² everywhere' : 
+                  currentSurface === 'torus' ? 'Torus: K varies (+ outer, - inner)' :
+                  'Saddle: K < 0 everywhere'}
+            `;
+            break;
+        case 'poincare':
+            infoDiv.innerHTML = `
+                <strong>Poincaré-Hopf:</strong> Σ index = χ<br>
+                <span style="color:#ff6b6b">Red dots</span> = singularities (index +1)<br>
+                ${currentSurface === 'sphere' ? '"Hairy ball theorem" - can\'t comb flat!' : 
+                  currentSurface === 'torus' ? 'Torus CAN be combed flat (χ=0)!' : 
+                  'Open surface - boundary effects'}
+            `;
+            break;
+        case 'transport':
+            infoDiv.innerHTML = `
+                <strong>Parallel Transport</strong><br>
+                <span style="color:#4dabf7">Blue vectors</span> transported along path<br>
+                Holonomy = enclosed curvature
+            `;
+            break;
+        case 'curvatureFlow':
+            infoDiv.innerHTML = `
+                <strong>Mean Curvature Flow</strong><br>
+                df/dt = -H⃗ (soap bubble evolution)<br>
+                Surface minimizes area
+            `;
+            break;
+    }
+}
+
+function animate() {
+    requestAnimationFrame(animate);
+    
+    if (renderer.autoRotate) {
+        renderer.camTheta += renderer.rotateSpeed;
+    }
+    
+    if (animating) {
+        animTime += 0.016 * animSpeed;
+    }
+    
+    render();
+}
+
+function render() {
+    renderer.clear();
+    
+    // Draw surface
+    renderer.drawMesh(surface, currentDemo === 'curvatureFlow');
+    
+    // Demo-specific rendering
+    switch (currentDemo) {
+        case 'geodesic':
+        case 'transport':
+            renderer.drawGeodesics(geodesicTracer.geodesics);
+            if (currentDemo === 'transport') {
+                renderer.drawTransportedVectors(transporter);
+            }
+            break;
+            
+        case 'poincare':
+            renderer.drawVectorField(vectorField, surface);
+            break;
+    }
+}
+
+// UI Controls
+function setDemo(demo) {
+    currentDemo = demo;
+    document.querySelectorAll('.btn-group button').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.textContent.toLowerCase().includes(demo.substring(0, 4))) {
+            btn.classList.add('active');
+        }
+    });
+    setupDemo();
+}
+
+function setSurface(type) {
+    currentSurface = type;
+    
+    document.querySelectorAll('#btnSphere, #btnTorus, #btnSaddle').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.getElementById('btn' + type.charAt(0).toUpperCase() + type.slice(1)).classList.add('active');
+    
+    switch (type) {
+        case 'sphere':
+            surface.createSphere(radius, resolution);
+            break;
+        case 'torus':
+            surface.createTorus(radius * 1.5, radius * 0.5, resolution, resolution);
+            break;
+        case 'saddle':
+            surface.createSaddle(radius * 3, resolution);
+            break;
+    }
+    
+    geodesicTracer = new GeodesicTracer(surface, radius);
+    vectorField = new VectorField(surface);
+    transporter = new ParallelTransporter(radius);
+    
+    setupDemo();
+}
+
+function updateRadius() {
+    radius = parseFloat(document.getElementById('radiusSlider').value);
+    document.getElementById('radiusVal').textContent = radius.toFixed(1);
+    setSurface(currentSurface);
+}
+
+function updateResolution() {
+    resolution = parseInt(document.getElementById('resSlider').value);
+    document.getElementById('resVal').textContent = resolution;
+    setSurface(currentSurface);
+}
+
+function updateSpeed() {
+    animSpeed = parseFloat(document.getElementById('speedSlider').value);
+    document.getElementById('speedVal').textContent = animSpeed.toFixed(1);
+}
+
+function toggleAnimation() {
+    animating = !animating;
+    document.getElementById('playBtn').textContent = animating ? '⏸ Pause' : '▶ Play';
+    renderer.autoRotate = animating;
+}
+
+function resetAnimation() {
+    animTime = 0;
+    animating = false;
+    document.getElementById('playBtn').textContent = '▶ Play';
+    setupDemo();
+}
+
+function stepAnimation() {
+    animTime += 0.05;
+    render();
+}
+
+// Initialize on load
+window.addEventListener('load', init);
+window.addEventListener('resize', () => {
+    if (renderer) renderer.resize();
+});
+</script>
+</body>
+</html>

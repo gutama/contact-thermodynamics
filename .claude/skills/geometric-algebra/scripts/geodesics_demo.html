@@ -1,0 +1,1480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discrete Geodesics Demo - Geometric Algebra</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #e8e8e8;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            padding: 20px 0 30px;
+        }
+        
+        h1 {
+            color: #4fd1c5;
+            font-size: 2.2em;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 10px rgba(79, 209, 197, 0.3);
+        }
+        
+        .subtitle {
+            color: #a0aec0;
+            font-size: 1.1em;
+        }
+        
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 20px;
+        }
+        
+        .canvas-container {
+            background: #0f0f1a;
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        canvas {
+            width: 100%;
+            border-radius: 8px;
+            cursor: crosshair;
+        }
+        
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .panel {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 18px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .panel h3 {
+            color: #4fd1c5;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .panel h3::before {
+            content: '';
+            display: inline-block;
+            width: 4px;
+            height: 20px;
+            background: linear-gradient(180deg, #4fd1c5, #38b2ac);
+            border-radius: 2px;
+        }
+        
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        button {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #4fd1c5, #38b2ac);
+            color: #0f0f1a;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(79, 209, 197, 0.4);
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #e8e8e8;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+        
+        .btn-secondary.active {
+            background: rgba(79, 209, 197, 0.2);
+            border-color: #4fd1c5;
+            color: #4fd1c5;
+        }
+        
+        .slider-group {
+            margin: 12px 0;
+        }
+        
+        .slider-group label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            color: #a0aec0;
+            font-size: 0.9em;
+        }
+        
+        .slider-group label span {
+            color: #4fd1c5;
+            font-weight: 600;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #4fd1c5;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(79, 209, 197, 0.4);
+        }
+        
+        .info-box {
+            background: rgba(79, 209, 197, 0.1);
+            border: 1px solid rgba(79, 209, 197, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 0.85em;
+            line-height: 1.5;
+        }
+        
+        .info-box strong {
+            color: #4fd1c5;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        .stat {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #4fd1c5;
+        }
+        
+        .stat-label {
+            font-size: 0.75em;
+            color: #718096;
+            margin-top: 2px;
+        }
+        
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 10px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85em;
+        }
+        
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+        }
+        
+        .theory-section {
+            margin-top: 20px;
+        }
+        
+        .theory-section h2 {
+            color: #4fd1c5;
+            font-size: 1.3em;
+            margin-bottom: 15px;
+        }
+        
+        .theory-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        
+        .theory-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 18px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .theory-card h4 {
+            color: #81e6d9;
+            margin-bottom: 10px;
+        }
+        
+        .theory-card p {
+            font-size: 0.9em;
+            line-height: 1.6;
+            color: #a0aec0;
+        }
+        
+        .formula {
+            font-family: 'Cambria Math', 'Times New Roman', serif;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin: 10px 0;
+            color: #e8e8e8;
+            font-style: italic;
+        }
+        
+        .mesh-select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.3);
+            color: #e8e8e8;
+            font-size: 0.95em;
+            margin-bottom: 10px;
+        }
+        
+        .mesh-select option {
+            background: #1a1a2e;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌐 Discrete Geodesics on Polyhedral Surfaces</h1>
+            <p class="subtitle">Interactive exploration of shortest &amp; straightest paths via Geometric Algebra</p>
+        </header>
+        
+        <div class="main-grid">
+            <div class="canvas-container">
+                <canvas id="canvas" width="900" height="700"></canvas>
+            </div>
+            
+            <div class="controls">
+                <div class="panel">
+                    <h3>Surface</h3>
+                    <select class="mesh-select" id="meshSelect">
+                        <option value="sphere">Icosphere (genus 0)</option>
+                        <option value="torus">Torus (genus 1)</option>
+                        <option value="cube">Cube (polyhedral)</option>
+                        <option value="tetrahedron">Tetrahedron</option>
+                        <option value="saddle">Hyperbolic Paraboloid</option>
+                    </select>
+                    
+                    <div class="slider-group">
+                        <label>Subdivision: <span id="subdivVal">2</span></label>
+                        <input type="range" id="subdivision" min="0" max="4" value="2">
+                    </div>
+                </div>
+                
+                <div class="panel">
+                    <h3>Geodesic Mode</h3>
+                    <div class="btn-group">
+                        <button class="btn-secondary active" id="modeShortest">Shortest</button>
+                        <button class="btn-secondary" id="modeStraightest">Straightest</button>
+                        <button class="btn-secondary" id="modeExp">Exp Map</button>
+                        <button class="btn-secondary" id="modeParallel">Parallel Transport</button>
+                    </div>
+                    
+                    <div class="info-box" style="margin-top: 12px;" id="modeInfo">
+                        <strong>Shortest Geodesic:</strong> Click two vertices to find the path that minimizes length. Uses Dijkstra on mesh graph.
+                    </div>
+                </div>
+                
+                <div class="panel">
+                    <h3>Display Options</h3>
+                    <div class="btn-group">
+                        <button class="btn-secondary active" id="showMesh">Mesh</button>
+                        <button class="btn-secondary" id="showCurvature">Curvature</button>
+                        <button class="btn-secondary" id="showCutLocus">Cut Locus</button>
+                        <button class="btn-secondary" id="showNormals">Normals</button>
+                    </div>
+                    
+                    <div class="slider-group">
+                        <label>Path Length: <span id="pathLenVal">5.0</span></label>
+                        <input type="range" id="pathLength" min="0.5" max="15" step="0.5" value="5">
+                    </div>
+                </div>
+                
+                <div class="panel">
+                    <h3>Statistics</h3>
+                    <div class="stats">
+                        <div class="stat">
+                            <div class="stat-value" id="statVertices">0</div>
+                            <div class="stat-label">Vertices</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value" id="statFaces">0</div>
+                            <div class="stat-label">Faces</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value" id="statChi">0</div>
+                            <div class="stat-label">χ (Euler)</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value" id="statGeodesicLen">—</div>
+                            <div class="stat-label">Path Length</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="panel">
+                    <h3>Legend</h3>
+                    <div class="legend">
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #ff6b6b;"></div>
+                            <span>Source</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #4ecdc4;"></div>
+                            <span>Target</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #ffd93d;"></div>
+                            <span>Geodesic</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #ff9ff3;"></div>
+                            <span>Cut Locus</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #54a0ff;"></div>
+                            <span>Cone (K&gt;0)</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #ff6348;"></div>
+                            <span>Saddle (K&lt;0)</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="panel">
+                    <h3>Actions</h3>
+                    <div class="btn-group">
+                        <button class="btn-primary" id="btnReset">Reset View</button>
+                        <button class="btn-secondary" id="btnClear">Clear Paths</button>
+                        <button class="btn-secondary" id="btnAnimate">Animate</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="theory-section">
+            <h2>📐 Mathematical Background</h2>
+            <div class="theory-cards">
+                <div class="theory-card">
+                    <h4>Shortest vs Straightest</h4>
+                    <p>On smooth surfaces, "shortest" and "straightest" are equivalent. On polyhedral surfaces, they diverge:</p>
+                    <div class="formula">κ<sub>g</sub> = κ · sin(θ) = 0 ⟹ geodesic</div>
+                    <p><strong>Shortest:</strong> Never passes through cone vertices (Θ &lt; 2π).<br>
+                    <strong>Straightest:</strong> Equal angles θ<sub>L</sub> = θ<sub>R</sub> when crossing edges.</p>
+                </div>
+                
+                <div class="theory-card">
+                    <h4>Exponential &amp; Log Maps</h4>
+                    <p>Maps between tangent plane T<sub>p</sub>M and the manifold M:</p>
+                    <div class="formula">exp<sub>p</sub>(v) : T<sub>p</sub>M → M</div>
+                    <div class="formula">log<sub>p</sub>(q) : M → T<sub>p</sub>M</div>
+                    <p>exp shoots a geodesic from p in direction v for length |v|.<br>
+                    log finds the tangent vector that reaches q.</p>
+                </div>
+                
+                <div class="theory-card">
+                    <h4>Parallel Transport</h4>
+                    <p>Move vectors along curves while preserving their "intrinsic direction":</p>
+                    <div class="formula">∇<sub>γ'</sub>V = 0</div>
+                    <p>On polyhedra: rotate vector by dihedral angle when crossing edges. 
+                    <strong>Holonomy</strong> around vertex = angle defect = Gaussian curvature.</p>
+                </div>
+                
+                <div class="theory-card">
+                    <h4>Cut Locus</h4>
+                    <p>Set of points where shortest geodesic from source is non-unique:</p>
+                    <div class="formula">C(p) = {q : ∃ distinct shortest geodesics p→q}</div>
+                    <p>For a sphere, cut locus of any point is its antipode. 
+                    The <strong>medial axis</strong> is related: points equidistant from boundary.</p>
+                </div>
+                
+                <div class="theory-card">
+                    <h4>Karcher Mean</h4>
+                    <p>Center of mass on curved surfaces:</p>
+                    <div class="formula">x̄ = argmin<sub>x</sub> Σ d²(x, x<sub>i</sub>)</div>
+                    <p>Iterative algorithm: average tangent vectors in T<sub>x</sub>M, then exp map to update.</p>
+                </div>
+                
+                <div class="theory-card">
+                    <h4>Vertex Classification</h4>
+                    <p>Angle defect determines vertex type:</p>
+                    <div class="formula">Θ = 2π - Σθ<sub>j</sub></div>
+                    <p><strong>Cone (Θ &gt; 0):</strong> Positive curvature, shortest paths go around.<br>
+                    <strong>Flat (Θ = 0):</strong> Euclidean, paths go straight through.<br>
+                    <strong>Saddle (Θ &lt; 0):</strong> Negative curvature, multiple paths may pass through.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+    // ============================================================================
+    // GEODESICS MODULE (inline for standalone demo)
+    // ============================================================================
+    
+    const EPSILON = 1e-10;
+    const PI = Math.PI;
+    
+    const Vec3 = {
+        add: (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]],
+        sub: (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]],
+        scale: (v, s) => [v[0] * s, v[1] * s, v[2] * s],
+        dot: (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2],
+        cross: (a, b) => [
+            a[1] * b[2] - a[2] * b[1],
+            a[2] * b[0] - a[0] * b[2],
+            a[0] * b[1] - a[1] * b[0]
+        ],
+        length: (v) => Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]),
+        normalize: (v) => {
+            const len = Vec3.length(v);
+            return len > EPSILON ? [v[0] / len, v[1] / len, v[2] / len] : [0, 0, 0];
+        },
+        lerp: (a, b, t) => [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1]), a[2] + t * (b[2] - a[2])],
+        distance: (a, b) => Vec3.length(Vec3.sub(b, a))
+    };
+    
+    class PriorityQueue {
+        constructor() { this.heap = []; }
+        push(item, priority) {
+            this.heap.push({ item, priority });
+            this._bubbleUp(this.heap.length - 1);
+        }
+        pop() {
+            if (this.heap.length === 0) return null;
+            const result = this.heap[0];
+            const last = this.heap.pop();
+            if (this.heap.length > 0) {
+                this.heap[0] = last;
+                this._bubbleDown(0);
+            }
+            return result;
+        }
+        isEmpty() { return this.heap.length === 0; }
+        _bubbleUp(idx) {
+            while (idx > 0) {
+                const parent = Math.floor((idx - 1) / 2);
+                if (this.heap[parent].priority <= this.heap[idx].priority) break;
+                [this.heap[parent], this.heap[idx]] = [this.heap[idx], this.heap[parent]];
+                idx = parent;
+            }
+        }
+        _bubbleDown(idx) {
+            const n = this.heap.length;
+            while (true) {
+                const left = 2 * idx + 1, right = 2 * idx + 2;
+                let smallest = idx;
+                if (left < n && this.heap[left].priority < this.heap[smallest].priority) smallest = left;
+                if (right < n && this.heap[right].priority < this.heap[smallest].priority) smallest = right;
+                if (smallest === idx) break;
+                [this.heap[smallest], this.heap[idx]] = [this.heap[idx], this.heap[smallest]];
+                idx = smallest;
+            }
+        }
+    }
+    
+    // ============================================================================
+    // MESH PRIMITIVES
+    // ============================================================================
+    
+    const Primitives = {
+        icosphere(subdivisions = 2) {
+            const t = (1 + Math.sqrt(5)) / 2;
+            let vertices = [
+                [-1, t, 0], [1, t, 0], [-1, -t, 0], [1, -t, 0],
+                [0, -1, t], [0, 1, t], [0, -1, -t], [0, 1, -t],
+                [t, 0, -1], [t, 0, 1], [-t, 0, -1], [-t, 0, 1]
+            ].map(v => {
+                const len = Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+                return [v[0]/len, v[1]/len, v[2]/len];
+            });
+            
+            let faces = [
+                [0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11],
+                [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8],
+                [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9],
+                [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1]
+            ];
+            
+            for (let s = 0; s < subdivisions; s++) {
+                const newFaces = [];
+                const midpointCache = new Map();
+                
+                const getMidpoint = (i1, i2) => {
+                    const key = i1 < i2 ? `${i1}-${i2}` : `${i2}-${i1}`;
+                    if (midpointCache.has(key)) return midpointCache.get(key);
+                    const v1 = vertices[i1], v2 = vertices[i2];
+                    const mid = [(v1[0] + v2[0]) / 2, (v1[1] + v2[1]) / 2, (v1[2] + v2[2]) / 2];
+                    const len = Math.sqrt(mid[0]*mid[0] + mid[1]*mid[1] + mid[2]*mid[2]);
+                    vertices.push([mid[0]/len, mid[1]/len, mid[2]/len]);
+                    const idx = vertices.length - 1;
+                    midpointCache.set(key, idx);
+                    return idx;
+                };
+                
+                for (const f of faces) {
+                    const a = getMidpoint(f[0], f[1]);
+                    const b = getMidpoint(f[1], f[2]);
+                    const c = getMidpoint(f[2], f[0]);
+                    newFaces.push([f[0], a, c], [f[1], b, a], [f[2], c, b], [a, b, c]);
+                }
+                faces = newFaces;
+            }
+            return { vertices, faces };
+        },
+        
+        torus(R = 1, r = 0.4, nu = 24, nv = 12) {
+            const vertices = [];
+            const faces = [];
+            
+            for (let i = 0; i < nu; i++) {
+                const u = 2 * PI * i / nu;
+                for (let j = 0; j < nv; j++) {
+                    const v = 2 * PI * j / nv;
+                    vertices.push([
+                        (R + r * Math.cos(v)) * Math.cos(u),
+                        (R + r * Math.cos(v)) * Math.sin(u),
+                        r * Math.sin(v)
+                    ]);
+                }
+            }
+            
+            for (let i = 0; i < nu; i++) {
+                for (let j = 0; j < nv; j++) {
+                    const i1 = (i + 1) % nu;
+                    const j1 = (j + 1) % nv;
+                    const v0 = i * nv + j;
+                    const v1 = i1 * nv + j;
+                    const v2 = i1 * nv + j1;
+                    const v3 = i * nv + j1;
+                    faces.push([v0, v1, v2], [v0, v2, v3]);
+                }
+            }
+            return { vertices, faces };
+        },
+        
+        cube() {
+            const vertices = [
+                [-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1],
+                [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]
+            ];
+            const faces = [
+                [0, 3, 2], [0, 2, 1], [4, 5, 6], [4, 6, 7],
+                [0, 1, 5], [0, 5, 4], [2, 3, 7], [2, 7, 6],
+                [0, 4, 7], [0, 7, 3], [1, 2, 6], [1, 6, 5]
+            ];
+            return { vertices, faces };
+        },
+        
+        tetrahedron() {
+            const vertices = [
+                [1, 1, 1], [1, -1, -1], [-1, 1, -1], [-1, -1, 1]
+            ].map(v => {
+                const len = Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+                return [v[0]/len, v[1]/len, v[2]/len];
+            });
+            const faces = [[0, 1, 2], [0, 2, 3], [0, 3, 1], [1, 3, 2]];
+            return { vertices, faces };
+        },
+        
+        saddle(n = 10) {
+            const vertices = [];
+            const faces = [];
+            
+            for (let i = 0; i <= n; i++) {
+                for (let j = 0; j <= n; j++) {
+                    const x = (i / n - 0.5) * 2;
+                    const y = (j / n - 0.5) * 2;
+                    const z = x * x - y * y;
+                    vertices.push([x, y, z * 0.3]);
+                }
+            }
+            
+            for (let i = 0; i < n; i++) {
+                for (let j = 0; j < n; j++) {
+                    const v0 = i * (n + 1) + j;
+                    const v1 = v0 + 1;
+                    const v2 = v0 + n + 2;
+                    const v3 = v0 + n + 1;
+                    faces.push([v0, v3, v2], [v0, v2, v1]);
+                }
+            }
+            return { vertices, faces };
+        }
+    };
+    
+    // ============================================================================
+    // GEODESICS CLASS
+    // ============================================================================
+    
+    class DiscreteGeodesics {
+        constructor() {
+            this.vertices = [];
+            this.faces = [];
+            this.edges = [];
+            this.adjacency = [];
+            this.edgeMap = new Map();
+            this.faceNormals = [];
+            this.vertexFaces = [];
+        }
+        
+        loadMesh(vertices, faces) {
+            this.vertices = vertices.map(v => [...v]);
+            this.faces = faces.map(f => [...f]);
+            this._buildTopology();
+            this._computeFaceNormals();
+        }
+        
+        _buildTopology() {
+            const V = this.vertices.length;
+            this.vertexFaces = Array.from({ length: V }, () => []);
+            this.adjacency = Array.from({ length: V }, () => new Set());
+            this.edgeMap = new Map();
+            
+            for (let fi = 0; fi < this.faces.length; fi++) {
+                const f = this.faces[fi];
+                for (let j = 0; j < 3; j++) {
+                    const v0 = f[j], v1 = f[(j + 1) % 3];
+                    this.vertexFaces[v0].push(fi);
+                    this.adjacency[v0].add(v1);
+                    this.adjacency[v1].add(v0);
+                    
+                    const key = v0 < v1 ? `${v0}-${v1}` : `${v1}-${v0}`;
+                    if (!this.edgeMap.has(key)) {
+                        this.edgeMap.set(key, { v0: Math.min(v0, v1), v1: Math.max(v0, v1), faces: [] });
+                    }
+                    this.edgeMap.get(key).faces.push(fi);
+                }
+            }
+            this.edges = Array.from(this.edgeMap.values());
+        }
+        
+        _computeFaceNormals() {
+            this.faceNormals = this.faces.map(f => {
+                const e1 = Vec3.sub(this.vertices[f[1]], this.vertices[f[0]]);
+                const e2 = Vec3.sub(this.vertices[f[2]], this.vertices[f[0]]);
+                return Vec3.normalize(Vec3.cross(e1, e2));
+            });
+        }
+        
+        angleSum(vertexIdx) {
+            let sum = 0;
+            for (const fi of this.vertexFaces[vertexIdx]) {
+                const f = this.faces[fi];
+                const idx = f.indexOf(vertexIdx);
+                const v0 = this.vertices[vertexIdx];
+                const v1 = this.vertices[f[(idx + 1) % 3]];
+                const v2 = this.vertices[f[(idx + 2) % 3]];
+                const e1 = Vec3.normalize(Vec3.sub(v1, v0));
+                const e2 = Vec3.normalize(Vec3.sub(v2, v0));
+                const dot = Math.max(-1, Math.min(1, Vec3.dot(e1, e2)));
+                sum += Math.acos(dot);
+            }
+            return sum;
+        }
+        
+        angleDefect(vertexIdx) {
+            return 2 * PI - this.angleSum(vertexIdx);
+        }
+        
+        isConeVertex(vi) { return this.angleDefect(vi) > 0.01; }
+        isSaddleVertex(vi) { return this.angleDefect(vi) < -0.01; }
+        
+        dijkstraGraph(source) {
+            const n = this.vertices.length;
+            const dist = new Array(n).fill(Infinity);
+            const pred = new Array(n).fill(-1);
+            const visited = new Array(n).fill(false);
+            
+            dist[source] = 0;
+            const pq = new PriorityQueue();
+            pq.push(source, 0);
+            
+            while (!pq.isEmpty()) {
+                const { item: u } = pq.pop();
+                if (visited[u]) continue;
+                visited[u] = true;
+                
+                for (const v of this.adjacency[u]) {
+                    const edgeLen = Vec3.distance(this.vertices[u], this.vertices[v]);
+                    const newDist = dist[u] + edgeLen;
+                    if (newDist < dist[v]) {
+                        dist[v] = newDist;
+                        pred[v] = u;
+                        pq.push(v, newDist);
+                    }
+                }
+            }
+            return { distances: dist, predecessors: pred };
+        }
+        
+        reconstructPath(pred, target) {
+            const path = [];
+            let current = target;
+            while (current !== -1) {
+                path.unshift(current);
+                current = pred[current];
+            }
+            return path;
+        }
+        
+        vertexNormal(vi) {
+            let n = [0, 0, 0];
+            for (const fi of this.vertexFaces[vi]) {
+                n = Vec3.add(n, this.faceNormals[fi]);
+            }
+            return Vec3.normalize(n);
+        }
+        
+        eulerCharacteristic() {
+            return this.vertices.length - this.edges.length + this.faces.length;
+        }
+        
+        approximateCutLocus(source) {
+            const result = this.dijkstraGraph(source);
+            const distances = result.distances;
+            const cutVertices = [];
+            
+            for (let i = 0; i < this.vertices.length; i++) {
+                if (i === source) continue;
+                if (this.isSaddleVertex(i)) {
+                    let pathCount = 0;
+                    for (const neighbor of this.adjacency[i]) {
+                        if (distances[neighbor] < distances[i]) pathCount++;
+                    }
+                    if (pathCount > 1) cutVertices.push(i);
+                }
+            }
+            
+            // Find antipodal point (max distance)
+            let maxDist = 0, antipode = -1;
+            for (let i = 0; i < distances.length; i++) {
+                if (distances[i] > maxDist && isFinite(distances[i])) {
+                    maxDist = distances[i];
+                    antipode = i;
+                }
+            }
+            if (antipode >= 0 && !cutVertices.includes(antipode)) {
+                cutVertices.push(antipode);
+            }
+            
+            return { cutVertices, distances };
+        }
+    }
+    
+    // ============================================================================
+    // 3D RENDERING
+    // ============================================================================
+    
+    class Renderer3D {
+        constructor(canvas) {
+            this.canvas = canvas;
+            this.ctx = canvas.getContext('2d');
+            this.width = canvas.width;
+            this.height = canvas.height;
+            
+            // Camera
+            this.rotationX = 0.4;
+            this.rotationY = 0.3;
+            this.zoom = 250;
+            this.center = [this.width / 2, this.height / 2];
+            
+            // Mouse
+            this.dragging = false;
+            this.lastMouse = { x: 0, y: 0 };
+            
+            this._setupEvents();
+        }
+        
+        _setupEvents() {
+            this.canvas.addEventListener('mousedown', e => {
+                this.dragging = true;
+                this.lastMouse = { x: e.clientX, y: e.clientY };
+            });
+            
+            this.canvas.addEventListener('mousemove', e => {
+                if (this.dragging) {
+                    const dx = e.clientX - this.lastMouse.x;
+                    const dy = e.clientY - this.lastMouse.y;
+                    this.rotationY += dx * 0.01;
+                    this.rotationX += dy * 0.01;
+                    this.lastMouse = { x: e.clientX, y: e.clientY };
+                    this.onRotate?.();
+                }
+            });
+            
+            this.canvas.addEventListener('mouseup', () => this.dragging = false);
+            this.canvas.addEventListener('mouseleave', () => this.dragging = false);
+            
+            this.canvas.addEventListener('wheel', e => {
+                e.preventDefault();
+                this.zoom *= e.deltaY > 0 ? 0.95 : 1.05;
+                this.zoom = Math.max(50, Math.min(500, this.zoom));
+                this.onRotate?.();
+            });
+        }
+        
+        project(p) {
+            // Rotate
+            let [x, y, z] = p;
+            
+            // Rotate around Y
+            const cosY = Math.cos(this.rotationY);
+            const sinY = Math.sin(this.rotationY);
+            [x, z] = [x * cosY - z * sinY, x * sinY + z * cosY];
+            
+            // Rotate around X
+            const cosX = Math.cos(this.rotationX);
+            const sinX = Math.sin(this.rotationX);
+            [y, z] = [y * cosX - z * sinX, y * sinX + z * cosX];
+            
+            // Simple perspective
+            const scale = this.zoom / (z + 4);
+            return {
+                x: this.center[0] + x * scale,
+                y: this.center[1] - y * scale,
+                z: z
+            };
+        }
+        
+        clear() {
+            this.ctx.fillStyle = '#0a0a14';
+            this.ctx.fillRect(0, 0, this.width, this.height);
+            
+            // Grid
+            this.ctx.strokeStyle = 'rgba(79, 209, 197, 0.1)';
+            this.ctx.lineWidth = 1;
+            for (let i = -2; i <= 2; i += 0.5) {
+                const p1 = this.project([i, 0, -2]);
+                const p2 = this.project([i, 0, 2]);
+                this.ctx.beginPath();
+                this.ctx.moveTo(p1.x, p1.y);
+                this.ctx.lineTo(p2.x, p2.y);
+                this.ctx.stroke();
+                
+                const p3 = this.project([-2, 0, i]);
+                const p4 = this.project([2, 0, i]);
+                this.ctx.beginPath();
+                this.ctx.moveTo(p3.x, p3.y);
+                this.ctx.lineTo(p4.x, p4.y);
+                this.ctx.stroke();
+            }
+        }
+        
+        drawMesh(geo, options = {}) {
+            const { showCurvature = false, highlightVertices = [] } = options;
+            
+            // Sort faces by depth
+            const facesWithDepth = geo.faces.map((f, fi) => {
+                const centroid = Vec3.scale(
+                    Vec3.add(Vec3.add(geo.vertices[f[0]], geo.vertices[f[1]]), geo.vertices[f[2]]),
+                    1/3
+                );
+                const proj = this.project(centroid);
+                return { face: f, faceIdx: fi, depth: proj.z };
+            }).sort((a, b) => b.depth - a.depth);
+            
+            // Draw faces
+            for (const { face: f, faceIdx } of facesWithDepth) {
+                const p0 = this.project(geo.vertices[f[0]]);
+                const p1 = this.project(geo.vertices[f[1]]);
+                const p2 = this.project(geo.vertices[f[2]]);
+                
+                // Lighting
+                const n = geo.faceNormals[faceIdx];
+                const light = [0.3, 0.5, 0.8];
+                const intensity = Math.max(0.2, Vec3.dot(n, Vec3.normalize(light)));
+                
+                let color;
+                if (showCurvature) {
+                    // Color by average curvature
+                    const avgK = (geo.angleDefect(f[0]) + geo.angleDefect(f[1]) + geo.angleDefect(f[2])) / 3;
+                    if (avgK > 0.05) {
+                        color = `rgba(84, 160, 255, ${intensity})`;  // Blue for K > 0
+                    } else if (avgK < -0.05) {
+                        color = `rgba(255, 99, 72, ${intensity})`;   // Red for K < 0
+                    } else {
+                        color = `rgba(100, 100, 100, ${intensity})`;
+                    }
+                } else {
+                    const c = Math.floor(intensity * 80 + 40);
+                    color = `rgb(${c}, ${c + 10}, ${c + 20})`;
+                }
+                
+                this.ctx.fillStyle = color;
+                this.ctx.strokeStyle = 'rgba(79, 209, 197, 0.3)';
+                this.ctx.lineWidth = 0.5;
+                
+                this.ctx.beginPath();
+                this.ctx.moveTo(p0.x, p0.y);
+                this.ctx.lineTo(p1.x, p1.y);
+                this.ctx.lineTo(p2.x, p2.y);
+                this.ctx.closePath();
+                this.ctx.fill();
+                this.ctx.stroke();
+            }
+            
+            // Highlight special vertices
+            for (const vi of highlightVertices) {
+                const p = this.project(geo.vertices[vi]);
+                this.ctx.fillStyle = geo.isConeVertex(vi) ? '#54a0ff' : 
+                                     geo.isSaddleVertex(vi) ? '#ff6348' : '#aaa';
+                this.ctx.beginPath();
+                this.ctx.arc(p.x, p.y, 5, 0, 2 * PI);
+                this.ctx.fill();
+            }
+        }
+        
+        drawPath(geo, vertexPath, color = '#ffd93d', width = 3) {
+            if (vertexPath.length < 2) return;
+            
+            this.ctx.strokeStyle = color;
+            this.ctx.lineWidth = width;
+            this.ctx.lineCap = 'round';
+            this.ctx.lineJoin = 'round';
+            
+            this.ctx.beginPath();
+            const start = this.project(geo.vertices[vertexPath[0]]);
+            this.ctx.moveTo(start.x, start.y);
+            
+            for (let i = 1; i < vertexPath.length; i++) {
+                const p = this.project(geo.vertices[vertexPath[i]]);
+                this.ctx.lineTo(p.x, p.y);
+            }
+            this.ctx.stroke();
+        }
+        
+        drawVertex(geo, vi, color = '#ff6b6b', size = 8) {
+            const p = this.project(geo.vertices[vi]);
+            
+            // Glow
+            const gradient = this.ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, size * 2);
+            gradient.addColorStop(0, color);
+            gradient.addColorStop(1, 'transparent');
+            this.ctx.fillStyle = gradient;
+            this.ctx.beginPath();
+            this.ctx.arc(p.x, p.y, size * 2, 0, 2 * PI);
+            this.ctx.fill();
+            
+            // Core
+            this.ctx.fillStyle = color;
+            this.ctx.beginPath();
+            this.ctx.arc(p.x, p.y, size, 0, 2 * PI);
+            this.ctx.fill();
+        }
+        
+        drawVector(geo, vi, direction, color = '#4ecdc4', scale = 0.3) {
+            const origin = geo.vertices[vi];
+            const end = Vec3.add(origin, Vec3.scale(direction, scale));
+            
+            const p1 = this.project(origin);
+            const p2 = this.project(end);
+            
+            this.ctx.strokeStyle = color;
+            this.ctx.lineWidth = 2;
+            this.ctx.beginPath();
+            this.ctx.moveTo(p1.x, p1.y);
+            this.ctx.lineTo(p2.x, p2.y);
+            this.ctx.stroke();
+            
+            // Arrow head
+            const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+            const headLen = 8;
+            this.ctx.beginPath();
+            this.ctx.moveTo(p2.x, p2.y);
+            this.ctx.lineTo(p2.x - headLen * Math.cos(angle - 0.4), p2.y - headLen * Math.sin(angle - 0.4));
+            this.ctx.moveTo(p2.x, p2.y);
+            this.ctx.lineTo(p2.x - headLen * Math.cos(angle + 0.4), p2.y - headLen * Math.sin(angle + 0.4));
+            this.ctx.stroke();
+        }
+        
+        getClickedVertex(geo, x, y, threshold = 15) {
+            let closest = -1;
+            let minDist = threshold;
+            
+            for (let i = 0; i < geo.vertices.length; i++) {
+                const p = this.project(geo.vertices[i]);
+                const dx = p.x - x;
+                const dy = p.y - y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < minDist) {
+                    minDist = dist;
+                    closest = i;
+                }
+            }
+            return closest;
+        }
+    }
+    
+    // ============================================================================
+    // MAIN APPLICATION
+    // ============================================================================
+    
+    class GeodesicsDemo {
+        constructor() {
+            this.canvas = document.getElementById('canvas');
+            this.renderer = new Renderer3D(this.canvas);
+            this.geo = new DiscreteGeodesics();
+            
+            this.sourceVertex = -1;
+            this.targetVertex = -1;
+            this.currentPath = [];
+            this.cutLocus = [];
+            this.transportedVector = null;
+            
+            this.mode = 'shortest';
+            this.showCurvature = false;
+            this.showCutLocus = false;
+            this.showNormals = false;
+            this.pathLength = 5;
+            this.animating = false;
+            
+            this.setupUI();
+            this.loadMesh('sphere');
+            this.render();
+            
+            this.renderer.onRotate = () => this.render();
+        }
+        
+        setupUI() {
+            // Mesh selection
+            document.getElementById('meshSelect').addEventListener('change', e => {
+                this.loadMesh(e.target.value);
+            });
+            
+            document.getElementById('subdivision').addEventListener('input', e => {
+                document.getElementById('subdivVal').textContent = e.target.value;
+                this.loadMesh(document.getElementById('meshSelect').value);
+            });
+            
+            // Mode buttons
+            const modeButtons = ['modeShortest', 'modeStraightest', 'modeExp', 'modeParallel'];
+            const modeInfos = {
+                modeShortest: '<strong>Shortest Geodesic:</strong> Click two vertices to find the path that minimizes length. Uses Dijkstra on mesh graph.',
+                modeStraightest: '<strong>Straightest Geodesic:</strong> Click a vertex, then another to shoot a geodesic. Maintains equal angles when crossing edges.',
+                modeExp: '<strong>Exponential Map:</strong> Click a vertex to see geodesics radiating in all directions (tangent space → manifold).',
+                modeParallel: '<strong>Parallel Transport:</strong> Click source, then target. Watch a vector being transported along the geodesic.'
+            };
+            
+            modeButtons.forEach(id => {
+                document.getElementById(id).addEventListener('click', () => {
+                    modeButtons.forEach(b => document.getElementById(b).classList.remove('active'));
+                    document.getElementById(id).classList.add('active');
+                    this.mode = id.replace('mode', '').toLowerCase();
+                    document.getElementById('modeInfo').innerHTML = modeInfos[id];
+                    this.clearSelection();
+                });
+            });
+            
+            // Display toggles
+            document.getElementById('showMesh').addEventListener('click', e => {
+                e.target.classList.toggle('active');
+                this.render();
+            });
+            
+            document.getElementById('showCurvature').addEventListener('click', e => {
+                e.target.classList.toggle('active');
+                this.showCurvature = e.target.classList.contains('active');
+                this.render();
+            });
+            
+            document.getElementById('showCutLocus').addEventListener('click', e => {
+                e.target.classList.toggle('active');
+                this.showCutLocus = e.target.classList.contains('active');
+                if (this.showCutLocus && this.sourceVertex >= 0) {
+                    const result = this.geo.approximateCutLocus(this.sourceVertex);
+                    this.cutLocus = result.cutVertices;
+                }
+                this.render();
+            });
+            
+            document.getElementById('showNormals').addEventListener('click', e => {
+                e.target.classList.toggle('active');
+                this.showNormals = e.target.classList.contains('active');
+                this.render();
+            });
+            
+            document.getElementById('pathLength').addEventListener('input', e => {
+                this.pathLength = parseFloat(e.target.value);
+                document.getElementById('pathLenVal').textContent = this.pathLength.toFixed(1);
+            });
+            
+            // Action buttons
+            document.getElementById('btnReset').addEventListener('click', () => {
+                this.renderer.rotationX = 0.4;
+                this.renderer.rotationY = 0.3;
+                this.renderer.zoom = 250;
+                this.render();
+            });
+            
+            document.getElementById('btnClear').addEventListener('click', () => this.clearSelection());
+            
+            document.getElementById('btnAnimate').addEventListener('click', () => this.toggleAnimation());
+            
+            // Canvas click
+            this.canvas.addEventListener('click', e => {
+                if (this.renderer.dragging) return;
+                const rect = this.canvas.getBoundingClientRect();
+                const x = (e.clientX - rect.left) * (this.canvas.width / rect.width);
+                const y = (e.clientY - rect.top) * (this.canvas.height / rect.height);
+                this.handleClick(x, y);
+            });
+        }
+        
+        loadMesh(type) {
+            const subdiv = parseInt(document.getElementById('subdivision').value);
+            let mesh;
+            
+            switch (type) {
+                case 'sphere':
+                    mesh = Primitives.icosphere(subdiv);
+                    break;
+                case 'torus':
+                    mesh = Primitives.torus(1, 0.4, 16 + subdiv * 8, 8 + subdiv * 4);
+                    break;
+                case 'cube':
+                    mesh = Primitives.cube();
+                    break;
+                case 'tetrahedron':
+                    mesh = Primitives.tetrahedron();
+                    break;
+                case 'saddle':
+                    mesh = Primitives.saddle(6 + subdiv * 3);
+                    break;
+                default:
+                    mesh = Primitives.icosphere(subdiv);
+            }
+            
+            this.geo.loadMesh(mesh.vertices, mesh.faces);
+            this.clearSelection();
+            this.updateStats();
+            this.render();
+        }
+        
+        updateStats() {
+            document.getElementById('statVertices').textContent = this.geo.vertices.length;
+            document.getElementById('statFaces').textContent = this.geo.faces.length;
+            document.getElementById('statChi').textContent = this.geo.eulerCharacteristic();
+        }
+        
+        clearSelection() {
+            this.sourceVertex = -1;
+            this.targetVertex = -1;
+            this.currentPath = [];
+            this.cutLocus = [];
+            this.transportedVector = null;
+            document.getElementById('statGeodesicLen').textContent = '—';
+            this.render();
+        }
+        
+        handleClick(x, y) {
+            const vi = this.renderer.getClickedVertex(this.geo, x, y);
+            if (vi < 0) return;
+            
+            if (this.mode === 'shortest' || this.mode === 'straightest' || this.mode === 'parallel') {
+                if (this.sourceVertex < 0) {
+                    this.sourceVertex = vi;
+                    if (this.showCutLocus) {
+                        const result = this.geo.approximateCutLocus(vi);
+                        this.cutLocus = result.cutVertices;
+                    }
+                } else if (this.targetVertex < 0 && vi !== this.sourceVertex) {
+                    this.targetVertex = vi;
+                    this.computeGeodesic();
+                } else {
+                    // Reset and start new selection
+                    this.sourceVertex = vi;
+                    this.targetVertex = -1;
+                    this.currentPath = [];
+                    this.transportedVector = null;
+                    if (this.showCutLocus) {
+                        const result = this.geo.approximateCutLocus(vi);
+                        this.cutLocus = result.cutVertices;
+                    }
+                }
+            } else if (this.mode === 'exp') {
+                this.sourceVertex = vi;
+                this.computeExpMap();
+            }
+            
+            this.render();
+        }
+        
+        computeGeodesic() {
+            const result = this.geo.dijkstraGraph(this.sourceVertex);
+            this.currentPath = this.geo.reconstructPath(result.predecessors, this.targetVertex);
+            
+            const dist = result.distances[this.targetVertex];
+            document.getElementById('statGeodesicLen').textContent = 
+                isFinite(dist) ? dist.toFixed(3) : '∞';
+            
+            if (this.mode === 'parallel' && this.currentPath.length > 1) {
+                // Initialize vector at source (tangent to surface)
+                const n = this.geo.vertexNormal(this.sourceVertex);
+                let v = Vec3.sub(
+                    this.geo.vertices[this.currentPath[1]],
+                    this.geo.vertices[this.sourceVertex]
+                );
+                // Make perpendicular to path direction (90° rotated in tangent plane)
+                v = Vec3.cross(n, Vec3.normalize(v));
+                this.transportedVector = {
+                    start: Vec3.normalize(v),
+                    end: this.parallelTransportSimple(Vec3.normalize(v), this.currentPath)
+                };
+            }
+        }
+        
+        parallelTransportSimple(vector, path) {
+            if (path.length < 2) return [...vector];
+            let v = [...vector];
+            
+            for (let i = 0; i < path.length - 1; i++) {
+                const p1 = this.geo.vertices[path[i]];
+                const p2 = this.geo.vertices[path[i + 1]];
+                const n1 = this.geo.vertexNormal(path[i]);
+                const n2 = this.geo.vertexNormal(path[i + 1]);
+                
+                // Simple rotation between normal frames
+                const axis = Vec3.cross(n1, n2);
+                const axisLen = Vec3.length(axis);
+                if (axisLen > EPSILON) {
+                    const angle = Math.asin(Math.min(1, axisLen));
+                    const normAxis = Vec3.scale(axis, 1 / axisLen);
+                    v = this.rotateAroundAxis(v, normAxis, angle);
+                }
+            }
+            return v;
+        }
+        
+        rotateAroundAxis(v, axis, angle) {
+            const c = Math.cos(angle);
+            const s = Math.sin(angle);
+            const kCrossV = Vec3.cross(axis, v);
+            const kDotV = Vec3.dot(axis, v);
+            return [
+                v[0] * c + kCrossV[0] * s + axis[0] * kDotV * (1 - c),
+                v[1] * c + kCrossV[1] * s + axis[1] * kDotV * (1 - c),
+                v[2] * c + kCrossV[2] * s + axis[2] * kDotV * (1 - c)
+            ];
+        }
+        
+        computeExpMap() {
+            // Draw geodesics in multiple directions
+            this.expPaths = [];
+            const n = this.geo.vertexNormal(this.sourceVertex);
+            
+            // Get a reference direction in tangent plane
+            const neighbor = [...this.geo.adjacency[this.sourceVertex]][0];
+            let ref = Vec3.sub(this.geo.vertices[neighbor], this.geo.vertices[this.sourceVertex]);
+            ref = Vec3.normalize(Vec3.sub(ref, Vec3.scale(n, Vec3.dot(ref, n))));
+            const perp = Vec3.cross(n, ref);
+            
+            // Shoot geodesics in 12 directions
+            for (let i = 0; i < 12; i++) {
+                const angle = (2 * PI * i) / 12;
+                const dir = Vec3.add(
+                    Vec3.scale(ref, Math.cos(angle)),
+                    Vec3.scale(perp, Math.sin(angle))
+                );
+                
+                // Find path in this direction
+                let bestVertex = -1;
+                let bestDot = -Infinity;
+                for (const vi of this.geo.adjacency[this.sourceVertex]) {
+                    const toV = Vec3.normalize(Vec3.sub(
+                        this.geo.vertices[vi],
+                        this.geo.vertices[this.sourceVertex]
+                    ));
+                    const dot = Vec3.dot(toV, dir);
+                    if (dot > bestDot) {
+                        bestDot = dot;
+                        bestVertex = vi;
+                    }
+                }
+                
+                if (bestVertex >= 0) {
+                    // Continue in this direction
+                    const result = this.geo.dijkstraGraph(this.sourceVertex);
+                    // Find vertices roughly in this direction
+                    const pathVerts = [this.sourceVertex];
+                    let current = bestVertex;
+                    let length = 0;
+                    
+                    while (length < this.pathLength && current !== -1) {
+                        pathVerts.push(current);
+                        length = result.distances[current];
+                        
+                        // Find next vertex continuing roughly in same direction
+                        let nextBest = -1;
+                        let nextBestScore = -Infinity;
+                        for (const nv of this.geo.adjacency[current]) {
+                            if (pathVerts.includes(nv)) continue;
+                            const toNv = Vec3.normalize(Vec3.sub(
+                                this.geo.vertices[nv],
+                                this.geo.vertices[current]
+                            ));
+                            const score = Vec3.dot(toNv, dir);
+                            if (score > nextBestScore) {
+                                nextBestScore = score;
+                                nextBest = nv;
+                            }
+                        }
+                        current = nextBest;
+                    }
+                    
+                    this.expPaths.push(pathVerts);
+                }
+            }
+        }
+        
+        toggleAnimation() {
+            this.animating = !this.animating;
+            if (this.animating) {
+                this.animationStart = Date.now();
+                this.animate();
+            }
+        }
+        
+        animate() {
+            if (!this.animating) return;
+            
+            const t = (Date.now() - this.animationStart) / 5000;
+            this.renderer.rotationY = t;
+            this.render();
+            
+            requestAnimationFrame(() => this.animate());
+        }
+        
+        render() {
+            this.renderer.clear();
+            
+            // Get special vertices to highlight
+            const highlightVerts = [];
+            if (this.showCurvature) {
+                for (let i = 0; i < this.geo.vertices.length; i++) {
+                    if (this.geo.isConeVertex(i) || this.geo.isSaddleVertex(i)) {
+                        highlightVerts.push(i);
+                    }
+                }
+            }
+            
+            // Draw mesh
+            this.renderer.drawMesh(this.geo, {
+                showCurvature: this.showCurvature,
+                highlightVertices: highlightVerts
+            });
+            
+            // Draw normals
+            if (this.showNormals) {
+                for (let i = 0; i < this.geo.vertices.length; i += Math.max(1, Math.floor(this.geo.vertices.length / 50))) {
+                    const n = this.geo.vertexNormal(i);
+                    this.renderer.drawVector(this.geo, i, n, 'rgba(79, 209, 197, 0.5)', 0.15);
+                }
+            }
+            
+            // Draw cut locus
+            if (this.showCutLocus && this.cutLocus.length > 0) {
+                for (const vi of this.cutLocus) {
+                    this.renderer.drawVertex(this.geo, vi, '#ff9ff3', 6);
+                }
+            }
+            
+            // Draw exp map paths
+            if (this.mode === 'exp' && this.expPaths) {
+                const colors = ['#ff6b6b', '#ffd93d', '#4ecdc4', '#a29bfe', '#fd79a8', '#00b894'];
+                this.expPaths.forEach((path, i) => {
+                    this.renderer.drawPath(this.geo, path, colors[i % colors.length], 2);
+                });
+            }
+            
+            // Draw geodesic path
+            if (this.currentPath.length > 1) {
+                this.renderer.drawPath(this.geo, this.currentPath, '#ffd93d', 4);
+            }
+            
+            // Draw parallel transported vector
+            if (this.transportedVector && this.currentPath.length > 1) {
+                this.renderer.drawVector(
+                    this.geo, this.sourceVertex,
+                    this.transportedVector.start, '#ff6b6b', 0.25
+                );
+                this.renderer.drawVector(
+                    this.geo, this.targetVertex,
+                    this.transportedVector.end, '#4ecdc4', 0.25
+                );
+            }
+            
+            // Draw selected vertices
+            if (this.sourceVertex >= 0) {
+                this.renderer.drawVertex(this.geo, this.sourceVertex, '#ff6b6b', 8);
+            }
+            if (this.targetVertex >= 0) {
+                this.renderer.drawVertex(this.geo, this.targetVertex, '#4ecdc4', 8);
+            }
+        }
+    }
+    
+    // Initialize
+    window.addEventListener('load', () => {
+        window.demo = new GeodesicsDemo();
+    });
+    </script>
+</body>
+</html>

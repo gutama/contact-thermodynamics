@@ -21,6 +21,17 @@
 (function (global) {
     'use strict';
 
+    // [NEW] GA Integration (Node.js support)
+    let SpacetimeManifoldGA;
+    if (typeof require === 'function') {
+        try {
+            const mod = require('./riemannian-spacetime.js');
+            SpacetimeManifoldGA = mod.SpacetimeManifoldGA;
+        } catch (e) {
+            // Ignore in browser or if module missing
+        }
+    }
+
     const EPSILON = 1e-12;
     const { abs, sqrt, sin, cos, exp, log, PI } = Math;
 
@@ -46,7 +57,7 @@
     }
 
     function mat4Mul(A, B) {
-        const C = [[0,0,0,0], [0,0,0,0], [0,0,0,0], [0,0,0,0]];
+        const C = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]];
         for (let i = 0; i < 4; i++) {
             for (let j = 0; j < 4; j++) {
                 for (let k = 0; k < 4; k++) {
@@ -109,10 +120,10 @@
     function mat4Log(A, maxIter = 20) {
         // For symmetric positive-definite matrices near identity
         // ln(A) = ln(I + (A-I)) ≈ (A-I) - (A-I)²/2 + ...
-        const I = [[1,0,0,0], [0,1,0,0], [0,0,1,0], [0,0,0,1]];
+        const I = [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]];
         const AmI = mat4Sub(A, I);
 
-        let result = [[0,0,0,0], [0,0,0,0], [0,0,0,0], [0,0,0,0]];
+        let result = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]];
         let power = AmI;
 
         for (let k = 1; k <= maxIter; k++) {
@@ -132,7 +143,7 @@
      * Matrix exponential via Padé approximation
      */
     function mat4Exp(A, order = 6) {
-        const I = [[1,0,0,0], [0,1,0,0], [0,0,1,0], [0,0,0,1]];
+        const I = [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]];
         let result = I;
         let term = I;
 
@@ -148,14 +159,14 @@
      * Identity matrix 4x4
      */
     function mat4Identity() {
-        return [[1,0,0,0], [0,1,0,0], [0,0,1,0], [0,0,0,1]];
+        return [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]];
     }
 
     /**
      * Zero matrix 4x4
      */
     function mat4Zero() {
-        return [[0,0,0,0], [0,0,0,0], [0,0,0,0], [0,0,0,0]];
+        return [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]];
     }
 
     // ============================================================================
@@ -705,8 +716,8 @@
             for (let mu = 0; mu < 4; mu++) {
                 for (let nu = 0; nu < 4; nu++) {
                     T_eff[mu][nu] = 8 * PI * this.G_newton * T_mat[mu][nu]
-                                  + T_ent[mu][nu]
-                                  - Lambda * g[mu][nu];
+                        + T_ent[mu][nu]
+                        - Lambda * g[mu][nu];
                 }
             }
             return T_eff;
@@ -767,6 +778,16 @@
             this.gaugePotential = options.gaugePotential || (x => [0, 0, 0, 0]);
             this.entropicCoupling = options.entropicCoupling || 0.1;
             this.h = options.differentiationStep || 1e-7;
+            this.useGA = options.useGA || false;  // [NEW] Toggle for GA mode
+
+            // [NEW] GA Manifold instance (lazy init)
+            this.gaManifold = null;
+            if (this.useGA) {
+                // Wrap the metric function for GA
+                // system.g.covariant must be a function of x
+                const metricFunc = (x) => this.system.g.covariant(x);
+                this.gaManifold = new SpacetimeManifoldGA(metricFunc);
+            }
         }
 
         /**
@@ -834,7 +855,56 @@
          * H = H_geo + H_entropy
          */
         evaluate(coords) {
+            if (this.useGA) {
+                // In GA mode, we use the connection bivector field
+                return this.geometricPart(coords) + this.entropicPartGA(coords);
+            }
             return this.geometricPart(coords) + this.entropicPart(coords);
+        }
+
+        /**
+         * [NEW] Entropic Hamiltonian Part via Geometric Algebra
+         * H_entropy = α · < Ω · S >  (coupling curvature 2-form to entropy flux?)
+         * 
+         * Simplified for this stage:
+         * Uses the magnitude of the Connection Bivector as a proxy for
+         * the information density of the gravitational field.
+         * S ≈ |ω|²
+         */
+        entropicPartGA(coords) {
+            const x = this._extractSpacetime(coords);
+
+            // Get Connection Bivectors [omega_0, omega_1, omega_2, omega_3]
+            // These represent the local gravitational field strength potentials
+            const omegas = this.gaManifold.connectionBivector(x);
+
+            // Scalar density S = sum |omega_mu|^2
+            let S = 0;
+            // omega_mu is a Multivector. normSq() gives magnitude squared.
+            // Contraction with metric required? 
+            // S = g^uv <omega_u * ~omega_v>
+
+            const gInv = this.system.g.contravariant
+                ? this.system.g.contravariant(x)
+                : mat4Inv(this.system.g.covariant(x));
+
+            for (let mu = 0; mu < 4; mu++) {
+                for (let nu = 0; nu < 4; nu++) {
+                    const g_uv = gInv[mu][nu];
+                    if (abs(g_uv) > 1e-9) {
+                        // Inner product of bivectors: <A B~>_0
+                        // Effectively dot product if orthogonal basis
+                        const prod = omegas[mu].mul(omegas[nu].reverse()).scalar();
+                        S += g_uv * prod;
+                    }
+                }
+            }
+
+            // Determine sign? Gravity is attractive -> Potential decreases?
+            // "Entropy" usually maximizes.
+            // If S is information density, particles might flow towards it (entropic force).
+
+            return this.entropicCoupling * S;
         }
 
         /**
@@ -959,7 +1029,7 @@
                 // Scalar field: φ = exp(-r²/σ²)
                 return new MatterInducedMetric({
                     scalarField: x => {
-                        const r2 = x[1]*x[1] + x[2]*x[2] + x[3]*x[3];
+                        const r2 = x[1] * x[1] + x[2] * x[2] + x[3] * x[3];
                         return exp(-r2);
                     }
                 });
@@ -968,18 +1038,18 @@
                 // Electromagnetic: Coulomb-like potential
                 return new MatterInducedMetric({
                     vectorPotential: x => {
-                        const r = sqrt(x[1]*x[1] + x[2]*x[2] + x[3]*x[3] + 0.01);
-                        return [1/r, 0, 0, 0];  // A_0 = φ = 1/r
+                        const r = sqrt(x[1] * x[1] + x[2] * x[2] + x[3] * x[3] + 0.01);
+                        return [1 / r, 0, 0, 0];  // A_0 = φ = 1/r
                     }
                 });
 
             case 'full':
                 // Full matter content
                 return new MatterInducedMetric({
-                    scalarField: x => exp(-(x[1]*x[1] + x[2]*x[2] + x[3]*x[3])),
+                    scalarField: x => exp(-(x[1] * x[1] + x[2] * x[2] + x[3] * x[3])),
                     vectorPotential: x => {
-                        const r = sqrt(x[1]*x[1] + x[2]*x[2] + x[3]*x[3] + 0.01);
-                        return [1/r, 0, 0, 0];
+                        const r = sqrt(x[1] * x[1] + x[2] * x[2] + x[3] * x[3] + 0.01);
+                        return [1 / r, 0, 0, 0];
                     },
                     twoFormPotential: x => mat4Zero()
                 });
@@ -1025,10 +1095,10 @@
                 const f = 1 - 2 * M / Math.max(r, 0.01);
                 const sinTheta2 = sin(theta) ** 2;
                 return [
-                    [1/f, 0, 0, 0],
+                    [1 / f, 0, 0, 0],
                     [0, -f, 0, 0],
-                    [0, 0, -1/(r * r), 0],
-                    [0, 0, 0, -1/(r * r * sinTheta2 + EPSILON)]
+                    [0, 0, -1 / (r * r), 0],
+                    [0, 0, 0, -1 / (r * r * sinTheta2 + EPSILON)]
                 ];
             }
         }),

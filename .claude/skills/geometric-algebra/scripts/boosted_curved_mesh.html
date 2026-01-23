@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boosted Curved Mesh - CGA Surface Generation</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #e6edf3; overflow: hidden; }
+        #canvas-container { width: 100vw; height: 100vh; position: relative; }
+        .ui-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; }
+        .ui-overlay > * { pointer-events: auto; }
+        .header { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); text-align: center; background: rgba(13, 17, 23, 0.9); padding: 15px 30px; border-radius: 12px; border: 1px solid #30363d; }
+        .header h1 { font-size: 1.8rem; color: #e94560; margin-bottom: 5px; }
+        .header p { color: #8b949e; font-size: 0.95rem; }
+        .control-panel { position: absolute; top: 120px; left: 20px; width: 320px; background: rgba(13, 17, 23, 0.95); border-radius: 12px; border: 1px solid #30363d; max-height: calc(100vh - 160px); overflow-y: auto; }
+        .panel-section { padding: 15px; border-bottom: 1px solid #21262d; }
+        .panel-section:last-child { border-bottom: none; }
+        .panel-section h3 { font-size: 0.9rem; color: #e94560; margin-bottom: 12px; }
+        .slider-group { margin: 10px 0; }
+        .slider-group label { display: flex; justify-content: space-between; font-size: 0.85rem; color: #8b949e; margin-bottom: 5px; }
+        .slider-group label span { color: #58a6ff; font-family: monospace; }
+        input[type="range"] { width: 100%; height: 6px; border-radius: 3px; background: #21262d; -webkit-appearance: none; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #e94560; cursor: pointer; }
+        .btn-group { display: flex; gap: 8px; margin-top: 12px; }
+        button { flex: 1; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
+        button.primary { background: #e94560; color: white; }
+        button.primary:hover { background: #ff6b7a; }
+        button.secondary { background: #21262d; color: #8b949e; }
+        button.secondary:hover { background: #30363d; }
+        .generator-card { background: #161b22; border-radius: 8px; padding: 12px; margin: 8px 0; border-left: 3px solid; }
+        .generator-card.gen1 { border-color: #e94560; }
+        .generator-card.gen2 { border-color: #58a6ff; }
+        .generator-card.gen3 { border-color: #3fb950; }
+        .generator-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .generator-header span { font-weight: bold; font-size: 0.9rem; }
+        .toggle-btn { width: 40px; height: 20px; border-radius: 10px; background: #21262d; border: none; cursor: pointer; position: relative; }
+        .toggle-btn.active { background: #238636; }
+        .toggle-btn::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: white; transition: left 0.2s; }
+        .toggle-btn.active::after { left: 22px; }
+        .info-panel { position: absolute; bottom: 20px; left: 20px; right: 20px; background: rgba(13, 17, 23, 0.95); border-radius: 12px; border: 1px solid #30363d; padding: 15px 20px; display: flex; justify-content: space-around; }
+        .info-item { text-align: center; }
+        .info-item .value { font-size: 1.5rem; font-weight: bold; color: #58a6ff; }
+        .info-item .label { font-size: 0.8rem; color: #8b949e; }
+        .preset-btn { padding: 6px 12px; font-size: 0.8rem; margin: 3px; background: #21262d; border: 1px solid #30363d; color: #8b949e; border-radius: 4px; cursor: pointer; }
+        .preset-btn:hover { background: #30363d; color: #e6edf3; }
+        .color-indicator { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+        select { width: 100%; padding: 8px; background: #21262d; border: 1px solid #30363d; color: #e6edf3; border-radius: 6px; margin-top: 5px; }
+        .view-controls { position: absolute; top: 120px; right: 20px; background: rgba(13, 17, 23, 0.95); border-radius: 12px; border: 1px solid #30363d; padding: 15px; }
+        .view-btn { display: block; width: 100%; padding: 8px 15px; margin: 5px 0; background: #21262d; border: 1px solid #30363d; color: #8b949e; border-radius: 6px; cursor: pointer; text-align: left; }
+        .view-btn:hover { background: #30363d; color: #e6edf3; }
+        .view-btn.active { background: #e94560; color: white; border-color: #e94560; }
+        .api-note { background: rgba(88, 166, 255, 0.1); border-left: 3px solid #58a6ff; padding: 10px; margin: 10px 0; font-size: 0.8rem; color: #8b949e; }
+        .api-note code { background: #21262d; padding: 2px 4px; border-radius: 3px; color: #58a6ff; }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    
+    <div class="ui-overlay">
+        <div class="header">
+            <h1>🌊 Boosted Curved Mesh</h1>
+            <p>CGA surface deformation using ga_versor_extensions.js</p>
+        </div>
+        
+        <div class="control-panel">
+            <div class="panel-section">
+                <h3>📐 Base Mesh</h3>
+                <div class="slider-group">
+                    <label>Mesh Type</label>
+                    <select id="meshType">
+                        <option value="plane">Flat Plane</option>
+                        <option value="wave">Wavy Plane</option>
+                        <option value="sphere">Sphere</option>
+                        <option value="torus">Torus</option>
+                    </select>
+                </div>
+                <div class="slider-group">
+                    <label>Resolution <span id="resVal">24</span></label>
+                    <input type="range" id="resolution" min="8" max="48" value="24">
+                </div>
+                <div class="slider-group">
+                    <label>Mesh Size <span id="sizeVal">4.0</span></label>
+                    <input type="range" id="meshSize" min="2" max="8" step="0.5" value="4">
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <h3>◎ Booster Generators</h3>
+                <div class="api-note">
+                    Uses <code>cga.Gen.bst(P₁∧P₂)</code> and <code>cga.spin()</code>
+                </div>
+                
+                <div class="generator-card gen1">
+                    <div class="generator-header">
+                        <span><span class="color-indicator" style="background:#e94560"></span>Generator 1 (Y-axis)</span>
+                        <button class="toggle-btn active" id="gen1Toggle"></button>
+                    </div>
+                    <div class="slider-group">
+                        <label>Strength <span id="gen1StrVal">0.30</span></label>
+                        <input type="range" id="gen1Str" min="-1" max="1" step="0.02" value="0.3">
+                    </div>
+                    <div class="slider-group">
+                        <label>Position X <span id="gen1PosVal">0.0</span></label>
+                        <input type="range" id="gen1Pos" min="-2" max="2" step="0.1" value="0">
+                    </div>
+                    <div class="slider-group">
+                        <label>Separation <span id="gen1SepVal">2.0</span></label>
+                        <input type="range" id="gen1Sep" min="0.5" max="4" step="0.1" value="2">
+                    </div>
+                </div>
+                
+                <div class="generator-card gen2">
+                    <div class="generator-header">
+                        <span><span class="color-indicator" style="background:#58a6ff"></span>Generator 2 (X-axis)</span>
+                        <button class="toggle-btn" id="gen2Toggle"></button>
+                    </div>
+                    <div class="slider-group">
+                        <label>Strength <span id="gen2StrVal">0.00</span></label>
+                        <input type="range" id="gen2Str" min="-1" max="1" step="0.02" value="0">
+                    </div>
+                    <div class="slider-group">
+                        <label>Position Y <span id="gen2PosVal">0.0</span></label>
+                        <input type="range" id="gen2Pos" min="-2" max="2" step="0.1" value="0">
+                    </div>
+                    <div class="slider-group">
+                        <label>Separation <span id="gen2SepVal">2.0</span></label>
+                        <input type="range" id="gen2Sep" min="0.5" max="4" step="0.1" value="2">
+                    </div>
+                </div>
+                
+                <div class="generator-card gen3">
+                    <div class="generator-header">
+                        <span><span class="color-indicator" style="background:#3fb950"></span>Generator 3 (Diagonal)</span>
+                        <button class="toggle-btn" id="gen3Toggle"></button>
+                    </div>
+                    <div class="slider-group">
+                        <label>Strength <span id="gen3StrVal">0.00</span></label>
+                        <input type="range" id="gen3Str" min="-1" max="1" step="0.02" value="0">
+                    </div>
+                    <div class="slider-group">
+                        <label>Angle <span id="gen3AngVal">45°</span></label>
+                        <input type="range" id="gen3Ang" min="0" max="180" value="45">
+                    </div>
+                    <div class="slider-group">
+                        <label>Separation <span id="gen3SepVal">3.0</span></label>
+                        <input type="range" id="gen3Sep" min="0.5" max="4" step="0.1" value="3">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <h3>🎨 Presets</h3>
+                <div style="display:flex;flex-wrap:wrap;">
+                    <button class="preset-btn" onclick="loadPreset('saddle')">Saddle</button>
+                    <button class="preset-btn" onclick="loadPreset('dome')">Dome</button>
+                    <button class="preset-btn" onclick="loadPreset('wave')">Wave</button>
+                    <button class="preset-btn" onclick="loadPreset('twist')">Twist</button>
+                    <button class="preset-btn" onclick="loadPreset('pinch')">Pinch</button>
+                    <button class="preset-btn" onclick="loadPreset('organic')">Organic</button>
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <h3>▶ Animation</h3>
+                <div class="btn-group">
+                    <button class="primary" id="animateBtn" onclick="toggleAnimation()">▶ Animate</button>
+                    <button class="secondary" onclick="resetAll()">Reset</button>
+                </div>
+                <div class="slider-group" style="margin-top:12px;">
+                    <label>Speed <span id="speedVal">1.0x</span></label>
+                    <input type="range" id="animSpeed" min="0.2" max="3" step="0.1" value="1">
+                </div>
+            </div>
+        </div>
+        
+        <div class="view-controls">
+            <h3 style="font-size:0.9rem;margin-bottom:10px;color:#8b949e;">View Mode</h3>
+            <button class="view-btn active" id="viewSolid" onclick="setViewMode('solid')">Solid + Wire</button>
+            <button class="view-btn" id="viewWireframe" onclick="setViewMode('wireframe')">Wireframe</button>
+            <button class="view-btn" id="viewPoints" onclick="setViewMode('points')">Points</button>
+        </div>
+        
+        <div class="info-panel">
+            <div class="info-item">
+                <div class="value" id="vertexCount">0</div>
+                <div class="label">Vertices</div>
+            </div>
+            <div class="info-item">
+                <div class="value" id="maxCurvature">0.00</div>
+                <div class="label">Max Displacement</div>
+            </div>
+            <div class="info-item">
+                <div class="value" id="fps">60</div>
+                <div class="label">FPS</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <!-- Load GA skill scripts -->
+    <script src="ga_vanilla.js"></script>
+    <script src="ga_versor_extensions.js"></script>
+
+    <script>
+    // ============================================================================
+    // Initialize CGA from skill
+    // ============================================================================
+    const cga = new VersorGA.CGA3DVersor();
+    
+    let scene, camera, renderer;
+    let deformedMesh, wireframeMesh, pointsMesh;
+    let originalVertices = [];
+    let animating = false, animTime = 0;
+    let frameCount = 0, fps = 60, lastTime = performance.now();
+    
+    // ============================================================================
+    // CGA Booster Transform using actual skill API
+    // ============================================================================
+    
+    function applyBoosters(point, generators) {
+        let pt = cga.point(point[0], point[1], point[2]);
+        
+        for (const gen of generators) {
+            if (!gen.active || Math.abs(gen.amount) < 1e-10) continue;
+            
+            // Create CGA points for point pair
+            const P1 = cga.point(gen.p1[0], gen.p1[1], gen.p1[2]);
+            const P2 = cga.point(gen.p2[0], gen.p2[1], gen.p2[2]);
+            
+            // Create point pair via wedge
+            const pp = P1.wedge(P2);
+            
+            // Scale by amount
+            const scaledPP = pp.scale(gen.amount);
+            
+            // Create booster
+            const booster = cga.Gen.bst(scaledPP);
+            
+            // Apply via spin (sandwich product)
+            pt = cga.spin(pt, booster);
+        }
+        
+        return cga.pointCoords(pt);
+    }
+    
+    // ============================================================================
+    // THREE.JS Setup
+    // ============================================================================
+    
+    function init() {
+        const container = document.getElementById('canvas-container');
+        
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0d1117);
+        
+        camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(6, 4, 6);
+        camera.lookAt(0, 0, 0);
+        
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        container.appendChild(renderer.domElement);
+        
+        scene.add(new THREE.AmbientLight(0x404040, 0.6));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(5, 10, 5);
+        scene.add(dirLight);
+        
+        scene.add(new THREE.GridHelper(10, 20, 0x333333, 0x222222));
+        scene.add(new THREE.AxesHelper(2));
+        
+        createMesh();
+        setupEventListeners();
+        updateSliderDisplays();
+        animate();
+    }
+    
+    function createMesh() {
+        if (deformedMesh) scene.remove(deformedMesh);
+        if (wireframeMesh) scene.remove(wireframeMesh);
+        if (pointsMesh) scene.remove(pointsMesh);
+        
+        const meshType = document.getElementById('meshType').value;
+        const resolution = parseInt(document.getElementById('resolution').value);
+        const size = parseFloat(document.getElementById('meshSize').value);
+        
+        let geometry;
+        switch (meshType) {
+            case 'plane':
+                geometry = new THREE.PlaneGeometry(size, size, resolution, resolution);
+                geometry.rotateX(-Math.PI / 2);
+                break;
+            case 'wave':
+                geometry = new THREE.PlaneGeometry(size, size, resolution, resolution);
+                const pos = geometry.attributes.position.array;
+                for (let i = 0; i < pos.length; i += 3) {
+                    pos[i + 2] = Math.sin(pos[i] * 2) * Math.cos(pos[i + 1] * 2) * 0.3;
+                }
+                geometry.rotateX(-Math.PI / 2);
+                break;
+            case 'sphere':
+                geometry = new THREE.SphereGeometry(size / 2, resolution, resolution);
+                break;
+            case 'torus':
+                geometry = new THREE.TorusGeometry(size / 2, size / 6, resolution / 2, resolution);
+                break;
+            default:
+                geometry = new THREE.PlaneGeometry(size, size, resolution, resolution);
+                geometry.rotateX(-Math.PI / 2);
+        }
+        
+        originalVertices = [];
+        const positions = geometry.attributes.position.array;
+        for (let i = 0; i < positions.length; i += 3) {
+            originalVertices.push([positions[i], positions[i + 1], positions[i + 2]]);
+        }
+        
+        document.getElementById('vertexCount').textContent = originalVertices.length;
+        
+        deformedMesh = new THREE.Mesh(geometry.clone(), new THREE.MeshPhongMaterial({
+            color: 0xe94560, side: THREE.DoubleSide, flatShading: false
+        }));
+        scene.add(deformedMesh);
+        
+        wireframeMesh = new THREE.Mesh(geometry.clone(), new THREE.MeshBasicMaterial({
+            color: 0x58a6ff, wireframe: true, transparent: true, opacity: 0.3
+        }));
+        scene.add(wireframeMesh);
+        
+        pointsMesh = new THREE.Points(geometry.clone(), new THREE.PointsMaterial({
+            color: 0x3fb950, size: 0.08
+        }));
+        pointsMesh.visible = false;
+        scene.add(pointsMesh);
+        
+        updateDeformation();
+    }
+    
+    function getGenerators() {
+        const gen1Pos = parseFloat(document.getElementById('gen1Pos').value);
+        const gen1Sep = parseFloat(document.getElementById('gen1Sep').value);
+        const gen2Pos = parseFloat(document.getElementById('gen2Pos').value);
+        const gen2Sep = parseFloat(document.getElementById('gen2Sep').value);
+        const gen3Ang = parseFloat(document.getElementById('gen3Ang').value) * Math.PI / 180;
+        const gen3Sep = parseFloat(document.getElementById('gen3Sep').value);
+        
+        return [
+            {
+                p1: [gen1Pos, -gen1Sep/2, 0],
+                p2: [gen1Pos, gen1Sep/2, 0],
+                amount: parseFloat(document.getElementById('gen1Str').value),
+                active: document.getElementById('gen1Toggle').classList.contains('active')
+            },
+            {
+                p1: [-gen2Sep/2, gen2Pos, 0],
+                p2: [gen2Sep/2, gen2Pos, 0],
+                amount: parseFloat(document.getElementById('gen2Str').value),
+                active: document.getElementById('gen2Toggle').classList.contains('active')
+            },
+            {
+                p1: [-Math.cos(gen3Ang) * gen3Sep/2, -Math.sin(gen3Ang) * gen3Sep/2, 0],
+                p2: [Math.cos(gen3Ang) * gen3Sep/2, Math.sin(gen3Ang) * gen3Sep/2, 0],
+                amount: parseFloat(document.getElementById('gen3Str').value),
+                active: document.getElementById('gen3Toggle').classList.contains('active')
+            }
+        ];
+    }
+    
+    function updateDeformation() {
+        const generators = getGenerators();
+        
+        const deformedPositions = deformedMesh.geometry.attributes.position.array;
+        const wirePositions = wireframeMesh.geometry.attributes.position.array;
+        const pointPositions = pointsMesh.geometry.attributes.position.array;
+        
+        let maxDisp = 0;
+        
+        for (let i = 0; i < originalVertices.length; i++) {
+            const orig = originalVertices[i];
+            const transformed = applyBoosters(orig, generators);
+            
+            const disp = Math.sqrt(
+                (transformed[0] - orig[0])**2 +
+                (transformed[1] - orig[1])**2 +
+                (transformed[2] - orig[2])**2
+            );
+            maxDisp = Math.max(maxDisp, disp);
+            
+            deformedPositions[i * 3] = transformed[0];
+            deformedPositions[i * 3 + 1] = transformed[1];
+            deformedPositions[i * 3 + 2] = transformed[2];
+            
+            wirePositions[i * 3] = transformed[0];
+            wirePositions[i * 3 + 1] = transformed[1];
+            wirePositions[i * 3 + 2] = transformed[2];
+            
+            pointPositions[i * 3] = transformed[0];
+            pointPositions[i * 3 + 1] = transformed[1];
+            pointPositions[i * 3 + 2] = transformed[2];
+        }
+        
+        deformedMesh.geometry.attributes.position.needsUpdate = true;
+        deformedMesh.geometry.computeVertexNormals();
+        wireframeMesh.geometry.attributes.position.needsUpdate = true;
+        pointsMesh.geometry.attributes.position.needsUpdate = true;
+        
+        document.getElementById('maxCurvature').textContent = maxDisp.toFixed(2);
+    }
+    
+    function setViewMode(mode) {
+        document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById('view' + mode.charAt(0).toUpperCase() + mode.slice(1)).classList.add('active');
+        
+        deformedMesh.visible = mode === 'solid';
+        wireframeMesh.visible = mode === 'solid' || mode === 'wireframe';
+        pointsMesh.visible = mode === 'points';
+    }
+    
+    function toggleAnimation() {
+        animating = !animating;
+        document.getElementById('animateBtn').textContent = animating ? '⏸ Pause' : '▶ Animate';
+    }
+    
+    function resetAll() {
+        animating = false;
+        document.getElementById('animateBtn').textContent = '▶ Animate';
+        
+        document.getElementById('gen1Str').value = 0.3;
+        document.getElementById('gen1Pos').value = 0;
+        document.getElementById('gen1Sep').value = 2;
+        document.getElementById('gen1Toggle').classList.add('active');
+        
+        document.getElementById('gen2Str').value = 0;
+        document.getElementById('gen2Pos').value = 0;
+        document.getElementById('gen2Sep').value = 2;
+        document.getElementById('gen2Toggle').classList.remove('active');
+        
+        document.getElementById('gen3Str').value = 0;
+        document.getElementById('gen3Ang').value = 45;
+        document.getElementById('gen3Sep').value = 3;
+        document.getElementById('gen3Toggle').classList.remove('active');
+        
+        updateSliderDisplays();
+        updateDeformation();
+    }
+    
+    function loadPreset(name) {
+        const presets = {
+            saddle: { g1: 0.4, g2: -0.4, g3: 0, g1a: true, g2a: true, g3a: false },
+            dome: { g1: 0.5, g2: 0.5, g3: 0, g1a: true, g2a: true, g3a: false },
+            wave: { g1: 0.6, g2: 0, g3: 0, g1a: true, g2a: false, g3a: false },
+            twist: { g1: 0.3, g2: 0.3, g3: 0.3, g1a: true, g2a: true, g3a: true },
+            pinch: { g1: -0.5, g2: -0.5, g3: 0, g1a: true, g2a: true, g3a: false },
+            organic: { g1: 0.35, g2: -0.25, g3: 0.2, g1a: true, g2a: true, g3a: true }
+        };
+        
+        const p = presets[name];
+        if (!p) return;
+        
+        document.getElementById('gen1Str').value = p.g1;
+        document.getElementById('gen2Str').value = p.g2;
+        document.getElementById('gen3Str').value = p.g3;
+        
+        document.getElementById('gen1Toggle').classList.toggle('active', p.g1a);
+        document.getElementById('gen2Toggle').classList.toggle('active', p.g2a);
+        document.getElementById('gen3Toggle').classList.toggle('active', p.g3a);
+        
+        updateSliderDisplays();
+        updateDeformation();
+    }
+    
+    function updateSliderDisplays() {
+        document.getElementById('resVal').textContent = document.getElementById('resolution').value;
+        document.getElementById('sizeVal').textContent = parseFloat(document.getElementById('meshSize').value).toFixed(1);
+        document.getElementById('gen1StrVal').textContent = parseFloat(document.getElementById('gen1Str').value).toFixed(2);
+        document.getElementById('gen1PosVal').textContent = parseFloat(document.getElementById('gen1Pos').value).toFixed(1);
+        document.getElementById('gen1SepVal').textContent = parseFloat(document.getElementById('gen1Sep').value).toFixed(1);
+        document.getElementById('gen2StrVal').textContent = parseFloat(document.getElementById('gen2Str').value).toFixed(2);
+        document.getElementById('gen2PosVal').textContent = parseFloat(document.getElementById('gen2Pos').value).toFixed(1);
+        document.getElementById('gen2SepVal').textContent = parseFloat(document.getElementById('gen2Sep').value).toFixed(1);
+        document.getElementById('gen3StrVal').textContent = parseFloat(document.getElementById('gen3Str').value).toFixed(2);
+        document.getElementById('gen3AngVal').textContent = document.getElementById('gen3Ang').value + '°';
+        document.getElementById('gen3SepVal').textContent = parseFloat(document.getElementById('gen3Sep').value).toFixed(1);
+        document.getElementById('speedVal').textContent = parseFloat(document.getElementById('animSpeed').value).toFixed(1) + 'x';
+    }
+    
+    function setupEventListeners() {
+        document.querySelectorAll('input[type="range"]').forEach(slider => {
+            slider.addEventListener('input', () => {
+                updateSliderDisplays();
+                if (slider.id === 'resolution' || slider.id === 'meshSize') {
+                    createMesh();
+                } else if (!slider.id.includes('animSpeed')) {
+                    updateDeformation();
+                }
+            });
+        });
+        
+        document.getElementById('meshType').addEventListener('change', createMesh);
+        
+        document.querySelectorAll('.toggle-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                btn.classList.toggle('active');
+                updateDeformation();
+            });
+        });
+        
+        // Camera orbit
+        let isDragging = false, prevX = 0, prevY = 0;
+        let camAngleX = 0.5, camAngleY = 0.5, camDist = 8;
+        
+        renderer.domElement.addEventListener('mousedown', e => { isDragging = true; prevX = e.clientX; prevY = e.clientY; });
+        window.addEventListener('mouseup', () => isDragging = false);
+        window.addEventListener('mousemove', e => {
+            if (!isDragging) return;
+            camAngleX += (e.clientX - prevX) * 0.01;
+            camAngleY = Math.max(0.1, Math.min(Math.PI - 0.1, camAngleY + (e.clientY - prevY) * 0.01));
+            prevX = e.clientX; prevY = e.clientY;
+        });
+        renderer.domElement.addEventListener('wheel', e => {
+            camDist = Math.max(3, Math.min(15, camDist + e.deltaY * 0.01));
+        });
+        
+        window.updateCamera = () => {
+            camera.position.x = Math.sin(camAngleX) * Math.sin(camAngleY) * camDist;
+            camera.position.y = Math.cos(camAngleY) * camDist;
+            camera.position.z = Math.cos(camAngleX) * Math.sin(camAngleY) * camDist;
+            camera.lookAt(0, 0, 0);
+        };
+        
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    }
+    
+    function animate() {
+        requestAnimationFrame(animate);
+        
+        frameCount++;
+        const now = performance.now();
+        if (now - lastTime >= 1000) {
+            fps = frameCount;
+            frameCount = 0;
+            lastTime = now;
+            document.getElementById('fps').textContent = fps;
+        }
+        
+        if (animating) {
+            const speed = parseFloat(document.getElementById('animSpeed').value);
+            animTime += 0.016 * speed;
+            
+            document.getElementById('gen1Str').value = Math.sin(animTime) * 0.5;
+            document.getElementById('gen2Str').value = Math.sin(animTime * 0.7 + 1) * 0.4;
+            document.getElementById('gen3Str').value = Math.sin(animTime * 0.5 + 2) * 0.3;
+            
+            updateSliderDisplays();
+            updateDeformation();
+        }
+        
+        if (window.updateCamera) window.updateCamera();
+        renderer.render(scene, camera);
+    }
+    
+    init();
+    </script>
+</body>
+</html>

@@ -21,6 +21,7 @@ Complete API documentation for the Contact Thermodynamics library.
 - [Algebra](#algebra) (NEW)
 - [Multivector](#multivector) (NEW)
 - [RiemannianGA](#riemannianga) (NEW)
+- [SpacetimeManifoldGA](#spacetimemanifoldga) (NEW)
 - [ProbabilityManifold](#probabilitymanifold) (NEW)
 - [Utility Functions](#utility-functions)
 
@@ -1583,3 +1584,42 @@ for (let e = 0; e < mesh.nEdges; e++) {
 // ... (see examples/mesh-entropic-gravity.js)
 ```
 
+---
+
+## SpacetimeManifoldGA
+
+Coordinate-free Spacetime Algebra (Cl(1,3)) wrapper for Lorentzian metrics.
+
+### Constructor
+
+```javascript
+new SpacetimeManifoldGA(metricFunc)
+```
+
+**Parameters:**
+- `metricFunc` *(Function)* — $g_{\mu\nu}(x)$ returning 4x4 matrix
+
+### Methods
+
+#### `computeTetrad(x)`
+
+Computes orthonormal tetrads $e_a^\mu$ such that $e_a \cdot e_b = \eta_{ab}$.
+
+```javascript
+const { vectors, forms } = manifold.computeTetrad([0, 5, 0, 0]);
+```
+
+**Returns:** `{ vectors, forms }`
+
+#### `connectionBivector(x)`
+
+Computes the spin connection bivector $\omega_\mu$ (as Multivectors).
+
+```javascript
+const omegas = manifold.connectionBivector(x);
+// omegas[0] = ω_t, omegas[1] = ω_r, ...
+```
+
+---
+
+## Utility Functions

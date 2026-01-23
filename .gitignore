@@ -43,7 +43,8 @@ temp/
 .agent/
 
 # Skills (large reference files)
-.github/skills/
+# Github
+.github/
 
 # Claude
 .claude/

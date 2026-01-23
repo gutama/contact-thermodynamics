@@ -1527,6 +1527,7 @@ new EntropicGravity.EntropicGravityHamiltonian(manifold, system, options)
 - `system` *(TwoMetricSystem)* — The (g, G) system
 - `options.mass` *(number)* — Particle mass
 - `options.entropicCoupling` *(number)* — Strength $\alpha$
+- `options.useGA` *(boolean)* — Use Geometric Algebra solver (default: true)
 
 #### Methods
 

@@ -81,7 +81,8 @@ const M13 = new GMET.GrandContactManifold();
 // Create Hamiltonian
 const H = new EntropicGravity.EntropicGravityHamiltonian(M13, system, {
     mass: 1.0,
-    entropicCoupling: 0.01  // Strength of entropic force
+    entropicCoupling: 0.01,  // Strength of entropic force
+    useGA: false             // Explicitly use Tensor mode for this example
 });
 
 // Create initial point (in contact phase space)

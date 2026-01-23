@@ -778,7 +778,7 @@
             this.gaugePotential = options.gaugePotential || (x => [0, 0, 0, 0]);
             this.entropicCoupling = options.entropicCoupling || 0.1;
             this.h = options.differentiationStep || 1e-7;
-            this.useGA = options.useGA || false;  // [NEW] Toggle for GA mode
+            this.useGA = (options.useGA !== undefined) ? options.useGA : true;  // [NEW] Toggle for GA mode
 
             // [NEW] GA Manifold instance (lazy init)
             this.gaManifold = null;

@@ -53,13 +53,13 @@ console.log(`Spacetime metric g: Schwarzschild (M = ${M_bh})`);
 const G = new EntropicGravity.MatterInducedMetric({
     // Scalar field: dilaton-like, falling off with distance
     scalarField: x => {
-        const r = sqrt(x[1]*x[1] + x[2]*x[2] + x[3]*x[3]);
+        const r = sqrt(x[1] * x[1] + x[2] * x[2] + x[3] * x[3]);
         return 0.05 * exp(-r / 5);  // Decays with scale r_s = 5
     },
 
     // Electromagnetic potential: Coulomb-like
     vectorPotential: x => {
-        const r = sqrt(x[1]*x[1] + x[2]*x[2] + x[3]*x[3] + 0.1);
+        const r = sqrt(x[1] * x[1] + x[2] * x[2] + x[3] * x[3] + 0.1);
         return [0.1 / r, 0, 0, 0];  // A_0 = φ_em = q/r
     },
 
@@ -67,7 +67,7 @@ const G = new EntropicGravity.MatterInducedMetric({
     ricciTensor: x => {
         // For Schwarzschild vacuum, R_μν = 0
         // But with matter, we get corrections
-        const r = sqrt(x[1]*x[1] + x[2]*x[2] + x[3]*x[3] + 0.1);
+        const r = sqrt(x[1] * x[1] + x[2] * x[2] + x[3] * x[3] + 0.1);
         const correction = 0.001 / (r * r);
         return [
             [correction, 0, 0, 0],
@@ -84,7 +84,7 @@ console.log('Matter-induced metric G: scalar field + EM field');
 const twoMetricSystem = new EntropicGravity.TwoMetricSystem(g, G);
 
 // Evaluate at a sample point
-const testPoint = [0, 5, PI/2, 0];  // (t, r, θ, φ)
+const testPoint = [0, 5, PI / 2, 0];  // (t, r, θ, φ)
 const g_sample = twoMetricSystem.spacetimeMetric(testPoint);
 const G_sample = twoMetricSystem.matterMetric(testPoint);
 
@@ -106,14 +106,14 @@ const lambdaCalculator = new EntropicGravity.EmergentCosmologicalConstant(twoMet
 // Local entropy density at various radii
 console.log('\nLocal entropy density vs radius:');
 for (const r of [3, 5, 10, 20]) {
-    const x = [0, r, PI/2, 0];
+    const x = [0, r, PI / 2, 0];
     const density = entropyAction.localDensity(x);
     const Lambda = lambdaCalculator.localValue(x);
     console.log(`  r = ${r.toString().padStart(2)}: S_local = ${density.toFixed(6)}, Λ_G = ${Lambda.toFixed(6)}`);
 }
 
 // Classify spacetime type
-const classification = lambdaCalculator.classify([0, 10, PI/2, 0]);
+const classification = lambdaCalculator.classify([0, 10, PI / 2, 0]);
 console.log(`\nSpacetime classification at r=10: ${classification}`);
 
 // ============================================================================
@@ -125,7 +125,8 @@ console.log('-'.repeat(50));
 
 const H = new EntropicGravity.EntropicGravityHamiltonian(M13, twoMetricSystem, {
     mass: 0.1,                // Test particle mass
-    entropicCoupling: 0.001   // Coupling strength α (small for numerical stability)
+    entropicCoupling: 0.001,  // Coupling strength α (small for numerical stability)
+    useGA: false              // Explicitly use Tensor mode for this tutorial example
 });
 
 console.log('Hamiltonian: H = H_geo + α·S(G||g)');
@@ -142,7 +143,7 @@ console.log('-'.repeat(50));
 // Particle starting at r = 15, slightly inward trajectory
 const initialPoint = M13.physicalPoint(
     15,     // q1 = r
-    PI/2,   // q2 = θ (equatorial)
+    PI / 2,   // q2 = θ (equatorial)
     0,      // q3 = φ
     0,      // t
     0,      // ℓ = log(scale)
@@ -214,9 +215,9 @@ console.log('  ' + '-'.repeat(65));
 for (const i of [0, 25, 50, 75, steps]) {
     const d = data[i];
     console.log(`  ${d.step.toString().padStart(4)} | ${d.tau.toFixed(3).padStart(7)} | ` +
-                `${d.r.toFixed(3).padStart(7)} | ${d.phi.toFixed(3).padStart(7)} | ` +
-                `${d.S.toFixed(3).padStart(7)} | ${d.A.toFixed(3).padStart(7)} | ` +
-                `${d.H.toFixed(4).padStart(7)}`);
+        `${d.r.toFixed(3).padStart(7)} | ${d.phi.toFixed(3).padStart(7)} | ` +
+        `${d.S.toFixed(3).padStart(7)} | ${d.A.toFixed(3).padStart(7)} | ` +
+        `${d.H.toFixed(4).padStart(7)}`);
 }
 
 // Compute changes
@@ -261,7 +262,7 @@ Bianconi's entropic gravity corrections:
 
 4. EMERGENT COSMOLOGICAL CONSTANT:
    - Λ_G varies with position (field-dependent)
-   - Classification: ${lambdaCalculator.classify([0, data[steps].r, PI/2, 0])}
+   - Classification: ${lambdaCalculator.classify([0, data[steps].r, PI / 2, 0])}
 `);
 
 // ============================================================================

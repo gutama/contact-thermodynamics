@@ -767,6 +767,12 @@
          * @param {Object} manifold - Contact manifold (GrandContactManifold)
          * @param {TwoMetricSystem} twoMetricSystem
          * @param {Object} options
+         * @param {number} options.mass - Particle mass
+         * @param {number} options.charge - Particle charge
+         * @param {number} options.entropicCoupling - Coupling strength α
+         * @param {boolean} options.useGA - Use Geometric Algebra mode
+         * @param {ConstitutiveRelation} options.constitutive - S↔G bridge (optional)
+         * @param {boolean} options.useCurvature - Use full curvature Ω vs connection ω
          */
         constructor(manifold, twoMetricSystem, options = {}) {
             this.manifold = manifold;
@@ -778,13 +784,16 @@
             this.gaugePotential = options.gaugePotential || (x => [0, 0, 0, 0]);
             this.entropicCoupling = options.entropicCoupling || 0.1;
             this.h = options.differentiationStep || 1e-7;
-            this.useGA = (options.useGA !== undefined) ? options.useGA : true;  // [NEW] Toggle for GA mode
+            this.useGA = (options.useGA !== undefined) ? options.useGA : true;
+            this.useCurvature = (options.useCurvature !== undefined) ? options.useCurvature : true;
 
-            // [NEW] GA Manifold instance (lazy init)
+            // Constitutive relation for S↔G coupling
+            // This bridges GMET thermodynamics to Bianconi geometric entropy
+            this.constitutive = options.constitutive || null;
+
+            // GA Manifold instance (lazy init)
             this.gaManifold = null;
             if (this.useGA) {
-                // Wrap the metric function for GA
-                // system.g.covariant must be a function of x
                 const metricFunc = (x) => this.system.g.covariant(x);
                 this.gaManifold = new SpacetimeManifoldGA(metricFunc);
             }
@@ -863,48 +872,82 @@
         }
 
         /**
-         * [NEW] Entropic Hamiltonian Part via Geometric Algebra
-         * H_entropy = α · < Ω · S >  (coupling curvature 2-form to entropy flux?)
-         * 
-         * Simplified for this stage:
-         * Uses the magnitude of the Connection Bivector as a proxy for
-         * the information density of the gravitational field.
-         * S ≈ |ω|²
+         * Entropic Hamiltonian Part via Geometric Algebra (Cl(1,3))
+         *
+         * Uses the FULL Curvature 2-form: Ω = dω + ω ∧ ω
+         *
+         * H_entropy = α · |Ω|² = α · Σ_{a<b} η^{aa} η^{bb} ⟨Ω_ab Ω̃_ab⟩
+         *
+         * This is the proper "curvature density" that drives entropic gravity.
+         * The curvature measures information about parallel transport failure,
+         * which is the geometric analog of entropy.
+         *
+         * @param {Object} coords - GMET contact coordinates
          */
         entropicPartGA(coords) {
             const x = this._extractSpacetime(coords);
 
-            // Get Connection Bivectors [omega_0, omega_1, omega_2, omega_3]
-            // These represent the local gravitational field strength potentials
-            const omegas = this.gaManifold.connectionBivector(x);
+            // Use full curvature 2-form if available, otherwise fall back to |ω|²
+            let curvatureDensity;
+            try {
+                // Compute |Ω|² = curvature norm squared
+                curvatureDensity = this.gaManifold.curvatureNormSquared(x);
+            } catch (e) {
+                // Fallback: use connection bivector magnitude
+                curvatureDensity = this._connectionMagnitude(coords);
+            }
 
-            // Scalar density S = sum |omega_mu|^2
-            let S = 0;
-            // omega_mu is a Multivector. normSq() gives magnitude squared.
-            // Contraction with metric required? 
-            // S = g^uv <omega_u * ~omega_v>
+            // Apply constitutive relation if thermodynamic state available
+            let constitutiveFactor = 1.0;
+            if (this.constitutive && coords.S !== undefined && coords.T !== undefined) {
+                constitutiveFactor = this.constitutive.scalingFactor(coords.S, coords.T);
+            }
+
+            return this.entropicCoupling * constitutiveFactor * curvatureDensity;
+        }
+
+        /**
+         * Fallback: Connection bivector magnitude |ω|²
+         * Used when full curvature computation is unavailable or unstable
+         */
+        _connectionMagnitude(coords) {
+            const x = this._extractSpacetime(coords);
+            const omegas = this.gaManifold.connectionBivector(x);
 
             const gInv = this.system.g.contravariant
                 ? this.system.g.contravariant(x)
                 : mat4Inv(this.system.g.covariant(x));
 
+            let S = 0;
             for (let mu = 0; mu < 4; mu++) {
                 for (let nu = 0; nu < 4; nu++) {
                     const g_uv = gInv[mu][nu];
                     if (abs(g_uv) > 1e-9) {
-                        // Inner product of bivectors: <A B~>_0
-                        // Effectively dot product if orthogonal basis
                         const prod = omegas[mu].mul(omegas[nu].reverse()).scalar();
                         S += g_uv * prod;
                     }
                 }
             }
+            return S;
+        }
 
-            // Determine sign? Gravity is attractive -> Potential decreases?
-            // "Entropy" usually maximizes.
-            // If S is information density, particles might flow towards it (entropic force).
+        /**
+         * Entropic part with explicit thermodynamic state (for constitutive coupling)
+         *
+         * H_entropy(x; S, T) = α · f(S, T) · S_geometric(x)
+         *
+         * This explicitly shows the S↔G bridge in action.
+         */
+        entropicPartWithState(coords, S_thermo, T) {
+            const x = this._extractSpacetime(coords);
+            const geometricEntropy = this.action.localDensity(x);
 
-            return this.entropicCoupling * S;
+            let constitutiveFactor = 1.0;
+            if (this.constitutive) {
+                constitutiveFactor = this.constitutive.scalingFactor(S_thermo, T);
+            }
+
+            return this.entropicCoupling * constitutiveFactor * geometricEntropy;
         }
 
         /**
@@ -1125,7 +1168,276 @@
     };
 
     // ============================================================================
-    // VIII. EXPORTS
+    // VIII. CONSTITUTIVE RELATION: S ↔ G BRIDGE
+    // ============================================================================
+
+    /**
+     * ConstitutiveRelation: Links thermodynamic entropy S to matter-induced metric G
+     *
+     * This is the "constitutive bridge" mentioned in the Bianconi-GMET synthesis:
+     * - S (GMET coordinate): Thermodynamic entropy of local fluid element
+     * - G (Bianconi metric): Geometric entropy from matter fields
+     *
+     * The relation specifies HOW the thermodynamic sector determines G.
+     *
+     * Physical interpretation:
+     * - Higher entropy S → more "excited" matter fields → larger G contributions
+     * - Temperature T (conjugate to S) → energy scale of matter fluctuations
+     * - The bridge makes gravity truly thermodynamic: geometry responds to entropy
+     */
+    class ConstitutiveRelation {
+        /**
+         * @param {Object} options
+         * @param {string} options.model - Constitutive model type
+         * @param {Object} options.params - Model-specific parameters
+         */
+        constructor(options = {}) {
+            this.model = options.model || 'boltzmann';
+            this.params = options.params || {};
+
+            // Default parameters for each model
+            this.params.kappa = this.params.kappa || 1.0;      // Coupling strength
+            this.params.S0 = this.params.S0 || 1.0;            // Reference entropy
+            this.params.T0 = this.params.T0 || 1.0;            // Reference temperature
+            this.params.beta = this.params.beta || 1.0;        // Inverse temperature scale
+        }
+
+        /**
+         * Compute the constitutive function f(S, T) that scales matter contributions
+         *
+         * G_μν = f(S, T) * G^base_μν
+         *
+         * where G^base is the "bare" matter-induced metric from fields (φ, A, B)
+         *
+         * @param {number} S - Thermodynamic entropy
+         * @param {number} T - Temperature
+         * @returns {number} Scaling factor f(S, T)
+         */
+        scalingFactor(S, T) {
+            const { kappa, S0, T0, beta } = this.params;
+
+            switch (this.model) {
+                case 'boltzmann':
+                    // Boltzmann factor: f = κ · exp(-β(S - S₀)/T)
+                    // At high entropy, matter contribution decreases (thermalization)
+                    return kappa * exp(-beta * (S - S0) / (T + EPSILON));
+
+                case 'linear':
+                    // Linear response: f = κ · (1 + (S - S₀)/S₀)
+                    // Matter contribution grows linearly with entropy
+                    return kappa * (1 + (S - S0) / (S0 + EPSILON));
+
+                case 'fermi':
+                    // Fermi-Dirac like: f = κ / (1 + exp(β(S - S₀)/T))
+                    // Smooth transition at critical entropy
+                    return kappa / (1 + exp(beta * (S - S0) / (T + EPSILON)));
+
+                case 'power':
+                    // Power law: f = κ · (S/S₀)^β
+                    // Scale-invariant matter-entropy coupling
+                    return kappa * Math.pow(abs(S) / (S0 + EPSILON), beta);
+
+                case 'bekenstein':
+                    // Bekenstein-Hawking inspired: f = κ · T² / (S + ε)
+                    // Relates to black hole thermodynamics: S = A/4, T ∝ 1/M
+                    return kappa * T * T / (abs(S) + EPSILON);
+
+                case 'information':
+                    // Information-theoretic: f = κ · exp(S/S₀) · (1 - exp(-T/T₀))
+                    // Information content (exp S) modulated by thermal activation
+                    return kappa * exp(S / S0) * (1 - exp(-T / T0));
+
+                default:
+                    return kappa;
+            }
+        }
+
+        /**
+         * Compute entropy-dependent scalar field amplitude
+         * φ(x; S, T) = φ_base(x) · √f(S, T)
+         *
+         * The square root ensures G_μν = f · G^base (since G ∝ ∂φ²)
+         */
+        scalarAmplitude(S, T) {
+            return sqrt(abs(this.scalingFactor(S, T)));
+        }
+
+        /**
+         * Compute entropy-dependent field strength scale
+         * For gauge fields: A → A · f^(1/2), so F → f^(1/2) F, G ∝ F² → f G
+         */
+        fieldStrengthScale(S, T) {
+            return sqrt(abs(this.scalingFactor(S, T)));
+        }
+
+        /**
+         * Partial derivative ∂f/∂S (for dynamics)
+         * Used in entropic force computation
+         */
+        dfdS(S, T, h = 1e-7) {
+            return (this.scalingFactor(S + h, T) - this.scalingFactor(S - h, T)) / (2 * h);
+        }
+
+        /**
+         * Partial derivative ∂f/∂T
+         * Relates to heat capacity of the gravitational sector
+         */
+        dfdT(S, T, h = 1e-7) {
+            return (this.scalingFactor(S, T + h) - this.scalingFactor(S, T - h)) / (2 * h);
+        }
+
+        /**
+         * Effective "gravitational heat capacity" C_G = T · ∂²G/∂T²
+         * Measures how strongly the induced metric responds to temperature changes
+         */
+        gravitationalHeatCapacity(S, T, h = 1e-7) {
+            const d2fdT2 = (this.scalingFactor(S, T + h) - 2 * this.scalingFactor(S, T) +
+                           this.scalingFactor(S, T - h)) / (h * h);
+            return T * d2fdT2;
+        }
+    }
+
+    /**
+     * ThermodynamicMatterMetric: MatterInducedMetric with constitutive relation
+     *
+     * Extends MatterInducedMetric to couple to GMET's thermodynamic sector.
+     * The matter fields scale with the thermodynamic state (S, T).
+     */
+    class ThermodynamicMatterMetric extends MatterInducedMetric {
+        /**
+         * @param {Object} options - Base MatterInducedMetric options
+         * @param {ConstitutiveRelation} constitutive - S↔G bridge
+         */
+        constructor(options = {}, constitutive = null) {
+            super(options);
+            this.constitutive = constitutive || new ConstitutiveRelation();
+            this._baseScalar = this.phi;
+            this._baseVector = this.A;
+            this._baseTwoForm = this.B;
+        }
+
+        /**
+         * Set the current thermodynamic state from GMET coordinates
+         * @param {number} S - Entropy
+         * @param {number} T - Temperature
+         */
+        setThermodynamicState(S, T) {
+            this.currentS = S;
+            this.currentT = T;
+            this._updateFields();
+        }
+
+        /**
+         * Update matter fields based on current thermodynamic state
+         */
+        _updateFields() {
+            const amp = this.constitutive.scalarAmplitude(this.currentS, this.currentT);
+            const fScale = this.constitutive.fieldStrengthScale(this.currentS, this.currentT);
+
+            // Scale the scalar field
+            this.phi = x => amp * this._baseScalar(x);
+
+            // Scale the vector potential (field strength scales accordingly)
+            this.A = x => this._baseVector(x).map(v => fScale * v);
+
+            // Scale the two-form potential
+            this.B = x => {
+                const Bbase = this._baseTwoForm(x);
+                return Bbase.map(row => row.map(v => fScale * v));
+            };
+        }
+
+        /**
+         * Compute matter-induced metric at point x with explicit (S, T)
+         * G_μν(x; S, T) = f(S, T) · G^base_μν(x)
+         */
+        covariantWithState(x, S, T, gInv = null) {
+            this.setThermodynamicState(S, T);
+            return this.covariant(x, gInv);
+        }
+    }
+
+    /**
+     * TwoMetricSystemWithConstitutive: Full (g, G) system with S↔G bridge
+     *
+     * Automatically couples the GMET thermodynamic coordinates to Bianconi's metric.
+     */
+    class TwoMetricSystemWithConstitutive extends TwoMetricSystem {
+        /**
+         * @param {Object} spacetimeMetric
+         * @param {ThermodynamicMatterMetric} matterMetric
+         * @param {ConstitutiveRelation} constitutive
+         */
+        constructor(spacetimeMetric, matterMetric, constitutive = null) {
+            // Ensure matterMetric is a ThermodynamicMatterMetric
+            if (!(matterMetric instanceof ThermodynamicMatterMetric)) {
+                matterMetric = new ThermodynamicMatterMetric(
+                    {
+                        scalarField: matterMetric.phi,
+                        vectorPotential: matterMetric.A,
+                        twoFormPotential: matterMetric.B,
+                        ricciTensor: matterMetric.R
+                    },
+                    constitutive
+                );
+            }
+            super(spacetimeMetric, matterMetric);
+            this.constitutive = constitutive || new ConstitutiveRelation();
+        }
+
+        /**
+         * Get matter-induced metric at point x using GMET state
+         * @param {number[]} x - Spacetime coordinates
+         * @param {number} S - Entropy from GMET
+         * @param {number} T - Temperature from GMET
+         */
+        matterMetricWithState(x, S, T) {
+            this.G.setThermodynamicState(S, T);
+            return this.matterMetric(x);
+        }
+
+        /**
+         * Compute relative entropy with explicit thermodynamic state
+         */
+        metricDifferenceWithState(x, S, T) {
+            this.G.setThermodynamicState(S, T);
+            return this.metricDifference(x);
+        }
+    }
+
+    /**
+     * Factory function: Create constitutive relation from common models
+     */
+    function createConstitutiveRelation(model, params = {}) {
+        return new ConstitutiveRelation({ model, params });
+    }
+
+    /**
+     * Predefined constitutive models for common physical scenarios
+     */
+    const ConstitutiveModels = {
+        // Standard Boltzmann: higher S → thermalized matter → less geometric contribution
+        boltzmann: (kappa = 1.0) => createConstitutiveRelation('boltzmann', { kappa }),
+
+        // Black hole near-horizon: Bekenstein-Hawking thermodynamics
+        blackHole: (kappa = 1.0) => createConstitutiveRelation('bekenstein', { kappa }),
+
+        // Cosmological: power-law scaling for inflation/dark energy
+        cosmological: (beta = 2.0) => createConstitutiveRelation('power', { beta }),
+
+        // Phase transition: Fermi-Dirac for entropy-driven phase changes
+        phaseTransition: (S_crit, T_scale) => createConstitutiveRelation('fermi', {
+            S0: S_crit,
+            T0: T_scale,
+            beta: 1.0
+        }),
+
+        // Information theoretic: exp(S) information content
+        informationGeometry: () => createConstitutiveRelation('information', {})
+    };
+
+    // ============================================================================
+    // IX. EXPORTS
     // ============================================================================
 
     const EntropicGravity = {
@@ -1137,9 +1449,16 @@
         ModifiedEinsteinSolver,
         EntropicGravityHamiltonian,
 
+        // Constitutive relation classes (S ↔ G bridge)
+        ConstitutiveRelation,
+        ThermodynamicMatterMetric,
+        TwoMetricSystemWithConstitutive,
+
         // Factory functions
         createMatterConfig,
+        createConstitutiveRelation,
         StandardMetrics,
+        ConstitutiveModels,
 
         // Matrix utilities (exposed for testing)
         utils: {

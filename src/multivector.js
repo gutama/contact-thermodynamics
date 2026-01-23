@@ -506,6 +506,26 @@
         }
 
         /**
+         * Commutator product: A × B = ½(AB - BA)
+         * This is the "rotation" action - for bivectors, [ω, v] rotates v
+         * Essential for curvature computation: Ω = dω + ω ∧ ω uses [ω_a, ω_b]
+         */
+        commutator(other) {
+            const ab = this.mul(other);
+            const ba = other.mul(this);
+            return ab.sub(ba).scale(0.5);
+        }
+
+        /**
+         * Anticommutator product: A ○ B = ½(AB + BA)
+         */
+        anticommutator(other) {
+            const ab = this.mul(other);
+            const ba = other.mul(this);
+            return ab.add(ba).scale(0.5);
+        }
+
+        /**
          * Sandwich product: this * other * ~this
          */
         sandwich(other) {

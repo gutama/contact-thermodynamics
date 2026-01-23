@@ -48,10 +48,14 @@ A JavaScript implementation of **Contact Geometry for Extended Thermodynamics** 
   - **Christoffel Symbols**: Automatic computation from spacetime metrics
   - **Covariant Derivative**: ∇ operator for vectors and tensors
   - **Parallel Transport**: Connection-preserving transport along curves
-- **Entropic Gravity** (NEW):
-  - **Matter-Induced Metric**: G_μν derived from matter fields
-  - **Relative Entropy Action**: S(G||g) generating dynamics
-  - **Emergent Parameters**: Cosmological constant Λ from metric mismatch
+- **Entropic Gravity** (Bianconi Framework):
+  - **Two-Metric System**: Spacetime metric $g$ + Matter-induced metric $G$
+  - **Matter Fields**: Scalar $\phi$, gauge $A_\mu$, 2-form $B_{\mu\nu}$
+  - **Relative Entropy Action**: $S(G||g) = \int \text{Tr}[G(\ln G - \ln g)]$
+  - **Emergent $\Lambda$**: Cosmological constant from metric mismatch
+  - **Curvature 2-Form** (GA): $\Omega = d\omega + \omega \wedge \omega$ (NEW)
+  - **Constitutive Relations** (NEW): Bridge thermodynamic $S$ to geometric $G$
+  - **Constitutive Models**: Boltzmann, Bekenstein-Hawking, Power-law, Fermi-Dirac
 - **Interactive Visualization**: Browser-based demos including **3D EM Wave** and **Riemannian Geodesics**
 
 ## 📐 Mathematical Foundation

@@ -44,3 +44,6 @@ temp/
 
 # Skills (large reference files)
 .github/skills/
+
+# Claude
+.claude/

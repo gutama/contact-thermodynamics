@@ -2,9 +2,9 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-18%2B-green.svg)](https://nodejs.org/)
-[![Tests](https://img.shields.io/badge/Tests-79%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/Tests-138%20passing-brightgreen.svg)](#testing)
 
-A JavaScript implementation of **Contact Geometry for Extended Thermodynamics** based on 1-jet bundles, now enhanced with **Geometric Algebra**, **Discrete Geometric Calculus**, and **FTGC on Triangle Meshes**.
+A JavaScript implementation of **Contact Geometry for Extended Thermodynamics** based on 1-jet bundles, now enhanced with **Geometric Algebra**, **Discrete Geometric Calculus**, **FTGC on Triangle Meshes**, and **Pilot-Wave Theory**.
 
 <p align="center">
   <img src="docs/assets/contact-manifold-diagram.svg" alt="Contact Manifold Structure" width="600">
@@ -24,12 +24,19 @@ A JavaScript implementation of **Contact Geometry for Extended Thermodynamics** 
   - **Parallel Transport & Holonomy**: Transport vectors around loops
   - **Gauss-Bonnet Integration**: Verify ∫∫K dA = 2πχ(M)
   - **Manifolds**: Sphere, Torus, Hyperbolic Plane with verified curvature
-- **Spacetime Geometric Algebra** (NEW):
+- **Pilot-Wave Theory** (NEW):
+  - **Valentini Regularization**: Finite de Broglie velocity at wavefunction nodes
+  - **H-Theorem**: Quantum relaxation to Born rule equilibrium
+  - **Curved-Space Guidance**: v^i = (ℏ/m) g^{ij} ∂_j S on Riemannian manifolds
+  - **Parallel Transport**: Spinor phase transport via connection bivector
+  - **Contact Geometry Bridge**: Phase S ↔ action A with Legendrian condition
+  - **Known Solutions**: Verified against hydrogen 2p, harmonic oscillator
+- **Spacetime Geometric Algebra**:
   - **Spacetime Algebra**: Direct Cl(1,3) implementation for General Relativity
   - **Tetrad Formalism**: Automatic $e_a^\mu$ extraction from metrics
   - **Spacetime Connection**: Spin connection bivector $\omega_\mu$ without Christoffel symbols
   - **Entropic Force**: $S \approx |\omega|^2$ curvature potential driving motion
-- **Discrete Riemannian Geometry** (NEW):
+- **Discrete Riemannian Geometry**:
   - **Mesh Connection Bivector**: Dihedral rotation at edges
   - **Angle Defect Curvature**: K = 2π - Σθ at vertices
   - **Discrete Parallel Transport**: Transport across mesh edges
@@ -53,8 +60,8 @@ A JavaScript implementation of **Contact Geometry for Extended Thermodynamics** 
   - **Matter Fields**: Scalar $\phi$, gauge $A_\mu$, 2-form $B_{\mu\nu}$
   - **Relative Entropy Action**: $S(G||g) = \int \text{Tr}[G(\ln G - \ln g)]$
   - **Emergent $\Lambda$**: Cosmological constant from metric mismatch
-  - **Curvature 2-Form** (GA): $\Omega = d\omega + \omega \wedge \omega$ (NEW)
-  - **Constitutive Relations** (NEW): Bridge thermodynamic $S$ to geometric $G$
+  - **Curvature 2-Form** (GA): $\Omega = d\omega + \omega \wedge \omega$
+  - **Constitutive Relations**: Bridge thermodynamic $S$ to geometric $G$
   - **Constitutive Models**: Boltzmann, Bekenstein-Hawking, Power-law, Fermi-Dirac
 - **Interactive Visualization**: Browser-based demos including **3D EM Wave** and **Riemannian Geodesics**
 
@@ -232,20 +239,24 @@ contact-thermodynamics/
 │   ├── multivector.js        # Geometric Algebra core
 │   ├── geometric-calculus.js # Discrete operators (grids)
 │   ├── riemannian-ga.js      # Coordinate-free Riemannian geometry
-│   ├── riemannian-discrete.js# Discrete Riemannian on meshes (NEW)
-│   ├── entropic-gravity.js   # Entropic Gravity (Bianconi) (NEW)
+│   ├── riemannian-discrete.js# Discrete Riemannian on meshes
+│   ├── pilot-wave.js         # Pilot-wave theory (Valentini) (NEW)
+│   ├── entropic-gravity.js   # Entropic Gravity (Bianconi)
 │   ├── geodesic-ga.js        # Geodesic solver, parallel transport
 │   ├── mesh.js               # Triangle mesh data structure
 │   ├── mesh-ftgc.js          # FTGC operators on meshes
 │   └── mesh-solvers.js       # Wave/heat/Maxwell on meshes
 ├── examples/
 │   ├── em-wave-3d.html       # 3D EM visualization
-│   ├── riemannian-ga-demo.html # Riemannian geodesics visualization (NEW)
+│   ├── riemannian-ga-demo.html # Riemannian geodesics visualization
+│   ├── pilot-wave-demo.js    # Pilot-wave regularization demo (NEW)
 │   ├── mesh-heat-ftgc.js     # FTGC heat diffusion demo
 │   └── ...                   # Other examples
 ├── docs/                     # Documentation
 ├── tests/
-│   └── test.js               # Test suite
+│   ├── test_pilot_wave.js    # Pilot-wave tests (40 tests)
+│   ├── test_known_solutions.js # Known solutions (19 tests)
+│   └── ...                   # Other tests
 └── README.md
 ```
 

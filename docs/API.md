@@ -1623,4 +1623,191 @@ const omegas = manifold.connectionBivector(x);
 
 ---
 
+## Pilot-Wave (Valentini Regularization)
+
+**Module:** `src/pilot-wave.js`
+
+Implements de Broglie-Bohm pilot-wave theory with Valentini's regularization for finite velocities at wavefunction nodes.
+
+### SmearingKernel
+
+Regularization kernel μ(x) for convolution-based smoothing.
+
+```javascript
+new SmearingKernel(width, type = 'gaussian')
+```
+
+**Parameters:**
+- `width` *(number|Function)* — Fixed ε or time-dependent ε(t)
+- `type` *(string)* — `'gaussian'`, `'uniform'`, or `'lorentzian'`
+
+**Properties:**
+| Property | Type | Description |
+|----------|------|-------------|
+| `width` | number | Current regularization scale (evaluates function if time-dependent) |
+| `isTimeDependant` | boolean | Whether width is a function of time |
+
+**Methods:**
+
+```javascript
+// Evaluate kernel at distance r
+kernel.evaluate(0.5);
+
+// Set time for time-dependent kernels
+kernel.setTime(1.5);
+
+// Convolve 1D field
+const fSmeared = kernel.convolve1D(field, dx);
+
+// Integral (should be 1)
+const norm = kernel.integral(-10, 10, 0.01);
+```
+
+### WaveFunction
+
+Complex wavefunction ψ = R·exp(iS).
+
+```javascript
+// From amplitude and phase arrays
+new WaveFunction(amplitude, phase, { mass: 1, hbar: 1 })
+
+// Factory: plane wave ψ = exp(ikx)
+WaveFunction.planeWave(n, k, dx, options)
+
+// Factory: from Cartesian Re(ψ), Im(ψ)
+WaveFunction.fromCartesian(real, imag, options)
+```
+
+**Properties:**
+- `amplitude` — R (number or array)
+- `phase` — S (number, array, or Multivector for spinors)
+- `probabilityDensity` — |ψ|² array
+
+**Methods:**
+
+```javascript
+// Complex values
+const re = psi.realPart(i);   // R cos(S)
+const im = psi.imagPart(i);   // R sin(S)
+
+// Probability current j = (ℏ/m) R² ∇S
+const j = psi.current(dx);
+```
+
+### PilotWaveSystem
+
+Guidance dynamics with regularization.
+
+```javascript
+new PilotWaveSystem(wavefunction, { kernel, dx })
+```
+
+**Methods:**
+
+```javascript
+// Standard de Broglie velocity (DIVERGES at nodes!)
+const v = system.deBroglieVelocity(idx);
+
+// Regularized velocity (ALWAYS FINITE)
+const vReg = system.regularizedVelocity();
+
+// Regularized density (|ψ|²)_reg > 0 everywhere
+const rhoReg = system.regularizedDensity();
+```
+
+### QuantumEnsemble
+
+Distribution ρ vs |ψ|² with H-function tracking.
+
+```javascript
+new QuantumEnsemble(distribution, wavefunction, dx, kernel)
+
+// Factory: equilibrium ρ = |ψ|²
+QuantumEnsemble.equilibrium(psi, dx)
+
+// Factory: uniform distribution
+QuantumEnsemble.uniform(psi, n, dx)
+```
+
+**Methods:**
+
+```javascript
+// H-function (relative entropy)
+const H = ensemble.hFunction();       // Coarse-grained
+const Hf = ensemble.hFunctionFine();  // Fine-grained (more sensitive)
+
+// Equilibrium checking
+ensemble.isInEquilibrium(tolerance);             // ρ ≈ |ψ|²
+ensemble.isInRegularizedEquilibrium(kernel);     // ρ ≈ (|ψ|²)_reg
+
+// Get regularized equilibrium
+const rhoEqReg = ensemble.getRegularizedEquilibrium(kernel);
+
+// Evolve ensemble
+ensemble.evolve(system, dt);
+
+// Simulate relaxation (returns H trajectory)
+const hValues = ensemble.relaxation(system, dt, nSteps, useFine);
+```
+
+### ActionPhaseBridge
+
+Connect pilot-wave phase S to contact geometry action A.
+
+```javascript
+new ActionPhaseBridge(wavefunction)
+```
+
+**Methods:**
+
+```javascript
+// Phase → Action: A = ℏS
+const A = bridge.phaseToAction(idx);
+
+// Momentum: p = ℏ∇S
+const p = bridge.momentum(dx, idx);
+
+// Verify Legendrian condition: α|_L = dA - p dx = 0
+const violation = bridge.legendrianViolation(dx, idx);
+```
+
+### CurvedSpacePilotWave
+
+Pilot-wave dynamics on curved Riemannian manifolds.
+
+```javascript
+// Requires riemannian-ga.js manifolds
+const { Sphere2D, ConnectionBivector } = require('./riemannian-ga');
+
+new CurvedSpacePilotWave(psi, manifold, kernel, { mass: 1, hbar: 1 })
+```
+
+**Parameters:**
+- `psi` *(WaveFunction)* — Wavefunction on the manifold
+- `manifold` *(RiemannianManifold)* — Curved manifold (Sphere2D, Torus2D, etc.)
+- `kernel` *(SmearingKernel)* — Regularization kernel
+
+**Methods:**
+
+```javascript
+// Curved-space de Broglie velocity: v^i = (ℏ/m) g^{ij} ∂_j S
+const v = curvedPW.curvedDeBroglieVelocity([θ, φ]);
+
+// Regularized velocity via geodesic ball average
+const vReg = curvedPW.regularizedVelocityCurved([θ, φ], nSamples);
+
+// Regularized density via geodesic ball
+const rhoReg = curvedPW.regularizedDensityCurved([θ, φ]);
+
+// Node detection at coordinates
+const hasNode = curvedPW.hasNodeNear([θ, φ], threshold);
+
+// Parallel transport spinor phase along tangent direction
+const transportedPhase = curvedPW.parallelTransport(
+    spinorBivector, startCoords, tangentDir, distance, nSteps
+);
+```
+
+---
+
 ## Utility Functions

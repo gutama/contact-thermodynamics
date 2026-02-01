@@ -15,7 +15,8 @@ const testSuites = [
     { name: 'Geometry', runner: 'tests/run_geometry.js' },
     { name: 'Mesh', runner: 'tests/run_mesh.js' },
     { name: 'PDE', runner: 'tests/run_pde.js' },
-    { name: 'Contact', runner: 'tests/run_contact.js' }
+    { name: 'Contact', runner: 'tests/run_contact.js' },
+    { name: 'Pilot-Wave', tests: ['tests/test_pilot_wave.js', 'tests/test_known_solutions.js'] }
 ];
 
 let totalPassed = 0;

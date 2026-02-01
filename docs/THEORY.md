@@ -13,6 +13,8 @@ A comprehensive guide to the mathematical foundations of Contact Thermodynamics.
 7. [Gravitational Extension](#7-gravitational-extension)
 8. [Riemannian Geometry via Geometric Algebra](#8-riemannian-geometry-via-geometric-algebra)
 9. [Information Geometry](#9-information-geometry)
+10. [Entropic Gravity from Relative Entropy](#10-entropic-gravity-from-relative-entropy)
+11. [Pilot-Wave Theory with Valentini Regularization](#11-pilot-wave-theory-with-valentini-regularization)
 
 ---
 
@@ -533,3 +535,129 @@ $$ H_{total} = H_{geodesic} + \alpha_{coupling} \cdot S(G||g) $$
 
 Particles thus follow "entropic geodesics" — paths that balance inertial motion with the tendency to maximize information entropy (or minimize relative entropy divergence).
 
+---
+
+## 11. Pilot-Wave Theory with Valentini Regularization
+
+This section describes the de Broglie-Bohm pilot-wave formulation, extended with Valentini's regularization to handle wavefunction nodes, and its connection to contact geometry.
+
+### The de Broglie-Bohm Formulation
+
+In pilot-wave theory, quantum mechanics is reformulated as a deterministic theory where particles have definite positions guided by a "pilot wave" ψ.
+
+The wavefunction in polar form:
+$$\psi = R \, e^{iS/\hbar}$$
+
+where R is the amplitude and S is the phase (action).
+
+**Guidance Equation** (de Broglie, 1927):
+$$\mathbf{v} = \frac{1}{m} \nabla S = \frac{\hbar}{m} \nabla (\text{arg}\, \psi)$$
+
+**Probability Current**:
+$$\mathbf{j} = \frac{\hbar}{m} R^2 \nabla S = \frac{\hbar}{m} |\psi|^2 \nabla S$$
+
+### The Problem: Nodal Singularities
+
+The standard velocity $v = j / |\psi|^2$ **diverges** where $\psi = 0$ (nodes). This causes:
+- Unbounded particle speeds
+- Numerical instabilities
+- Breakdown of the classical limit
+
+### Valentini's Regularization
+
+Following Valentini, we introduce a smearing kernel μ(x) of width ε:
+
+**Regularized fields**:
+$$j_{reg} = j * \mu, \quad (|\psi|^2)_{reg} = |\psi|^2 * \mu$$
+
+**Regularized velocity**:
+$$v_{reg} = \frac{j_{reg}}{(|\psi|^2)_{reg}}$$
+
+This is **always finite**, even at nodes, because the convolution ensures $(|\psi|^2)_{reg} > 0$ everywhere.
+
+**Time-dependent regularization**: The kernel width ε(t) can be time-dependent, enabling:
+- Dynamically unstable equilibria
+- Nonequilibrium states where $\rho \neq (|\psi|^2)_{reg}$ after short-time processes
+
+### The H-Theorem and Quantum Equilibrium
+
+Valentini showed that the Born rule $\rho = |\psi|^2$ is not a postulate but a **dynamical equilibrium**.
+
+**Subquantum H-function** (relative entropy):
+$$\bar{H} = \int \bar{\rho} \ln\left(\frac{\bar{\rho}}{|\bar{\psi}|^2}\right) dx$$
+
+where bars denote coarse-graining.
+
+**H-Theorem**: $d\bar{H}/dt \leq 0$
+
+- $\bar{H} \geq 0$ by Gibbs inequality
+- $\bar{H} = 0$ if and only if $\rho = |\psi|^2$ (equilibrium)
+- Systems relax toward equilibrium via chaotic mixing
+
+**Regularized Equilibrium**: With regularization, the true equilibrium becomes:
+$$\rho_{eq} = (|\psi|^2)_{reg}$$
+which is nonzero at former nodes.
+
+### Connection to Contact Geometry
+
+The phase S connects directly to the 1-jet bundle framework:
+
+| Pilot-Wave | Contact Geometry |
+|------------|------------------|
+| Phase S | Action variable A on fiber |
+| Momentum p = ∇S | Momenta p_a = ∂A/∂x^a |
+| Guidance law v = ∇S/m | Hamilton-Jacobi flow |
+
+**Legendrian Condition**: The wavefunction defines a Legendrian submanifold L ⊂ J¹(Q) where:
+$$\alpha|_L = 0, \quad \alpha = dA - p_a \, dx^a$$
+
+This is automatically satisfied when $p = \nabla S$, connecting pilot-wave dynamics to contact Hamiltonian mechanics.
+
+### Multivector Phase (Spinor Case)
+
+Using Geometric Algebra, the phase S can be upgraded to a **multivector**:
+
+| Particle Type | Phase S |
+|---------------|---------|
+| Scalar | scalar (grade 0) |
+| Spinor | bivector (grade 2) |
+| Vector field | mixed grades |
+
+The geometric derivative $\nabla \psi$ respects the full algebraic structure, enabling:
+- Spinor wavefunctions on curved spaces
+- Connection to Riemannian GA via the connection bivector ω
+
+### Implementation Classes
+
+```javascript
+// Core classes in pilot-wave.js
+SmearingKernel(width, type)      // Regularization kernel μ
+  - width can be number or function ε(t)
+  - types: 'gaussian', 'uniform', 'lorentzian'
+
+WaveFunction(amplitude, phase)   // ψ = R·exp(iS)
+  - probabilityDensity: |ψ|²
+  - current(dx): probability current j
+
+PilotWaveSystem(psi, {kernel})   // Guidance dynamics
+  - deBroglieVelocity(): v = ∇S/m (diverges at nodes)
+  - regularizedVelocity(): v_reg (always finite)
+
+QuantumEnsemble(rho, psi, dx, kernel)  // Distribution tracking
+  - hFunction(): H̄ relative entropy
+  - isInEquilibrium(): ρ ≈ |ψ|²
+  - isInRegularizedEquilibrium(): ρ ≈ (|ψ|²)_reg
+  - relaxation(system, dt, n): simulate H-theorem
+
+ActionPhaseBridge(psi)           // Contact geometry connection
+  - phaseToAction(): A = ℏS
+  - momentum(dx): p = ∇S
+  - legendrianViolation(): verify α|_L = 0
+```
+
+### References
+
+12. de Broglie, L. — "La mécanique ondulatoire" (1927)
+13. Bohm, D. — "A Suggested Interpretation of the Quantum Theory" (Phys. Rev. 1952)
+14. Valentini, A. — "Signal-locality, uncertainty, and the subquantum H-theorem" (Physics Letters A, 1991)
+15. Valentini, A. & Westman, H. — "Dynamical origin of quantum probabilities" (Proc. R. Soc. A, 2005)

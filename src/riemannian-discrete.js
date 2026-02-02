@@ -21,45 +21,38 @@
 (function (global) {
     'use strict';
 
-    const EPSILON = 1e-10;
-    const { abs, sqrt, sin, cos, PI, acos, atan2 } = Math;
-
     // ============================================================================
-    // VECTOR/BIVECTOR UTILITIES
+    // IMPORT SHARED UTILITIES
     // ============================================================================
 
-    function dot(u, v) {
-        return u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
+    let Utils;
+    if (typeof require !== 'undefined') {
+        try {
+            Utils = require('./utils.js');
+        } catch (e) {
+            Utils = global.ContactThermoUtils || {};
+        }
+    } else {
+        Utils = global.ContactThermoUtils || {};
     }
 
-    function cross(u, v) {
-        return [
-            u[1] * v[2] - u[2] * v[1],
-            u[2] * v[0] - u[0] * v[2],
-            u[0] * v[1] - u[1] * v[0]
-        ];
-    }
+    const {
+        EPSILON, abs, sqrt, sin, cos, PI, acos, atan2,
+        cross3, dot3, norm3, normalize3, vecAdd3, vecSub3, vecScale3
+    } = Utils;
 
-    function norm(v) {
-        return sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
-    }
+    // Alias 3D functions for cleaner code in this module
+    const dot = dot3;
+    const cross = cross3;
+    const norm = norm3;
+    const normalize = normalize3;
+    const vecAdd = vecAdd3;
+    const vecSub = vecSub3;
+    const vecScale = vecScale3;
 
-    function normalize(v) {
-        const n = norm(v);
-        return n > EPSILON ? [v[0] / n, v[1] / n, v[2] / n] : [0, 0, 0];
-    }
-
-    function vecAdd(u, v) {
-        return [u[0] + v[0], u[1] + v[1], u[2] + v[2]];
-    }
-
-    function vecSub(u, v) {
-        return [u[0] - v[0], u[1] - v[1], u[2] - v[2]];
-    }
-
-    function vecScale(v, s) {
-        return [v[0] * s, v[1] * s, v[2] * s];
-    }
+    // ============================================================================
+    // BIVECTOR UTILITIES
+    // ============================================================================
 
     /**
      * Bivector in 3D (three components: e₂₃, e₃₁, e₁₂)

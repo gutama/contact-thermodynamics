@@ -17,7 +17,23 @@
 (function (global) {
     'use strict';
 
-    const EPSILON = 1e-10;
+    // ============================================================================
+    // IMPORT SHARED UTILITIES
+    // ============================================================================
+
+    let Utils;
+    if (typeof require !== 'undefined') {
+        try {
+            Utils = require('./utils.js');
+        } catch (e) {
+            Utils = global.ContactThermoUtils || {};
+        }
+    } else {
+        Utils = global.ContactThermoUtils || {};
+    }
+
+    // Use shared EPSILON for consistency, fallback to local if utils not loaded
+    const EPSILON = Utils.EPSILON || 1e-10;
     const { abs, sqrt, PI, acos, min, max } = Math;
 
     // ============================================================================

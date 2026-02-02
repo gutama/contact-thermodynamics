@@ -18,8 +18,25 @@
 (function (global) {
     'use strict';
 
-    const EPSILON = 1e-10;
-    const { abs, sqrt, sin, cos, PI } = Math;
+    // ============================================================================
+    // IMPORT SHARED UTILITIES
+    // ============================================================================
+
+    let Utils;
+    if (typeof require !== 'undefined') {
+        try {
+            Utils = require('./utils.js');
+        } catch (e) {
+            Utils = global.ContactThermoUtils || {};
+        }
+    } else {
+        Utils = global.ContactThermoUtils || {};
+    }
+
+    const {
+        EPSILON, abs, sqrt, sin, cos, PI,
+        dot, norm, vecAdd, vecScale
+    } = Utils;
 
     // Import RiemannianGA if available
     let RiemannianGA;
@@ -35,25 +52,6 @@
     }
     if (!RiemannianGA && typeof window !== 'undefined') {
         RiemannianGA = window.RiemannianGA;
-    }
-
-    // Utility functions (duplicated for standalone use)
-    function dot(u, v) {
-        let sum = 0;
-        for (let i = 0; i < u.length; i++) sum += u[i] * v[i];
-        return sum;
-    }
-
-    function norm(v) {
-        return sqrt(dot(v, v));
-    }
-
-    function vecAdd(u, v) {
-        return u.map((x, i) => x + v[i]);
-    }
-
-    function vecScale(v, s) {
-        return v.map(x => x * s);
     }
 
     // ============================================================================

@@ -1533,16 +1533,35 @@
     }
 
     // ============================================================================
-    // MESH / FTGC IMPORTS (Discrete Geometric Calculus on Meshes)
+    // MODULE IMPORTS
     // ============================================================================
 
+    // Mesh / FTGC (Discrete Geometric Calculus on Meshes)
     let MeshModule, MeshFTGCModule, MeshSolversModule, EntropicGravityModule, MeshEntropicFlowModule;
+    // Riemannian Geometry modules
+    let RiemannianGAModule, GeodesicGAModule, GeometricCalculusModule;
+    let RiemannianDiscreteModule, RiemannianSpacetimeModule;
+    // Quantum / Information modules
+    let PilotWaveModule, InformationGeometryModule;
+
     if (typeof require !== 'undefined') {
-        MeshModule = require('./mesh.js');
-        MeshFTGCModule = require('./mesh-ftgc.js');
-        MeshSolversModule = require('./mesh-solvers.js');
-        EntropicGravityModule = require('./entropic-gravity.js');
-        MeshEntropicFlowModule = require('./mesh-entropic-flow.js');
+        // Mesh modules
+        try { MeshModule = require('./mesh.js'); } catch (e) {}
+        try { MeshFTGCModule = require('./mesh-ftgc.js'); } catch (e) {}
+        try { MeshSolversModule = require('./mesh-solvers.js'); } catch (e) {}
+        try { EntropicGravityModule = require('./entropic-gravity.js'); } catch (e) {}
+        try { MeshEntropicFlowModule = require('./mesh-entropic-flow.js'); } catch (e) {}
+
+        // Riemannian Geometry modules
+        try { RiemannianGAModule = require('./riemannian-ga.js'); } catch (e) {}
+        try { GeodesicGAModule = require('./geodesic-ga.js'); } catch (e) {}
+        try { GeometricCalculusModule = require('./geometric-calculus.js'); } catch (e) {}
+        try { RiemannianDiscreteModule = require('./riemannian-discrete.js'); } catch (e) {}
+        try { RiemannianSpacetimeModule = require('./riemannian-spacetime.js'); } catch (e) {}
+
+        // Quantum / Information modules
+        try { PilotWaveModule = require('./pilot-wave.js'); } catch (e) {}
+        try { InformationGeometryModule = require('./information-geometry.js'); } catch (e) {}
     }
 
     // ============================================================================
@@ -1585,10 +1604,33 @@
         // Entropic Gradient Flow on Meshes (Particles + Dynamic Spacetimes)
         ...(MeshEntropicFlowModule || {}),
 
-        // Riemannian Geometry via Geometric Calculus (NEW)
-        // Coordinate-free formulations with connection bivectors
-        RiemannianGA: typeof RiemannianGA !== 'undefined' ? RiemannianGA : null,
-        GeodesicGA: typeof GeodesicGA !== 'undefined' ? GeodesicGA : null,
+        // Riemannian Geometry via Geometric Algebra (Coordinate-free)
+        // Connection bivector ω, Curvature 2-form Ω, Sphere2D, Torus2D, HyperbolicPlane
+        ...(RiemannianGAModule || {}),
+
+        // Geodesic Solver (Coordinate-free)
+        // GAGeodesicSolver, GAParallelTransport, HolonomyComputer
+        ...(GeodesicGAModule || {}),
+
+        // Geometric Calculus on Regular Grids
+        // ScalarField, VectorField, SplitDifferentialOperator, LeapfrogIntegrator
+        ...(GeometricCalculusModule || {}),
+
+        // Discrete Riemannian Geometry on Meshes
+        // Bivector3D, MeshCurvature2Form, MeshConnectionBivector
+        ...(RiemannianDiscreteModule || {}),
+
+        // Spacetime GA for General Relativity
+        // SpacetimeManifoldGA with Cl(1,3) algebra
+        ...(RiemannianSpacetimeModule || {}),
+
+        // Pilot-Wave Theory with Valentini Regularization
+        // SmearingKernel, WaveFunction, PilotWaveSystem, QuantumEnsemble
+        ...(PilotWaveModule || {}),
+
+        // Information Geometry
+        // ProbabilityManifold based on Baez's Information Geometry
+        ...(InformationGeometryModule || {}),
 
         // Utilities
         DifferentialForm,

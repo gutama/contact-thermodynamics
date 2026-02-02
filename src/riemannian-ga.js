@@ -24,164 +24,26 @@
 (function (global) {
     'use strict';
 
-    const EPSILON = 1e-10;
-    const { abs, sqrt, sin, cos, tan, atan2, acos, PI } = Math;
-
     // ============================================================================
-    // UTILITY FUNCTIONS
+    // IMPORT SHARED UTILITIES
     // ============================================================================
 
-    function dot(u, v) {
-        let sum = 0;
-        for (let i = 0; i < u.length; i++) sum += u[i] * v[i];
-        return sum;
-    }
-
-    function cross3(u, v) {
-        return [
-            u[1] * v[2] - u[2] * v[1],
-            u[2] * v[0] - u[0] * v[2],
-            u[0] * v[1] - u[1] * v[0]
-        ];
-    }
-
-    function norm(v) {
-        return sqrt(dot(v, v));
-    }
-
-    function normalize(v) {
-        const n = norm(v);
-        return n > EPSILON ? v.map(x => x / n) : v.slice();
-    }
-
-    function vecAdd(u, v) {
-        return u.map((x, i) => x + v[i]);
-    }
-
-    function vecSub(u, v) {
-        return u.map((x, i) => x - v[i]);
-    }
-
-    function vecScale(v, s) {
-        return v.map(x => x * s);
-    }
-
-    function matVecMul(A, v) {
-        const n = A.length;
-        const result = new Array(n).fill(0);
-        for (let i = 0; i < n; i++) {
-            for (let j = 0; j < v.length; j++) {
-                result[i] += A[i][j] * v[j];
-            }
+    let Utils;
+    if (typeof require !== 'undefined') {
+        try {
+            Utils = require('./utils.js');
+        } catch (e) {
+            Utils = global.ContactThermoUtils || {};
         }
-        return result;
+    } else {
+        Utils = global.ContactThermoUtils || {};
     }
 
-    function det2x2(A) {
-        return A[0][0] * A[1][1] - A[0][1] * A[1][0];
-    }
-
-    function inv2x2(A) {
-        const d = det2x2(A);
-        if (abs(d) < EPSILON) throw new Error('Singular matrix');
-        return [
-            [A[1][1] / d, -A[0][1] / d],
-            [-A[1][0] / d, A[0][0] / d]
-        ];
-    }
-
-    function det3x3(A) {
-        return A[0][0] * (A[1][1] * A[2][2] - A[1][2] * A[2][1])
-            - A[0][1] * (A[1][0] * A[2][2] - A[1][2] * A[2][0])
-            + A[0][2] * (A[1][0] * A[2][1] - A[1][1] * A[2][0]);
-    }
-
-    function inv3x3(A) {
-        const d = det3x3(A);
-        if (abs(d) < EPSILON) throw new Error('Singular matrix');
-
-        // Cofactor matrix
-        const C = [
-            [
-                A[1][1] * A[2][2] - A[1][2] * A[2][1],
-                -(A[1][0] * A[2][2] - A[1][2] * A[2][0]),
-                A[1][0] * A[2][1] - A[1][1] * A[2][0]
-            ],
-            [
-                -(A[0][1] * A[2][2] - A[0][2] * A[2][1]),
-                A[0][0] * A[2][2] - A[0][2] * A[2][0],
-                -(A[0][0] * A[2][1] - A[0][1] * A[2][0])
-            ],
-            [
-                A[0][1] * A[1][2] - A[0][2] * A[1][1],
-                -(A[0][0] * A[1][2] - A[0][2] * A[1][0]),
-                A[0][0] * A[1][1] - A[0][1] * A[1][0]
-            ]
-        ];
-
-        // Transpose of cofactor / determinant
-        return [
-            [C[0][0] / d, C[1][0] / d, C[2][0] / d],
-            [C[0][1] / d, C[1][1] / d, C[2][1] / d],
-            [C[0][2] / d, C[1][2] / d, C[2][2] / d]
-        ];
-    }
-
-    /**
-     * General matrix inverse using Gauss-Jordan elimination.
-     * Works for any n×n matrix.
-     */
-    function invertMatrix(A) {
-        const n = A.length;
-
-        // Create augmented matrix [A | I]
-        const aug = [];
-        for (let i = 0; i < n; i++) {
-            aug[i] = [...A[i]];
-            for (let j = 0; j < n; j++) {
-                aug[i].push(i === j ? 1 : 0);
-            }
-        }
-
-        // Forward elimination with partial pivoting
-        for (let col = 0; col < n; col++) {
-            // Find pivot
-            let maxRow = col;
-            for (let row = col + 1; row < n; row++) {
-                if (abs(aug[row][col]) > abs(aug[maxRow][col])) {
-                    maxRow = row;
-                }
-            }
-            [aug[col], aug[maxRow]] = [aug[maxRow], aug[col]];
-
-            if (abs(aug[col][col]) < EPSILON) {
-                throw new Error('Singular matrix');
-            }
-
-            // Scale pivot row
-            const pivot = aug[col][col];
-            for (let j = 0; j < 2 * n; j++) {
-                aug[col][j] /= pivot;
-            }
-
-            // Eliminate column
-            for (let row = 0; row < n; row++) {
-                if (row !== col) {
-                    const factor = aug[row][col];
-                    for (let j = 0; j < 2 * n; j++) {
-                        aug[row][j] -= factor * aug[col][j];
-                    }
-                }
-            }
-        }
-
-        // Extract inverse from augmented matrix
-        const inv = [];
-        for (let i = 0; i < n; i++) {
-            inv[i] = aug[i].slice(n);
-        }
-        return inv;
-    }
+    const {
+        EPSILON, abs, sqrt, sin, cos, tan, atan2, acos, PI,
+        dot, norm, normalize, vecAdd, vecSub, vecScale, cross3,
+        matVecMul, det2x2, inv2x2, det3x3, inv3x3, invertMatrix
+    } = Utils;
 
     // ============================================================================
     // BIVECTOR CLASSES

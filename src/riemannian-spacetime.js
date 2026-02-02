@@ -16,7 +16,23 @@
 (function (global) {
     'use strict';
 
-    const GA = require('./multivector.js');
+    // ============================================================================
+    // IMPORT DEPENDENCIES
+    // ============================================================================
+
+    let GA;
+    if (typeof require !== 'undefined') {
+        try {
+            GA = require('./multivector.js');
+        } catch (e) {
+            // Will use global
+        }
+    }
+    // Fallback to global (browser)
+    if (!GA && typeof global !== 'undefined') {
+        GA = global.GA;
+    }
+
     const { abs, sqrt, sin, cos, tan, exp } = Math;
     const EPSILON = 1e-10;
 
@@ -513,8 +529,21 @@
         }
     }
 
+    // ============================================================================
+    // EXPORTS
+    // ============================================================================
+
+    const RiemannianSpacetimeModule = { SpacetimeManifoldGA };
+
+    // Export for different module systems
     if (typeof module !== 'undefined' && module.exports) {
-        module.exports = { SpacetimeManifoldGA };
+        module.exports = RiemannianSpacetimeModule;
+    }
+    if (typeof define === 'function' && define.amd) {
+        define([], () => RiemannianSpacetimeModule);
+    }
+    if (typeof global !== 'undefined') {
+        global.RiemannianSpacetime = RiemannianSpacetimeModule;
     }
 
-})(typeof globalThis !== 'undefined' ? globalThis : this);
+})(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : global));

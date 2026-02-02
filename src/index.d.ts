@@ -636,4 +636,466 @@ declare module 'contact-thermodynamics' {
         /** Compute variance of scalar field */
         variance(u: Float64Array): number;
     }
+
+    // ============================================================================
+    // RIEMANNIAN GA (Coordinate-Free Riemannian Geometry)
+    // ============================================================================
+
+    /**
+     * Bivector in 2D (single component: e₁₂)
+     */
+    export class Bivector2D {
+        readonly e12: number;
+
+        constructor(e12?: number);
+        add(other: Bivector2D): Bivector2D;
+        sub(other: Bivector2D): Bivector2D;
+        scale(s: number): Bivector2D;
+        norm(): number;
+        toString(): string;
+    }
+
+    /**
+     * Bivector in 3D (three components: e₂₃, e₃₁, e₁₂)
+     */
+    export class Bivector3D {
+        readonly e23: number;
+        readonly e31: number;
+        readonly e12: number;
+
+        constructor(e23?: number, e31?: number, e12?: number);
+        static fromWedge(u: number[], v: number[]): Bivector3D;
+        static fromAxisAngle(axis: number[], angle: number): Bivector3D;
+        add(other: Bivector3D): Bivector3D;
+        sub(other: Bivector3D): Bivector3D;
+        scale(s: number): Bivector3D;
+        norm(): number;
+        commutator(other: Bivector3D): Bivector3D;
+        cross(v: number[]): number[];
+        toArray(): number[];
+        toString(): string;
+    }
+
+    /**
+     * Abstract Riemannian manifold base class
+     */
+    export interface RiemannianManifold {
+        /** Dimension of the manifold */
+        readonly dim: number;
+        /** Frame vectors at point */
+        frame(u: number[]): number[][];
+        /** Reciprocal frame (dual basis) */
+        reciprocalFrame(u: number[]): number[][];
+        /** Metric tensor g_ij at point */
+        metricAt(u: number[]): number[][];
+        /** Map local coordinates to embedding space */
+        embed(u: number[]): number[];
+    }
+
+    /**
+     * 2-sphere of radius R
+     */
+    export class Sphere2D implements RiemannianManifold {
+        readonly R: number;
+        readonly dim: number;
+
+        constructor(R?: number);
+        frame(u: number[]): number[][];
+        reciprocalFrame(u: number[]): number[][];
+        metricAt(u: number[]): number[][];
+        embed(u: number[]): number[];
+        gaussianCurvature(): number;
+    }
+
+    /**
+     * Torus with major radius R and minor radius r
+     */
+    export class Torus2D implements RiemannianManifold {
+        readonly R: number;
+        readonly r: number;
+        readonly dim: number;
+
+        constructor(R?: number, r?: number);
+        frame(u: number[]): number[][];
+        reciprocalFrame(u: number[]): number[][];
+        metricAt(u: number[]): number[][];
+        embed(u: number[]): number[];
+        gaussianCurvature(u: number[]): number;
+    }
+
+    /**
+     * Hyperbolic plane (Poincaré half-plane model)
+     */
+    export class HyperbolicPlane implements RiemannianManifold {
+        readonly dim: number;
+
+        constructor();
+        frame(u: number[]): number[][];
+        reciprocalFrame(u: number[]): number[][];
+        metricAt(u: number[]): number[][];
+        embed(u: number[]): number[];
+        gaussianCurvature(): number;
+    }
+
+    /**
+     * Connection bivector ω for coordinate-free parallel transport
+     */
+    export class ConnectionBivector {
+        readonly manifold: RiemannianManifold;
+
+        constructor(manifold: RiemannianManifold);
+        /** Compute ω_i at point u */
+        computeAt(u: number[]): any[];
+        /** Compute ω(v) for tangent vector v */
+        omegaOfV(u: number[], v: number[]): any;
+    }
+
+    /**
+     * Curvature 2-form Ω = dω + ω ∧ ω
+     */
+    export class Curvature2Form {
+        readonly manifold: RiemannianManifold;
+
+        constructor(manifold: RiemannianManifold);
+        /** Compute Ω at point u */
+        computeAt(u: number[]): any;
+        /** Gaussian curvature from Ω */
+        gaussianCurvature(u: number[]): number;
+    }
+
+    // ============================================================================
+    // GEODESIC GA (Coordinate-Free Geodesic Solver)
+    // ============================================================================
+
+    /**
+     * Geodesic solver using connection bivector formulation
+     */
+    export class GAGeodesicSolver {
+        readonly manifold: RiemannianManifold;
+
+        constructor(manifold: RiemannianManifold);
+        /** Solve geodesic from initial position and velocity */
+        solve(
+            u0: number[],
+            v0: number[],
+            tMax: number,
+            dt: number
+        ): Array<{ t: number; u: number[]; v: number[] }>;
+    }
+
+    /**
+     * Parallel transport using connection bivector
+     */
+    export class GAParallelTransport {
+        readonly manifold: RiemannianManifold;
+
+        constructor(manifold: RiemannianManifold);
+        /** Transport vector w along curve */
+        transport(
+            curve: Array<{ u: number[]; t: number }>,
+            w0: number[]
+        ): number[][];
+        /** Compute holonomy angle around closed loop */
+        holonomyAngle(
+            loop: Array<{ u: number[]; t: number }>,
+            w0: number[],
+            nSteps?: number
+        ): number;
+        /** Verify Gauss-Bonnet theorem for loop */
+        verifyGaussBonnet(
+            loop: Array<{ u: number[]; t: number }>,
+            expectedHolonomy: number,
+            w0: number[],
+            nSteps?: number
+        ): { computed: number; expected: number; error: number };
+    }
+
+    /**
+     * Gauss-Bonnet integrator for curvature integrals
+     */
+    export class GaussBonnetIntegrator {
+        readonly manifold: RiemannianManifold;
+
+        constructor(manifold: RiemannianManifold);
+        /** Integrate Gaussian curvature over region */
+        integrate(
+            uRange: [number, number],
+            vRange: [number, number],
+            nU?: number,
+            nV?: number
+        ): number;
+        /** Verify Gauss-Bonnet theorem */
+        verifyGaussBonnet(
+            eulerCharacteristic: number,
+            uRange: [number, number],
+            vRange: [number, number],
+            nU?: number,
+            nV?: number
+        ): { computed: number; expected: number; error: number };
+    }
+
+    // ============================================================================
+    // GEOMETRIC CALCULUS (Regular Grids)
+    // ============================================================================
+
+    /**
+     * Scalar field on a regular grid
+     */
+    export class ScalarField {
+        readonly nx: number;
+        readonly ny: number;
+        readonly nz: number;
+        readonly values: Float64Array;
+
+        constructor(nx: number, ny?: number, nz?: number);
+        get(i: number, j?: number, k?: number): number;
+        set(i: number, j: number, value: number): void;
+        set(i: number, j: number, k: number, value: number): void;
+    }
+
+    /**
+     * Vector field on a regular grid
+     */
+    export class VectorField {
+        readonly nx: number;
+        readonly ny: number;
+        readonly nz: number;
+        readonly components: Float64Array[];
+
+        constructor(nx: number, ny?: number, nz?: number, dim?: number);
+    }
+
+    /**
+     * Split differential operator for geometric calculus
+     */
+    export class SplitDifferentialOperator {
+        /** Apply gradient to scalar field */
+        grad(f: ScalarField, dx: number): VectorField;
+        /** Apply divergence to vector field */
+        div(V: VectorField, dx: number): ScalarField;
+        /** Apply curl to vector field */
+        curl(V: VectorField, dx: number): VectorField;
+        /** Apply Laplacian to scalar field */
+        laplacian(f: ScalarField, dx: number): ScalarField;
+    }
+
+    /**
+     * Leapfrog time integrator for PDEs
+     */
+    export class LeapfrogIntegrator {
+        /** Wave equation step */
+        waveStep(
+            uPrev: ScalarField,
+            uCurr: ScalarField,
+            dt: number,
+            c: number,
+            dx: number
+        ): ScalarField;
+        /** Heat equation step (explicit) */
+        heatStep(
+            u: ScalarField,
+            dt: number,
+            alpha: number,
+            dx: number
+        ): ScalarField;
+    }
+
+    // ============================================================================
+    // RIEMANNIAN DISCRETE (Triangle Meshes)
+    // ============================================================================
+
+    /**
+     * Discrete connection bivector on triangle mesh
+     */
+    export class MeshConnectionBivector {
+        readonly mesh: TriangleMesh;
+
+        constructor(mesh: TriangleMesh);
+        /** Dihedral angle at edge */
+        dihedralAngle(edgeIdx: number): number;
+        /** Connection bivector for edge */
+        atEdge(edgeIdx: number): Bivector3D;
+    }
+
+    /**
+     * Discrete curvature 2-form on triangle mesh
+     */
+    export class MeshCurvature2Form {
+        readonly mesh: TriangleMesh;
+
+        constructor(mesh: TriangleMesh);
+        /** Angle defect at vertex (discrete Gaussian curvature) */
+        angleDefect(vertexIdx: number): number;
+        /** Discrete Gauss-Bonnet theorem verification */
+        gaussBonnet(): number;
+    }
+
+    // ============================================================================
+    // SPACETIME GA (General Relativity)
+    // ============================================================================
+
+    /**
+     * Spacetime manifold using Cl(1,3) Geometric Algebra
+     */
+    export class SpacetimeManifoldGA {
+        constructor(metricFunc: (x: number[]) => number[][]);
+
+        /** Compute tetrad (vierbein) at point */
+        tetrad(x: number[]): { forward: number[][]; inverse: number[][] };
+        /** Connection bivector at point */
+        connectionBivector(x: number[]): any[];
+        /** Riemann curvature scalar */
+        ricciScalar(x: number[]): number;
+        /** Kretschmann scalar */
+        kretschmann(x: number[]): number;
+    }
+
+    // ============================================================================
+    // PILOT-WAVE THEORY
+    // ============================================================================
+
+    /**
+     * Smearing kernel for Valentini regularization
+     */
+    export class SmearingKernel {
+        readonly epsilon: number;
+
+        constructor(epsilon?: number);
+        /** Evaluate kernel at distance */
+        evaluate(r: number): number;
+        /** Smear a delta function */
+        smear(position: number[], x: number[]): number;
+    }
+
+    /**
+     * Wave function for pilot-wave theory
+     */
+    export class WaveFunction {
+        readonly dim: number;
+
+        constructor(dim: number);
+        /** Evaluate ψ at position */
+        evaluate(x: number[]): { real: number; imag: number };
+        /** Evaluate |ψ|² */
+        density(x: number[]): number;
+        /** Evaluate phase */
+        phase(x: number[]): number;
+        /** de Broglie velocity */
+        velocity(x: number[], hbar?: number, m?: number): number[];
+    }
+
+    /**
+     * Pilot-wave system with particle and wave
+     */
+    export class PilotWaveSystem {
+        readonly waveFunction: WaveFunction;
+        readonly kernel: SmearingKernel;
+
+        constructor(waveFunction: WaveFunction, kernel?: SmearingKernel);
+        /** Compute de Broglie velocity */
+        velocity(x: number[]): number[];
+        /** Integrate particle trajectory */
+        integrate(x0: number[], dt: number, nSteps: number): number[][];
+    }
+
+    /**
+     * Ensemble of particles for statistical mechanics
+     */
+    export class QuantumEnsemble {
+        readonly system: PilotWaveSystem;
+        readonly particles: number[][];
+
+        constructor(system: PilotWaveSystem, nParticles: number);
+        /** Evolve ensemble */
+        evolve(dt: number, nSteps: number): void;
+        /** Compute H-function (relative entropy) */
+        hFunction(): number;
+        /** Compute coarse-grained density */
+        density(x: number[], sigma?: number): number;
+    }
+
+    // ============================================================================
+    // INFORMATION GEOMETRY
+    // ============================================================================
+
+    /**
+     * Probability manifold with contact structure
+     */
+    export class ProbabilityManifold {
+        readonly n: number;
+
+        constructor(n: number);
+        /** Shannon entropy S(q) */
+        entropy(q: number[]): number;
+        /** Surprisal p_i = -ln(q_i) - 1 */
+        surprisal(q: number[]): number[];
+        /** Contact form α = dS - p_i dq^i */
+        contactForm(q: number[], p: number[]): any;
+        /** Exterior derivative dα */
+        exteriorDerivativeAlpha(): any;
+        /** Volume form α ∧ (dα)^n */
+        volumeForm(q: number[], p: number[]): any;
+        /** Verify Legendrian condition */
+        checkLegendrianCondition(q: number[]): Array<{
+            k: number;
+            contraction: number;
+            passed: boolean;
+        }>;
+    }
+
+    // ============================================================================
+    // ENTROPIC GRAVITY (Bianconi Framework)
+    // ============================================================================
+
+    /**
+     * Matter-induced metric for entropic gravity
+     */
+    export class MatterInducedMetric {
+        constructor(backgroundMetric: (x: number[]) => number[][]);
+        /** Compute induced metric G from matter field */
+        compute(x: number[], phi: number): number[][];
+    }
+
+    /**
+     * Two-metric system (g, G) for relative entropy
+     */
+    export class TwoMetricSystem {
+        constructor(
+            referenceMetric: (x: number[]) => number[][],
+            inducedMetric: (x: number[]) => number[][]
+        );
+        /** Relative entropy density */
+        entropyDensity(x: number[]): number;
+        /** Total relative entropy action */
+        action(region: any): number;
+    }
+
+    /**
+     * Constitutive relation between G and g
+     */
+    export class ConstitutiveRelation {
+        /** Compute G from g and curvature */
+        compute(g: number[][], R: number): number[][];
+    }
+
+    /**
+     * Discrete entropic flow on triangle meshes
+     */
+    export class EntropicMeshflow {
+        readonly mesh: TriangleMesh;
+        readonly phi: Float64Array;
+        readonly entropyDensity: Float64Array;
+        readonly entropicPotential: Float64Array;
+
+        constructor(mesh: TriangleMesh, options?: {
+            mass?: number;
+            coupling?: number;
+            damping?: number;
+        });
+
+        /** Update scalar field and recompute entropy */
+        updateField(fieldSource: Float64Array | ((p: number[], i: number) => number)): void;
+        /** Compute entropic force at barycentric point */
+        getForce(point: { face: number; u: number; v: number; w: number }): number[];
+    }
 }

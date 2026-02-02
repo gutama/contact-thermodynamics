@@ -1543,25 +1543,34 @@
     let RiemannianDiscreteModule, RiemannianSpacetimeModule;
     // Quantum / Information modules
     let PilotWaveModule, InformationGeometryModule;
+    // New modular subpackages
+    let AlgebraModule, GeometryModule, CalculusModule, ContactModule, PhysicsModule;
 
     if (typeof require !== 'undefined') {
-        // Mesh modules
-        try { MeshModule = require('./mesh.js'); } catch (e) {}
-        try { MeshFTGCModule = require('./mesh-ftgc.js'); } catch (e) {}
-        try { MeshSolversModule = require('./mesh-solvers.js'); } catch (e) {}
-        try { EntropicGravityModule = require('./entropic-gravity.js'); } catch (e) {}
-        try { MeshEntropicFlowModule = require('./mesh-entropic-flow.js'); } catch (e) {}
+        // Mesh modules (legacy paths for compatibility)
+        try { MeshModule = require('./mesh.js'); } catch (e) { }
+        try { MeshFTGCModule = require('./mesh-ftgc.js'); } catch (e) { }
+        try { MeshSolversModule = require('./mesh-solvers.js'); } catch (e) { }
+        try { EntropicGravityModule = require('./entropic-gravity.js'); } catch (e) { }
+        try { MeshEntropicFlowModule = require('./mesh-entropic-flow.js'); } catch (e) { }
 
-        // Riemannian Geometry modules
-        try { RiemannianGAModule = require('./riemannian-ga.js'); } catch (e) {}
-        try { GeodesicGAModule = require('./geodesic-ga.js'); } catch (e) {}
-        try { GeometricCalculusModule = require('./geometric-calculus.js'); } catch (e) {}
-        try { RiemannianDiscreteModule = require('./riemannian-discrete.js'); } catch (e) {}
-        try { RiemannianSpacetimeModule = require('./riemannian-spacetime.js'); } catch (e) {}
+        // Riemannian Geometry modules (legacy paths)
+        try { RiemannianGAModule = require('./riemannian-ga.js'); } catch (e) { }
+        try { GeodesicGAModule = require('./geodesic-ga.js'); } catch (e) { }
+        try { GeometricCalculusModule = require('./geometric-calculus.js'); } catch (e) { }
+        try { RiemannianDiscreteModule = require('./riemannian-discrete.js'); } catch (e) { }
+        try { RiemannianSpacetimeModule = require('./riemannian-spacetime.js'); } catch (e) { }
 
-        // Quantum / Information modules
-        try { PilotWaveModule = require('./pilot-wave.js'); } catch (e) {}
-        try { InformationGeometryModule = require('./information-geometry.js'); } catch (e) {}
+        // Quantum / Information modules (legacy paths)
+        try { PilotWaveModule = require('./pilot-wave.js'); } catch (e) { }
+        try { InformationGeometryModule = require('./information-geometry.js'); } catch (e) { }
+
+        // New modular subpackages
+        try { AlgebraModule = require('./algebra'); } catch (e) { }
+        try { GeometryModule = require('./geometry'); } catch (e) { }
+        try { CalculusModule = require('./calculus'); } catch (e) { }
+        try { ContactModule = require('./contact'); } catch (e) { }
+        try { PhysicsModule = require('./physics'); } catch (e) { }
     }
 
     // ============================================================================
@@ -1638,6 +1647,21 @@
 
         // Constants
         EPSILON,
+
+        // ============================================================================
+        // MODULAR NAMESPACED EXPORTS (New structure)
+        // ============================================================================
+        // These provide access to the new modular subpackages:
+        //   algebra: Multivector, Algebra, NumberSystems (Complex, Dual, Hyperbolic)
+        //   geometry: Riemannian GA (connection bivector, curvature), geodesics
+        //   calculus: Discrete geometric calculus (grid + mesh operators, solvers)
+        //   contact: Contact manifolds, Hamiltonians, Legendrians (extracted from index)
+        //   physics: Pilot-wave, entropic gravity, spacetime
+        algebra: AlgebraModule || {},
+        geometry: GeometryModule || {},
+        calculus: CalculusModule || {},
+        contact: ContactModule || {},
+        physics: PhysicsModule || {},
 
         // Factory functions
         grandManifold: () => new GrandContactManifold(),

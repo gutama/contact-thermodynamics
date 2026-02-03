@@ -78,6 +78,11 @@ section('II. Coordinate Structure');
     );
 
     assert(grand.fiberCoord === 'A', 'Fiber coordinate is A (action)');
+
+    const coordsA = grand.allCoords;
+    coordsA.push('hijack');
+    const coordsB = grand.allCoords;
+    assert(!coordsB.includes('hijack'), 'Contact manifold coords return a safe copy');
 }
 
 {

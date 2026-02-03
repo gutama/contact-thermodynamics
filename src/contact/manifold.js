@@ -37,6 +37,11 @@
             this.fiberCoord = fiberCoord;
             this.n = baseCoords.length;  // dim(Q)
             this.dim = 2 * this.n + 1;   // dim(M) = 2n + 1
+            this._allCoords = Object.freeze([
+                ...this.baseCoords,
+                this.fiberCoord,
+                ...this.momentaCoords
+            ]);
         }
 
         /**
@@ -50,7 +55,7 @@
          * Get coordinate names in canonical order
          */
         get allCoords() {
-            return [...this.baseCoords, this.fiberCoord, ...this.momentaCoords];
+            return this._allCoords.slice();
         }
 
         /**
@@ -66,7 +71,7 @@
          */
         get origin() {
             const coords = {};
-            this.allCoords.forEach(c => coords[c] = 0);
+            this._allCoords.forEach(c => coords[c] = 0);
             return this.point(coords);
         }
 
@@ -119,7 +124,7 @@
          */
         reebField(pt) {
             const R = {};
-            this.allCoords.forEach(c => R[c] = 0);
+            this._allCoords.forEach(c => R[c] = 0);
             R[this.fiberCoord] = 1;  // ∂/∂u
             return R;
         }
@@ -143,7 +148,7 @@
         constructor(manifold, coords = {}) {
             this.manifold = manifold;
             this.coords = {};
-            manifold.allCoords.forEach(c => {
+            manifold._allCoords.forEach(c => {
                 this.coords[c] = coords[c] !== undefined ? coords[c] : 0;
             });
         }
@@ -153,7 +158,7 @@
         }
 
         set(coord, value) {
-            if (this.manifold.allCoords.includes(coord)) {
+            if (this.manifold._allCoords.includes(coord)) {
                 this.coords[coord] = value;
             }
             return this;
@@ -168,7 +173,7 @@
          */
         add(tangent, dt = 1) {
             const newPt = this.clone();
-            for (const c of this.manifold.allCoords) {
+            for (const c of this.manifold._allCoords) {
                 if (tangent[c] !== undefined) {
                     newPt.coords[c] += tangent[c] * dt;
                 }
@@ -177,7 +182,7 @@
         }
 
         toString() {
-            const parts = this.manifold.allCoords.map(c =>
+            const parts = this.manifold._allCoords.map(c =>
                 `${c}=${this.coords[c].toFixed(4)}`
             );
             return `(${parts.join(', ')})`;

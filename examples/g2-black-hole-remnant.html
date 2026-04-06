@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>G₂-Manifold Black Hole Remnant Demo</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: 'Courier New', monospace;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    min-height: 100vh;
+}
+.header {
+    background: linear-gradient(135deg, #16213e, #0f3460);
+    padding: 20px;
+    text-align: center;
+    border-bottom: 2px solid #00ff88;
+}
+.header h1 { color: #00ff88; font-size: 1.5em; }
+.header p { color: #aaa; font-size: 0.85em; margin-top: 5px; }
+
+.container {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 15px;
+    padding: 15px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.controls {
+    background: #16213e;
+    border-radius: 10px;
+    padding: 15px;
+    border: 1px solid #333;
+}
+.controls h3 { color: #4ecdc4; margin-bottom: 10px; }
+.control-group { margin-bottom: 15px; }
+.control-group label {
+    display: block;
+    font-size: 0.8em;
+    color: #aaa;
+    margin-bottom: 3px;
+}
+.control-group .value {
+    color: #ffe66d;
+    font-size: 0.85em;
+    float: right;
+}
+input[type="range"] {
+    width: 100%;
+    margin: 5px 0;
+    accent-color: #00ff88;
+}
+button {
+    width: 100%;
+    padding: 8px;
+    background: #0f3460;
+    color: #00ff88;
+    border: 1px solid #00ff88;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: inherit;
+    margin-top: 5px;
+}
+button:hover { background: #00ff88; color: #1a1a2e; }
+
+.viz-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+.panel {
+    background: #16213e;
+    border-radius: 10px;
+    padding: 15px;
+    border: 1px solid #333;
+}
+.panel h4 { color: #4ecdc4; margin-bottom: 8px; font-size: 0.9em; }
+canvas {
+    width: 100%;
+    height: 250px;
+    background: #0d1117;
+    border-radius: 5px;
+    display: block;
+}
+
+.results {
+    grid-column: 1 / -1;
+    background: #16213e;
+    border-radius: 10px;
+    padding: 15px;
+    border: 1px solid #333;
+}
+.results h3 { color: #4ecdc4; margin-bottom: 10px; }
+.results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 10px;
+}
+.result-item {
+    background: #0d1117;
+    padding: 10px;
+    border-radius: 5px;
+    border-left: 3px solid #00ff88;
+}
+.result-item .label { color: #aaa; font-size: 0.75em; }
+.result-item .val { color: #ffe66d; font-size: 1em; margin-top: 3px; }
+
+@media (max-width: 900px) {
+    .container { grid-template-columns: 1fr; }
+    .viz-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="header">
+    <h1>G₂-Manifold Black Hole Remnant</h1>
+    <p>Based on: "Geometric origin of a stable black hole remnant from torsion in G₂-manifold geometry" (Gen. Rel. Grav., 2026)</p>
+</div>
+
+<div class="container">
+    <div class="controls">
+        <h3>Parameters</h3>
+        <div class="control-group">
+            <label>Initial BH Mass (kg) <span class="value" id="massVal">10¹² kg</span></label>
+            <input type="range" id="massSlider" min="8" max="15" step="0.1" value="12">
+        </div>
+        <div class="control-group">
+            <label>Torsion Strength τ₀ <span class="value" id="tauVal">1.0</span></label>
+            <input type="range" id="tauSlider" min="0.1" max="3.0" step="0.05" value="1.0">
+        </div>
+        <div class="control-group">
+            <label>Compact Radius R (m) <span class="value" id="radiusVal">6×10⁻¹⁹</span></label>
+            <input type="range" id="radiusSlider" min="-20" max="-17" step="0.1" value="-18.22">
+        </div>
+        <div class="control-group">
+            <label>Sim Speed <span class="value" id="speedVal">1×</span></label>
+            <input type="range" id="speedSlider" min="0.1" max="5" step="0.1" value="1">
+        </div>
+        <button id="playBtn">▶ Play Evaporation</button>
+        <button id="resetBtn">↻ Reset</button>
+
+        <h3 style="margin-top:20px;">G₂ Structure</h3>
+        <div style="font-size:0.75em; color:#aaa; line-height:1.6;">
+            φ = e¹²³ + e¹⁴⁵ - e¹⁶⁷<br>
+            &nbsp;&nbsp;+ e²⁴⁶ - e²⁷⁵<br>
+            &nbsp;&nbsp;+ e³⁴⁷ - e³⁵⁶<br><br>
+            T = τ₀ · φ<br>
+            ρ_eff = ρ(1 − ρ/ρ_crit)<br>
+            V_eff = −GM/r + κM/r⁶
+        </div>
+    </div>
+
+    <div class="viz-grid">
+        <div class="panel">
+            <h4>Effective Potential V_eff(r)</h4>
+            <canvas id="potentialCanvas"></canvas>
+        </div>
+        <div class="panel">
+            <h4>Mass Evolution M(t)</h4>
+            <canvas id="massCanvas"></canvas>
+        </div>
+        <div class="panel">
+            <h4>Hawking Temperature T_H(M)</h4>
+            <canvas id="tempCanvas"></canvas>
+        </div>
+        <div class="panel">
+            <h4>Interior Density ρ(t)/ρ_crit</h4>
+            <canvas id="densityCanvas"></canvas>
+        </div>
+    </div>
+
+    <div class="results">
+        <h3>Results</h3>
+        <div class="results-grid">
+            <div class="result-item">
+                <div class="label">Remnant Mass</div>
+                <div class="val" id="resMrem">—</div>
+            </div>
+            <div class="result-item">
+                <div class="label">Remnant Radius</div>
+                <div class="val" id="resRrem">—</div>
+            </div>
+            <div class="result-item">
+                <div class="label">Electroweak Scale</div>
+                <div class="val" id="resEW">—</div>
+            </div>
+            <div class="result-item">
+                <div class="label">Hierarchy Ratio v_EW/M_Pl</div>
+                <div class="val" id="resHierarchy">—</div>
+            </div>
+            <div class="result-item">
+                <div class="label">Critical Density ρ_crit</div>
+                <div class="val" id="resRhoCrit">—</div>
+            </div>
+            <div class="result-item">
+                <div class="label">Evaporation Time (standard)</div>
+                <div class="val" id="resTevap">—</div>
+            </div>
+            <div class="result-item">
+                <div class="label">Information Capacity</div>
+                <div class="val" id="resInfo">—</div>
+            </div>
+            <div class="result-item">
+                <div class="label">QNM Fundamental ω₀</div>
+                <div class="val" id="resQNM">—</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// =========================================================================
+// PHYSICS ENGINE
+// =========================================================================
+const PC = {
+    G: 6.67430e-11, c: 2.99792458e8, hbar: 1.054571817e-34,
+    kB: 1.380649e-23, GeV_J: 1.602176634e-10, GeV_kg: 1.78266192e-27
+};
+PC.M_Pl = Math.sqrt(PC.hbar * PC.c / PC.G);
+PC.l_Pl = Math.sqrt(PC.hbar * PC.G / Math.pow(PC.c, 3));
+PC.rho_Pl = Math.pow(PC.c, 5) / (PC.hbar * Math.pow(PC.G, 2));
+
+function schwarzR(M) { return 2 * PC.G * M / (PC.c * PC.c); }
+function hawkingT(M) { return PC.hbar * Math.pow(PC.c, 3) / (8 * Math.PI * PC.G * M * PC.kB); }
+function hawkingL(M) { return PC.hbar * Math.pow(PC.c, 6) / (15360 * Math.PI * Math.pow(PC.G, 2) * M * M); }
+function tEvap(M) { return 5120 * Math.PI * Math.pow(PC.G, 2) * Math.pow(M, 3) / (PC.hbar * Math.pow(PC.c, 4)); }
+function torsionKappa(tau0) { return PC.hbar * PC.G / Math.pow(PC.c, 4) * tau0 * tau0; }
+function rhoCrit(kappa) { return 1 / kappa; }
+function remnantMass(tau0) { return 9e-41 * tau0; }
+function remnantRadius(tau0) { return Math.pow(6 * tau0 * tau0 * PC.hbar / PC.c, 0.2); }
+function Veff(r, M, tau0) {
+    var kp = torsionKappa(tau0);
+    return -PC.G * M / r + kp * PC.c * PC.c * PC.c * M / Math.pow(r, 6);
+}
+function infoCapacity(r_rem) { return 4 * Math.PI * r_rem * r_rem / (4 * PC.l_Pl * PC.l_Pl); }
+function qnm0(r_rem) { return 0.5 * PC.c / r_rem; }
+function ewScale(R) {
+    var ratio = Math.pow(PC.l_Pl / R, 1.5);
+    return PC.M_Pl * ratio * PC.c * PC.c / PC.GeV_J;
+}
+
+function simulate(M0, tau0, nSteps) {
+    var kp = torsionKappa(tau0);
+    var rc = rhoCrit(kp);
+    var Mrem = remnantMass(tau0);
+    var te = tEvap(M0);
+    var dt = te / nSteps;
+    var hist = [];
+    var M = M0, t = 0;
+    for (var i = 0; i <= nSteps; i++) {
+        var rs = schwarzR(M);
+        var Vint = (4 * Math.PI / 3) * Math.pow(rs, 3);
+        var rho = Vint > 0 ? M / Vint : 0;
+        var rhoRatio = rho / rc;
+        var supp = Math.max(0, 1 - rhoRatio);
+        var halted = M <= Mrem || supp < 1e-12;
+        hist.push({ t: t, M: M, Mr: M / M0, TH: hawkingT(M), rho: rhoRatio, halted: halted });
+        if (halted) break;
+        var dMdt = -PC.hbar * Math.pow(PC.c, 4) / (15360 * Math.PI * Math.pow(PC.G, 2) * M * M) * supp;
+        M = Math.max(Mrem, M + dMdt * dt);
+        t += dt;
+    }
+    return hist;
+}
+
+// =========================================================================
+// CANVAS DRAWING
+// =========================================================================
+function setupCanvas(id) {
+    var c = document.getElementById(id);
+    var rect = c.getBoundingClientRect();
+    c.width = rect.width * 2; c.height = rect.height * 2;
+    var ctx = c.getContext('2d');
+    ctx.scale(2, 2);
+    return { canvas: c, ctx: ctx, w: rect.width, h: rect.height };
+}
+
+function drawAxes(ctx, w, h, xlabel, ylabel) {
+    var pad = { l: 55, r: 15, t: 10, b: 30 };
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, h - pad.b);
+    ctx.lineTo(w - pad.r, h - pad.b);
+    ctx.stroke();
+    ctx.fillStyle = '#888'; ctx.font = '10px monospace';
+    ctx.fillText(xlabel, w / 2, h - 5);
+    ctx.save(); ctx.translate(12, h / 2); ctx.rotate(-Math.PI / 2);
+    ctx.fillText(ylabel, 0, 0); ctx.restore();
+    return pad;
+}
+
+function plotLine(ctx, data, xKey, yKey, pad, w, h, color, xLog, yLog) {
+    if (data.length < 2) return;
+    var pw = w - pad.l - pad.r, ph = h - pad.t - pad.b;
+    var xs = data.map(d => xLog ? Math.log10(Math.max(1e-300, d[xKey])) : d[xKey]);
+    var ys = data.map(d => yLog ? Math.log10(Math.max(1e-300, d[yKey])) : d[yKey]);
+    var xMin = Math.min(...xs.filter(isFinite)), xMax = Math.max(...xs.filter(isFinite));
+    var yMin = Math.min(...ys.filter(isFinite)), yMax = Math.max(...ys.filter(isFinite));
+    if (xMax - xMin < 1e-30) xMax = xMin + 1;
+    if (yMax - yMin < 1e-30) yMax = yMin + 1;
+    ctx.strokeStyle = color; ctx.lineWidth = 2;
+    ctx.beginPath();
+    var first = true;
+    for (var i = 0; i < data.length; i++) {
+        if (!isFinite(xs[i]) || !isFinite(ys[i])) continue;
+        var px = pad.l + (xs[i] - xMin) / (xMax - xMin) * pw;
+        var py = pad.t + (1 - (ys[i] - yMin) / (yMax - yMin)) * ph;
+        if (first) { ctx.moveTo(px, py); first = false; } else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+
+    // axis labels
+    ctx.fillStyle = '#666'; ctx.font = '9px monospace';
+    ctx.fillText(xLog ? '10^' + xMin.toFixed(0) : xMin.toExponential(1), pad.l, h - pad.b + 15);
+    ctx.fillText(xLog ? '10^' + xMax.toFixed(0) : xMax.toExponential(1), w - pad.r - 30, h - pad.b + 15);
+    ctx.fillText(yLog ? '10^' + yMin.toFixed(0) : yMin.toExponential(1), 2, h - pad.b - 2);
+    ctx.fillText(yLog ? '10^' + yMax.toFixed(0) : yMax.toExponential(1), 2, pad.t + 12);
+}
+
+function drawHLine(ctx, val, yMin, yMax, pad, w, h, color, label, yLog) {
+    var ph = h - pad.t - pad.b;
+    var yv = yLog ? Math.log10(Math.max(1e-300, val)) : val;
+    var ymn = yLog ? Math.log10(Math.max(1e-300, yMin)) : yMin;
+    var ymx = yLog ? Math.log10(Math.max(1e-300, yMax)) : yMax;
+    if (ymx - ymn < 1e-30) return;
+    var py = pad.t + (1 - (yv - ymn) / (ymx - ymn)) * ph;
+    if (py < pad.t || py > h - pad.b) return;
+    ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(pad.l, py); ctx.lineTo(w - pad.r, py); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = color; ctx.font = '9px monospace';
+    ctx.fillText(label, pad.l + 5, py - 3);
+}
+
+// =========================================================================
+// MAIN UPDATE
+// =========================================================================
+var animFrame = 0, playing = false, animId = null;
+
+function update() {
+    var M0 = Math.pow(10, parseFloat(document.getElementById('massSlider').value));
+    var tau0 = parseFloat(document.getElementById('tauSlider').value);
+    var R = Math.pow(10, parseFloat(document.getElementById('radiusSlider').value));
+
+    // Update display values
+    document.getElementById('massVal').textContent = M0.toExponential(1) + ' kg';
+    document.getElementById('tauVal').textContent = tau0.toFixed(2);
+    document.getElementById('radiusVal').textContent = R.toExponential(1) + ' m';
+
+    var kp = torsionKappa(tau0);
+    var rc = rhoCrit(kp);
+    var Mrem = remnantMass(tau0);
+    var rrem = remnantRadius(tau0);
+    var te = tEvap(M0);
+
+    // Results panel
+    document.getElementById('resMrem').textContent = Mrem.toExponential(3) + ' kg';
+    document.getElementById('resRrem').textContent = rrem.toExponential(3) + ' m';
+    document.getElementById('resEW').textContent = ewScale(R).toExponential(3) + ' GeV';
+    document.getElementById('resHierarchy').textContent = (ewScale(R) * PC.GeV_kg / PC.M_Pl).toExponential(3);
+    document.getElementById('resRhoCrit').textContent = rc.toExponential(3) + ' kg/m³';
+    document.getElementById('resTevap').textContent = te.toExponential(3) + ' s';
+    document.getElementById('resInfo').textContent = infoCapacity(rrem).toExponential(3) + ' qubits';
+    document.getElementById('resQNM').textContent = qnm0(rrem).toExponential(3) + ' rad/s';
+
+    // Simulate
+    var hist = simulate(M0, tau0, 500);
+
+    // 1. Effective Potential
+    var { ctx, w, h } = setupCanvas('potentialCanvas');
+    ctx.clearRect(0, 0, w, h);
+    var pad = drawAxes(ctx, w, h, 'r / r_rem', 'V_eff');
+    var potData = [];
+    for (var i = 0; i < 100; i++) {
+        var f = i / 99;
+        var r = rrem * Math.pow(30, f - 0.3);
+        var v = Veff(r, Mrem, tau0);
+        if (isFinite(v) && Math.abs(v) < 1e50) potData.push({ r: r / rrem, V: v });
+    }
+    if (potData.length > 2) {
+        plotLine(ctx, potData, 'r', 'V', pad, w, h, '#00ff88', true, false);
+        // zero line
+        var vmin = Math.min(...potData.map(d=>d.V)), vmax = Math.max(...potData.map(d=>d.V));
+        drawHLine(ctx, 0, vmin, vmax, pad, w, h, '#666', 'V=0', false);
+    }
+
+    // 2. Mass Evolution
+    var { ctx: ctx2, w: w2, h: h2 } = setupCanvas('massCanvas');
+    ctx2.clearRect(0, 0, w2, h2);
+    var pad2 = drawAxes(ctx2, w2, h2, 't / t_evap', 'M / M₀');
+    var massData = hist.map(function(d) { return { t: d.t / te, M: d.Mr }; });
+    plotLine(ctx2, massData, 't', 'M', pad2, w2, h2, '#ff6b6b', false, false);
+    // Standard evaporation reference
+    var stdData = [];
+    for (var i = 0; i <= 100; i++) {
+        var tf = i / 100;
+        stdData.push({ t: tf, M: Math.pow(Math.max(0, 1 - tf), 1/3) });
+    }
+    plotLine(ctx2, stdData, 't', 'M', pad2, w2, h2, '#4ecdc4', false, false);
+    drawHLine(ctx2, Mrem / M0, 0, 1, pad2, w2, h2, '#ffe66d', 'M_rem', false);
+    // Legend
+    ctx2.fillStyle = '#ff6b6b'; ctx2.fillText('● Torsion', w2 - 80, 20);
+    ctx2.fillStyle = '#4ecdc4'; ctx2.fillText('● Standard', w2 - 80, 32);
+
+    // 3. Temperature
+    var { ctx: ctx3, w: w3, h: h3 } = setupCanvas('tempCanvas');
+    ctx3.clearRect(0, 0, w3, h3);
+    var pad3 = drawAxes(ctx3, w3, h3, 'M / M₀', 'T_H (K)');
+    var tempData = hist.filter(d => d.Mr > 0 && d.TH > 0).map(d => ({ M: d.Mr, T: d.TH }));
+    plotLine(ctx3, tempData, 'M', 'T', pad3, w3, h3, '#ffe66d', false, true);
+
+    // 4. Interior Density
+    var { ctx: ctx4, w: w4, h: h4 } = setupCanvas('densityCanvas');
+    ctx4.clearRect(0, 0, w4, h4);
+    var pad4 = drawAxes(ctx4, w4, h4, 't / t_evap', 'ρ / ρ_crit');
+    var densData = hist.filter(d => d.rho > 0).map(d => ({ t: d.t / te, rho: d.rho }));
+    plotLine(ctx4, densData, 't', 'rho', pad4, w4, h4, '#ff6b6b', false, true);
+    if (densData.length > 0) {
+        var rMin = Math.min(...densData.map(d=>d.rho)), rMax = Math.max(...densData.map(d=>d.rho));
+        drawHLine(ctx4, 1, rMin, rMax, pad4, w4, h4, '#ffe66d', 'ρ_crit', true);
+    }
+
+    // Animated dot on mass curve
+    if (playing && animFrame < hist.length) {
+        var d = hist[animFrame];
+        var pw2 = w2 - pad2.l - pad2.r, ph2 = h2 - pad2.t - pad2.b;
+        var px = pad2.l + (d.t / te) * pw2;
+        var py = pad2.t + (1 - d.Mr) * ph2;
+        ctx2.beginPath(); ctx2.arc(px, py, 5, 0, 2*Math.PI);
+        ctx2.fillStyle = '#ff6b6b'; ctx2.fill();
+    }
+}
+
+// Event listeners
+['massSlider', 'tauSlider', 'radiusSlider', 'speedSlider'].forEach(function(id) {
+    document.getElementById(id).addEventListener('input', function() {
+        if (id === 'speedSlider') {
+            document.getElementById('speedVal').textContent = parseFloat(this.value).toFixed(1) + '×';
+        }
+        update();
+    });
+});
+
+document.getElementById('playBtn').addEventListener('click', function() {
+    playing = !playing;
+    this.textContent = playing ? '⏸ Pause' : '▶ Play Evaporation';
+    if (playing) animate();
+});
+
+document.getElementById('resetBtn').addEventListener('click', function() {
+    playing = false; animFrame = 0;
+    document.getElementById('playBtn').textContent = '▶ Play Evaporation';
+    update();
+});
+
+function animate() {
+    if (!playing) return;
+    var speed = parseFloat(document.getElementById('speedSlider').value);
+    animFrame += Math.ceil(speed * 2);
+    if (animFrame >= 500) { animFrame = 0; }
+    update();
+    animId = requestAnimationFrame(animate);
+}
+
+// Initial draw
+update();
+</script>
+</body>
+</html>

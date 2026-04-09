@@ -31,7 +31,7 @@
     let Utils;
     if (typeof require !== 'undefined') {
         try {
-            Utils = require('./utils.js');
+            Utils = require('../utils.js');
         } catch (e) {
             Utils = global.ContactThermoUtils || {};
         }

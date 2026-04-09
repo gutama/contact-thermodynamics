@@ -80,7 +80,7 @@
          * Check if kernel has time-dependent width
          * @returns {boolean}
          */
-        get isTimeDependant() {
+        get isTimeDependent() {
             return this._widthFunction !== null;
         }
 

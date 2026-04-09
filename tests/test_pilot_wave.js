@@ -78,7 +78,7 @@ console.log('--- SmearingKernel Tests ---\n');
 
     // Test time-dependent width ε(t)
     const timeDepKernel = new SmearingKernel(t => 0.1 + 0.05 * t, 'gaussian');
-    assert(timeDepKernel.isTimeDependant, 'Time-dependent kernel detected');
+    assert(timeDepKernel.isTimeDependent, 'Time-dependent kernel detected');
 
     timeDepKernel.setTime(0);
     assertApprox(timeDepKernel.width, 0.1, 1e-10, 'ε(0) = 0.1');
@@ -87,7 +87,7 @@ console.log('--- SmearingKernel Tests ---\n');
     assertApprox(timeDepKernel.width, 0.2, 1e-10, 'ε(2) = 0.2');
 
     // Fixed kernel should not be time-dependent
-    assert(!kernel.isTimeDependant, 'Fixed kernel NOT time-dependent');
+    assert(!kernel.isTimeDependent, 'Fixed kernel NOT time-dependent');
 })();
 
 // ============================================================================

@@ -54,7 +54,10 @@ declare module 'contact-thermodynamics' {
         constructor(baseCoords: string[], momentaCoords: string[], fiberCoord?: string);
 
         /** All coordinate names in canonical order */
-        readonly allCoords: string[];
+        readonly allCoords: readonly string[];
+
+        /** Check whether a coordinate belongs to this manifold */
+        hasCoord(coord: string): boolean;
 
         /** Origin point (all coordinates zero) */
         readonly origin: ContactPoint;

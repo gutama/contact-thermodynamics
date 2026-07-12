@@ -49,11 +49,13 @@
             if (baseCoords.length !== momentaCoords.length) {
                 throw new Error('Base and momenta coordinates must have same dimension');
             }
-            this.baseCoords = baseCoords;
-            this.momentaCoords = momentaCoords;
+            this.baseCoords = [...baseCoords];
+            this.momentaCoords = [...momentaCoords];
             this.fiberCoord = fiberCoord;
-            this.n = baseCoords.length;  // dim(Q)
+            this.n = this.baseCoords.length;  // dim(Q)
             this.dim = 2 * this.n + 1;   // dim(M) = 2n + 1
+            this._allCoords = Object.freeze([...this.baseCoords, this.fiberCoord, ...this.momentaCoords]);
+            this._coordSet = new Set(this._allCoords);
         }
 
         /**
@@ -67,7 +69,14 @@
          * Get coordinate names in canonical order
          */
         get allCoords() {
-            return [...this.baseCoords, this.fiberCoord, ...this.momentaCoords];
+            return this._allCoords;
+        }
+
+        /**
+         * Check whether a coordinate belongs to this manifold.
+         */
+        hasCoord(coord) {
+            return this._coordSet.has(coord);
         }
 
         /**
@@ -126,7 +135,11 @@
         }
 
         factorial(n) {
-            return n <= 1 ? 1 : n * this.factorial(n - 1);
+            let result = 1;
+            for (let i = 2; i <= n; i++) {
+                result *= i;
+            }
+            return result;
         }
 
         /**
@@ -170,7 +183,7 @@
         }
 
         set(coord, value) {
-            if (this.manifold.allCoords.includes(coord)) {
+            if (this.manifold.hasCoord(coord)) {
                 this.coords[coord] = value;
             }
             return this;
@@ -280,7 +293,7 @@
         verifyContactCondition(pt) {
             // For canonical form, always non-degenerate
             // α ∧ (dα)⁶ = 6! · volume form
-            return 720; // 6!
+            return super.verifyContactCondition(pt);
         }
 
         toString() {
@@ -363,7 +376,7 @@
 
         verifyContactCondition(pt) {
             // α ∧ (dα)³ = 3! · volume form
-            return 6; // 3!
+            return super.verifyContactCondition(pt);
         }
 
         toString() {
@@ -412,12 +425,15 @@
             }
 
             const grad = {};
+            const coords = pt.coords;
             for (const c of this.manifold.allCoords) {
-                const ptPlus = pt.clone();
-                const ptMinus = pt.clone();
-                ptPlus.coords[c] += h;
-                ptMinus.coords[c] -= h;
-                grad[c] = (this.H(ptPlus.coords) - this.H(ptMinus.coords)) / (2 * h);
+                const original = coords[c];
+                coords[c] = original + h;
+                const plus = this.H(coords);
+                coords[c] = original - h;
+                const minus = this.H(coords);
+                coords[c] = original;
+                grad[c] = (plus - minus) / (2 * h);
             }
             return grad;
         }

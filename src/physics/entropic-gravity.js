@@ -24,12 +24,8 @@
     // [NEW] GA Integration (Node.js support)
     let SpacetimeManifoldGA;
     if (typeof require === 'function') {
-        try {
-            const mod = require('./riemannian-spacetime.js');
-            SpacetimeManifoldGA = mod.SpacetimeManifoldGA;
-        } catch (e) {
-            // Ignore in browser or if module missing
-        }
+        const mod = require('./spacetime.js');
+        SpacetimeManifoldGA = mod.SpacetimeManifoldGA;
     }
 
     const EPSILON = 1e-12;

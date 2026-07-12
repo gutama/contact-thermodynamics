@@ -52,12 +52,12 @@
             }
 
             const grad = {};
-            for (const c of this.manifold.allCoords) {
-                const ptPlus = pt.clone();
-                const ptMinus = pt.clone();
-                ptPlus.coords[c] += h;
-                ptMinus.coords[c] -= h;
-                grad[c] = (this.H(ptPlus.coords) - this.H(ptMinus.coords)) / (2 * h);
+            const coords = pt.coords;
+            for (const c of this.manifold._allCoords) {
+                const original = coords[c];
+                const plus = this.H({ ...coords, [c]: original + h });
+                const minus = this.H({ ...coords, [c]: original - h });
+                grad[c] = (plus - minus) / (2 * h);
             }
             return grad;
         }

@@ -56,6 +56,9 @@ declare module 'contact-thermodynamics' {
         /** All coordinate names in canonical order */
         readonly allCoords: string[];
 
+        /** Check whether a coordinate belongs to this manifold */
+        hasCoord(coord: string): boolean;
+
         /** Origin point (all coordinates zero) */
         readonly origin: ContactPoint;
 

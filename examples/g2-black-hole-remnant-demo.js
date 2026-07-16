@@ -372,3 +372,206 @@ Physical picture:
   7. INFO STORAGE: QNMs encode ~${info.toExponential(1)} qubits of information
   8. STABILITY: G₂-Ricci flow confirms geometric stability
 `);
+
+// ============================================================================
+// 7. G₂ CROSS PRODUCT AND CALIBRATED GEOMETRY
+// ============================================================================
+
+console.log('\n7. G₂ ALGEBRAIC STRUCTURE');
+console.log('-'.repeat(50));
+
+const e1 = [1, 0, 0, 0, 0, 0, 0];
+const e2 = [0, 1, 0, 0, 0, 0, 0];
+const e3 = [0, 0, 1, 0, 0, 0, 0];
+const e4 = [0, 0, 0, 1, 0, 0, 0];
+const e5 = [0, 0, 0, 0, 1, 0, 0];
+
+const cross12 = g2.crossProduct(e1, e2);
+console.log(`\ne₁ ×_φ e₂ = [${cross12.map(v => v.toFixed(3)).join(', ')}]`);
+
+const assoc123 = g2.isAssociative(e1, e2, e3);
+const assoc145 = g2.isAssociative(e1, e4, e5);
+console.log(`\nAssociative calibration tests:`);
+console.log(`  {e₁,e₂,e₃}: comass = ${assoc123.comass.toFixed(4)} → ${assoc123.isAssociative ? 'ASSOCIATIVE' : 'not calibrated'}`);
+console.log(`  {e₁,e₄,e₅}: comass = ${assoc145.comass.toFixed(4)} → ${assoc145.isAssociative ? 'ASSOCIATIVE' : 'not calibrated'}`);
+
+// ============================================================================
+// 8. TORSION FIELD DYNAMICS
+// ============================================================================
+
+console.log('\n8. TORSION FIELD DYNAMICS');
+console.log('-'.repeat(50));
+
+const tfd = new G2.TorsionFieldDynamics(g2);
+
+console.log(`\nTorsion mass: m_τ = 1/R = ${(1 / g2.R).toExponential(3)} m⁻¹`);
+
+const k_vals = [1e15, 1e16, 1e17, 1e18];
+console.log('\nDispersion relation ω(k):');
+console.log('    k [m⁻¹]    |    ω [rad/s]   |  v_g/c  |  v_p/c');
+console.log('  ' + '-'.repeat(55));
+for (const k of k_vals) {
+    const omega = tfd.dispersion(k);
+    const vg = tfd.groupVelocity(k);
+    const vp = tfd.phaseVelocity(k);
+    console.log(`  ${k.toExponential(2).padStart(12)} | ${omega.toExponential(4).padStart(14)} | ${(vg / C.c).toFixed(4).padStart(7)} | ${(vp / C.c).toFixed(4).padStart(7)}`);
+}
+
+const sim = tfd.simulate1D({ steps: 100, snapInterval: 25 });
+console.log(`\n1D simulation: ${sim.length} snapshots`);
+for (const snap of sim) {
+    const peak = snap.field.reduce((a, b) => Math.max(a, Math.abs(b)), 0);
+    console.log(`  t̃ = ${snap.t.toFixed(2).padStart(6)} | peak τ = ${peak.toFixed(4).padStart(8)} | E = ${snap.energy.toExponential(3)}`);
+}
+
+// ============================================================================
+// 9. REMNANT COSMOLOGY (Dark Matter)
+// ============================================================================
+
+console.log('\n9. REMNANT COSMOLOGY — DARK MATTER CANDIDATE');
+console.log('-'.repeat(50));
+
+const cosmo = new G2.RemnantCosmology(bh);
+
+console.log(`\nCosmological parameters:`);
+console.log(`  ρ_crit = ${cosmo.criticalDensity().toExponential(4)} kg/m³`);
+console.log(`  ρ_DM  = ${cosmo.darkMatterDensity().toExponential(4)} kg/m³`);
+console.log(`  Ω_DM  = ${cosmo.Omega_DM}`);
+
+const n_needed = cosmo.remnantNumberDensity();
+console.log(`\nRemnants needed to explain ALL dark matter:`);
+console.log(`  n_rem = ${n_needed.toExponential(4)} /m³`);
+console.log(`  (= ${(n_needed * 1e9).toExponential(2)} /km³)`);
+
+const M_max_evap = cosmo.maxEvaporatingMass();
+console.log(`\nMax BH mass that fully evaporates within t_universe:`);
+console.log(`  M_max = ${M_max_evap.toExponential(3)} kg`);
+console.log(`  M_max = ${(M_max_evap / 1.989e30).toExponential(3)} M_☉`);
+
+const abund = cosmo.remnantAbundance(1e-20);
+console.log(`\nPrimordial BH → remnant abundance (β = 10⁻²⁰):`);
+console.log(`  Ω_rem = ${abund.Omega_rem.toExponential(4)}`);
+console.log(`  Required β for Ω_rem = Ω_DM: ${abund.requiredBeta.toExponential(4)}`);
+
+const photon = cosmo.diffusePhotonBackground(1e10);
+console.log(`\nDiffuse photon background (M = 10¹⁰ kg evaporating BH):`);
+console.log(`  T_H = ${photon.T_Hawking.toExponential(3)} K`);
+console.log(`  E_peak = ${photon.E_peak_GeV.toExponential(3)} GeV`);
+console.log(`  Band: ${photon.band}`);
+
+// ============================================================================
+// 10. GRAVITATIONAL WAVE SIGNATURES
+// ============================================================================
+
+console.log('\n10. GRAVITATIONAL WAVE SIGNATURES');
+console.log('-'.repeat(50));
+
+const gw = new G2.GravitationalWaveSignature(bh);
+
+console.log(`\nRemnant GW characteristics:`);
+console.log(`  f₀ = ${gw.characteristicFrequency().toExponential(3)} Hz`);
+console.log(`  E_GW = ${gw.totalEnergy().toExponential(3)} J`);
+
+const distances = [1, 1e3, 1e6, 3.086e22]; // 1m, 1km, 1000km, 1kpc
+const labels = ['1 m', '1 km', '10⁶ m', '1 kpc'];
+console.log('\nStrain vs distance:');
+for (let i = 0; i < distances.length; i++) {
+    const h = gw.strainAmplitude(distances[i]);
+    console.log(`  d = ${labels[i].padEnd(8)} → h = ${h.toExponential(3)}`);
+}
+
+const wf = gw.ringdownWaveform(1e3, 10);
+console.log('\nRingdown waveform (first 10 samples):');
+for (const pt of wf) {
+    const bar = '█'.repeat(Math.max(0, Math.round(50 * Math.abs(pt.h) / Math.abs(wf[0].h || 1))));
+    console.log(`  t̃=${pt.t.toExponential(2)} h=${pt.h.toExponential(3)} ${bar}`);
+}
+
+// ============================================================================
+// 11. INFORMATION PARADOX RESOLUTION
+// ============================================================================
+
+console.log('\n11. INFORMATION PARADOX — PAGE CURVE');
+console.log('-'.repeat(50));
+
+const infoP = new G2.InformationParadox(bh);
+
+console.log(`\nEntropy budget:`);
+console.log(`  S_initial = ${infoP.entropy(bh.M_initial).toExponential(4)} nats`);
+console.log(`  S_remnant = ${infoP.entropy(bh.remnantMass()).toExponential(4)} nats`);
+console.log(`  Fraction stored: ${infoP.remnantInformation().fraction_of_original.toExponential(3)}`);
+
+console.log(`\nTimescales:`);
+console.log(`  t_evap     = ${bh.evaporationTime().toExponential(3)} s`);
+console.log(`  t_Page     = ${infoP.pageTime().toExponential(3)} s`);
+console.log(`  t_scramble = ${infoP.scramblingTime().toExponential(3)} s`);
+
+const pc = infoP.pageCurve(20);
+console.log('\nPage curve S_rad(t):');
+console.log('  t/t_evap | S_rad/S₀  | S_BH/S₀   | Phase');
+console.log('  ' + '-'.repeat(55));
+for (const pt of pc) {
+    const S0 = infoP.entropy(bh.M_initial);
+    console.log(`  ${pt.t_fraction.toFixed(3).padStart(7)}  | ${(pt.S_radiation / S0).toFixed(5).padStart(9)} | ${(pt.S_blackHole / S0).toFixed(5).padStart(9)} | ${pt.phase}`);
+}
+
+console.log(`\nInfo encoding rate: ${infoP.informationEncodingRate(5).toExponential(3)} bits/s`);
+
+// ============================================================================
+// 12. GMET BRIDGE — CONTACT GEOMETRY CONNECTION
+// ============================================================================
+
+console.log('\n12. GMET BRIDGE — CONTACT MANIFOLD TRAJECTORY');
+console.log('-'.repeat(50));
+
+const bridge = new G2.GMETBridge(bh);
+
+const pt0 = bridge.toGMETPoint(bh.M_initial);
+console.log(`\nInitial BH state on M₁₃:`);
+console.log(`  ℓ = ln(M/M_Pl) = ${pt0.base.ell.toFixed(4)}`);
+console.log(`  S = S_BH = ${pt0.base.S.toExponential(4)}`);
+console.log(`  T = T_H = ${pt0.momenta.T.toExponential(4)} K`);
+console.log(`  ω = ${pt0.momenta.omega.toExponential(4)} rad/s`);
+console.log(`  A = T×S = ${pt0.fiber.A.toExponential(4)}`);
+
+const traj = bridge.evaporationTrajectory(10);
+console.log(`\nEvaporation trajectory on GMET (${traj.length} points):`);
+console.log('  step | ln(M/M_Pl) |     S_BH     |    T_H [K]   | halted');
+console.log('  ' + '-'.repeat(60));
+for (const pt of traj) {
+    console.log(`  ${pt.meta.step.toString().padStart(4)} | ${pt.base.ell.toFixed(4).padStart(10)} | ${pt.base.S.toExponential(3).padStart(12)} | ${pt.momenta.T.toExponential(3).padStart(12)} | ${pt.meta.halted}`);
+}
+
+const alpha = bridge.contactFormAlongTrajectory(traj);
+const maxAlpha = alpha.reduce((a, b) => Math.max(a, Math.abs(b.alpha)), 0);
+console.log(`\nContact form α along trajectory:`);
+console.log(`  max |α| = ${maxAlpha.toExponential(3)}`);
+console.log(`  Legendrian condition α|_L ≈ 0: ${alpha.every(a => a.isLegendrian) ? 'SATISFIED' : 'APPROXIMATE'}`);
+
+// ============================================================================
+// FINAL SUMMARY
+// ============================================================================
+
+console.log('\n' + '='.repeat(72));
+console.log('  EXTENDED SUMMARY');
+console.log('='.repeat(72));
+console.log(`
+This demo extends the G₂-manifold black hole remnant module with:
+
+  NEW FEATURES:
+  ─────────────
+  • G₂ cross product and associative calibration detection
+  • Torsion field dynamics: massive Klein-Gordon wave propagation
+  • Remnant cosmology: dark matter abundance from PBH remnants
+  • Gravitational wave signatures: ringdown waveform and spectrum
+  • Information paradox: Page curve with remnant information storage
+  • GMET bridge: BH evaporation as contact Hamiltonian flow
+
+  KEY PHYSICS:
+  ────────────
+  • Torsion waves propagate with dispersion ω² = k²c² + m²c⁴
+  • Remnants as DM candidates: need β ≈ ${abund.requiredBeta.toExponential(2)} (PBH fraction)
+  • GW frequency from remnant: f₀ ≈ ${gw.characteristicFrequency().toExponential(2)} Hz
+  • Page time marks information purification onset
+  • BH evaporation maps to Legendrian curve on GMET M₁₃
+`);

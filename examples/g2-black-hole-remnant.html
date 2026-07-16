@@ -164,8 +164,16 @@ canvas {
             <canvas id="massCanvas"></canvas>
         </div>
         <div class="panel">
-            <h4>Hawking Temperature T_H(M)</h4>
-            <canvas id="tempCanvas"></canvas>
+            <h4>Page Curve — Information Paradox</h4>
+            <canvas id="pageCanvas"></canvas>
+        </div>
+        <div class="panel">
+            <h4>Torsion Wave Propagation</h4>
+            <canvas id="torsionWaveCanvas"></canvas>
+        </div>
+        <div class="panel">
+            <h4>GW Ringdown Waveform</h4>
+            <canvas id="gwCanvas"></canvas>
         </div>
         <div class="panel">
             <h4>Interior Density ρ(t)/ρ_crit</h4>
@@ -207,6 +215,22 @@ canvas {
             <div class="result-item">
                 <div class="label">QNM Fundamental ω₀</div>
                 <div class="val" id="resQNM">—</div>
+            </div>
+            <div class="result-item">
+                <div class="label">Page Time</div>
+                <div class="val" id="resPageTime">—</div>
+            </div>
+            <div class="result-item">
+                <div class="label">Scrambling Time</div>
+                <div class="val" id="resScramble">—</div>
+            </div>
+            <div class="result-item">
+                <div class="label">GW Frequency f₀</div>
+                <div class="val" id="resGWfreq">—</div>
+            </div>
+            <div class="result-item">
+                <div class="label">DM Required β</div>
+                <div class="val" id="resBeta">—</div>
             </div>
         </div>
     </div>
@@ -368,6 +392,18 @@ function update() {
     document.getElementById('resInfo').textContent = infoCapacity(rrem).toExponential(3) + ' qubits';
     document.getElementById('resQNM').textContent = qnm0(rrem).toExponential(3) + ' rad/s';
 
+    var S_initial = 4 * Math.PI * Math.pow(PC.G, 2) * M0 * M0 / (PC.hbar * PC.c);
+    var t_page = te / 2;
+    var t_scr = schwarzR(M0) / PC.c * Math.log(Math.max(1, S_initial));
+    var f_gw = Math.pow(PC.c, 3) / (PC.G * Mrem);
+    var cosmo_rc = 3 * 2.2e-18 * 2.2e-18 / (8 * Math.PI * PC.G);
+    var reqBeta = 0.264 * cosmo_rc * te / (Mrem * 4.15e-5 * cosmo_rc) * Mrem;
+
+    document.getElementById('resPageTime').textContent = t_page.toExponential(3) + ' s';
+    document.getElementById('resScramble').textContent = t_scr.toExponential(3) + ' s';
+    document.getElementById('resGWfreq').textContent = f_gw.toExponential(3) + ' Hz';
+    document.getElementById('resBeta').textContent = reqBeta.toExponential(3);
+
     // Simulate
     var hist = simulate(M0, tau0, 500);
 
@@ -407,22 +443,87 @@ function update() {
     ctx2.fillStyle = '#ff6b6b'; ctx2.fillText('● Torsion', w2 - 80, 20);
     ctx2.fillStyle = '#4ecdc4'; ctx2.fillText('● Standard', w2 - 80, 32);
 
-    // 3. Temperature
-    var { ctx: ctx3, w: w3, h: h3 } = setupCanvas('tempCanvas');
+    // 3. Page Curve
+    var { ctx: ctx3, w: w3, h: h3 } = setupCanvas('pageCanvas');
     ctx3.clearRect(0, 0, w3, h3);
-    var pad3 = drawAxes(ctx3, w3, h3, 'M / M₀', 'T_H (K)');
-    var tempData = hist.filter(d => d.Mr > 0 && d.TH > 0).map(d => ({ M: d.Mr, T: d.TH }));
-    plotLine(ctx3, tempData, 'M', 'T', pad3, w3, h3, '#ffe66d', false, true);
+    var pad3 = drawAxes(ctx3, w3, h3, 't / t_evap', 'S / S₀');
+    var S_rem = 4 * Math.PI * Math.pow(PC.G, 2) * Mrem * Mrem / (PC.hbar * PC.c);
+    var pageData = [];
+    for (var i = 0; i <= 100; i++) {
+        var tf = i / 100;
+        var Mt = Math.pow(Math.max(0, 1 - tf), 1/3) * M0;
+        Mt = Math.max(Mt, Mrem);
+        var S_bh = 4 * Math.PI * Math.pow(PC.G, 2) * Mt * Mt / (PC.hbar * PC.c);
+        var S_rad;
+        if (tf < 0.5) {
+            S_rad = S_initial - S_bh;
+        } else {
+            S_rad = Math.max(S_rem, S_initial - S_rem - (S_bh - S_rem));
+        }
+        pageData.push({ t: tf, Srad: S_rad / S_initial, Sbh: S_bh / S_initial });
+    }
+    plotLine(ctx3, pageData, 't', 'Srad', pad3, w3, h3, '#ff6b6b', false, false);
+    plotLine(ctx3, pageData, 't', 'Sbh', pad3, w3, h3, '#4ecdc4', false, false);
+    drawHLine(ctx3, 0.5, 0, 1, pad3, w3, h3, '#ffe66d', 't_Page', false);
+    ctx3.fillStyle = '#ff6b6b'; ctx3.fillText('● S_rad', w3 - 80, 20);
+    ctx3.fillStyle = '#4ecdc4'; ctx3.fillText('● S_BH', w3 - 80, 32);
 
-    // 4. Interior Density
-    var { ctx: ctx4, w: w4, h: h4 } = setupCanvas('densityCanvas');
+    // 4. Torsion Wave
+    var { ctx: ctx4, w: w4, h: h4 } = setupCanvas('torsionWaveCanvas');
     ctx4.clearRect(0, 0, w4, h4);
-    var pad4 = drawAxes(ctx4, w4, h4, 't / t_evap', 'ρ / ρ_crit');
+    var pad4 = drawAxes(ctx4, w4, h4, 'x̃ (dimensionless)', 'τ(x̃)');
+    var N_tw = 80;
+    var L_tw = 20;
+    var dx_tw = L_tw / N_tw;
+    var dt_tw = 0.35 * dx_tw;
+    var tau_field = new Float64Array(N_tw);
+    var tau_prev_f = new Float64Array(N_tw);
+    var tau_next_f = new Float64Array(N_tw);
+    for (var i = 0; i < N_tw; i++) {
+        var x = i * dx_tw;
+        tau_field[i] = tau0 * Math.exp(-Math.pow(x - L_tw/2, 2) / (2 * Math.pow(L_tw/10, 2)));
+        tau_prev_f[i] = tau_field[i];
+    }
+    var n_wave_steps = Math.min(200, 40 + animFrame % 200);
+    for (var st = 0; st < n_wave_steps; st++) {
+        for (var i = 1; i < N_tw - 1; i++) {
+            var d2 = (tau_field[i+1] - 2*tau_field[i] + tau_field[i-1]) / (dx_tw*dx_tw);
+            tau_next_f[i] = 2*tau_field[i] - tau_prev_f[i] + dt_tw*dt_tw*(d2 - tau_field[i] - 0.1*Math.pow(tau_field[i],3));
+        }
+        tau_next_f[0] = 0; tau_next_f[N_tw-1] = 0;
+        tau_prev_f.set(tau_field);
+        tau_field.set(tau_next_f);
+    }
+    var waveData = [];
+    for (var i = 0; i < N_tw; i++) {
+        waveData.push({ x: i * dx_tw, y: tau_field[i] });
+    }
+    plotLine(ctx4, waveData, 'x', 'y', pad4, w4, h4, '#00ff88', false, false);
+    drawHLine(ctx4, 0, Math.min(...waveData.map(d=>d.y)), Math.max(...waveData.map(d=>d.y)), pad4, w4, h4, '#666', '', false);
+
+    // 5. GW Ringdown
+    var { ctx: ctx5, w: w5, h: h5 } = setupCanvas('gwCanvas');
+    ctx5.clearRect(0, 0, w5, h5);
+    var pad5 = drawAxes(ctx5, w5, h5, 't (arb.)', 'h (strain)');
+    var tau_d = 2 * tau0 / (2 * Math.PI * f_gw);
+    var gwData = [];
+    for (var i = 0; i < 100; i++) {
+        var t_gw = i * 10 * Math.abs(tau_d) / 100;
+        var h_gw = Math.exp(-t_gw / Math.abs(tau_d)) * Math.cos(2 * Math.PI * f_gw * t_gw);
+        gwData.push({ t: i, h: h_gw });
+    }
+    plotLine(ctx5, gwData, 't', 'h', pad5, w5, h5, '#ffe66d', false, false);
+    drawHLine(ctx5, 0, -1, 1, pad5, w5, h5, '#666', '', false);
+
+    // 6. Interior Density
+    var { ctx: ctx6, w: w6, h: h6 } = setupCanvas('densityCanvas');
+    ctx6.clearRect(0, 0, w6, h6);
+    var pad6 = drawAxes(ctx6, w6, h6, 't / t_evap', 'ρ / ρ_crit');
     var densData = hist.filter(d => d.rho > 0).map(d => ({ t: d.t / te, rho: d.rho }));
-    plotLine(ctx4, densData, 't', 'rho', pad4, w4, h4, '#ff6b6b', false, true);
+    plotLine(ctx6, densData, 't', 'rho', pad6, w6, h6, '#ff6b6b', false, true);
     if (densData.length > 0) {
         var rMin = Math.min(...densData.map(d=>d.rho)), rMax = Math.max(...densData.map(d=>d.rho));
-        drawHLine(ctx4, 1, rMin, rMax, pad4, w4, h4, '#ffe66d', 'ρ_crit', true);
+        drawHLine(ctx6, 1, rMin, rMax, pad6, w6, h6, '#ffe66d', 'ρ_crit', true);
     }
 
     // Animated dot on mass curve

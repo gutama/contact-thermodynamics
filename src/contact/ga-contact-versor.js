@@ -66,6 +66,13 @@
 
     const EPSILON = 1e-10;
 
+    // Guard: the generic Algebra precomputes O(size²) = O(4^dim) product tables.
+    // Cl(n,n,1) has dim = 2n+1, so n=5 → dim 11 (size 2048) is fine; n=6 → dim 13
+    // (size 8192) needs a sparse backend (Phase 2). Mirrors the guard in
+    // `ga-contact-form.js`. Also caps dim < 31 so the `1 << dim` blade sizing
+    // stays within 32-bit signed integer range.
+    const MAX_ALGEBRA_SIZE = 4096;
+
     /**
      * Degenerate contact carrier Cl(n,n,1) with the light-cone Darboux
      * identification and a genuine contactomorphism checker.
@@ -81,6 +88,17 @@
             }
             this.n = n;
             this.dim = 2 * n + 1;
+
+            const size = 1 << this.dim;
+            if (this.dim >= 31 || size > MAX_ALGEBRA_SIZE) {
+                throw new Error(
+                    `GAContactVersor: base dim n=${n} → Cl(${n},${n},1) has dim ${this.dim} ` +
+                    `and ${this.dim >= 31 ? '2^dim' : size} blades, exceeding ` +
+                    `MAX_ALGEBRA_SIZE=${MAX_ALGEBRA_SIZE}. The generic Algebra precompute is ` +
+                    `O(4^dim); large carriers need a sparse exterior-algebra backend ` +
+                    `(deferred to Phase 2).`
+                );
+            }
 
             // Signature: n positive (q), n negative (p), 1 null (s).
             const names = [];
@@ -193,14 +211,30 @@
          * @param {number} t - flow parameter
          */
         nullTranslatorVersor(a, dir, t) {
+            if (dir !== 'q' && dir !== 'p') {
+                throw new Error(
+                    `GAContactVersor.nullTranslatorVersor: dir must be 'q' or 'p', got ${JSON.stringify(dir)}`
+                );
+            }
+            if (!Number.isInteger(a) || a < 0 || a >= this.n) {
+                throw new Error(
+                    `GAContactVersor.nullTranslatorVersor: pair index a must be an integer in [0, ${this.n - 1}], got ${a}`
+                );
+            }
             const other = dir === 'q' ? this.eq(a) : this.ep(a);
             const B = this.es().wedge(other);
             return this.algebra.exp(B.scale(t / 2));
         }
 
-        /** Sandwich v ↦ V v V⁻¹ (V here is a unit versor ⇒ V⁻¹ = Ṽ). */
+        /**
+         * Versor action v ↦ V v V⁻¹ using the *true* inverse V⁻¹ = Ṽ/(V Ṽ), not
+         * merely the reverse Ṽ. This makes the operation scale-invariant — the
+         * mathematical definition of the versor action — so that scaling V (e.g.
+         * V ↦ 2V) leaves the result unchanged, matching v ↦ V v V⁻¹ exactly. Using
+         * the bare reverse (Multivector.sandwich) only coincides when V Ṽ = 1.
+         */
         apply(V, v) {
-            return V.sandwich(v);
+            return V.mul(v).mul(V.inverse());
         }
 
         /**
@@ -232,8 +266,10 @@
          * The pullback acts as (φ*α)_X(v) = (Mv)_s − Σ_a (M X + b)_{p_a}(Mv)_{q_a}.
          * Requiring this to equal f·(v_s − Σ_a X_{p_a} v_{q_a}) for a *constant* f
          * is a genuine check against the definition (not satisfied by
-         * construction). We sample random (X, v), solve f from the ds-coefficient,
-         * and return the worst residual over all coefficients and samples.
+         * construction). We sample (X, v) from a fixed, seeded pseudo-random
+         * sequence, solve f from the ds-coefficient, and return the worst residual
+         * over all coefficients and samples. The seeded sequence makes the check
+         * fully deterministic and reproducible across runs and in CI.
          *
          * @param {number[][]} M - (2n+1)² linear part in Darboux order
          * @param {number[]} [b] - optional translation part (defaults to 0)
@@ -257,11 +293,23 @@
                 return out;
             };
 
+            // Deterministic mulberry32 PRNG with a fixed seed, mapped to (−1, 1),
+            // so the sampled (X, v) sequence is identical on every run. Replaces
+            // Math.random(), which made the check flaky and could leave f=null.
+            let seed = 0x9e3779b9 >>> 0;
+            const rand = () => {
+                seed = (seed + 0x6d2b79f5) >>> 0;
+                let x = seed;
+                x = Math.imul(x ^ (x >>> 15), x | 1);
+                x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
+                return (((x ^ (x >>> 14)) >>> 0) / 4294967296) * 2 - 1;
+            };
+
             let f0 = null;
             let maxRes = 0;
             for (let sample = 0; sample < 60; sample++) {
-                const X = Array.from({ length: d }, () => Math.random() * 2 - 1);
-                const v = Array.from({ length: d }, () => Math.random() * 2 - 1);
+                const X = Array.from({ length: d }, () => rand());
+                const v = Array.from({ length: d }, () => rand());
                 const Mv = matVec(M, v);
                 const phiX = matVec(M, X).map((val, i) => val + trans[i]);
 

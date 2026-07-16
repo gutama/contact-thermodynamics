@@ -43,8 +43,9 @@ temp/
 .agent/
 
 # Skills (large reference files)
-# Github
-.github/
+# Github (keep CI workflows tracked; ignore other .github clutter)
+.github/*
+!.github/workflows/
 
 # Claude
 .claude/

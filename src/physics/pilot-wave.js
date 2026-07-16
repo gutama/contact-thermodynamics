@@ -921,12 +921,17 @@
          */
         get connection() {
             if (this._connection === null) {
-                // Try to load ConnectionBivector from riemannian-ga
+                // Curved-space connection is an optional feature: pilot-wave
+                // dynamics fall back to flat space when it cannot be built.
+                // Warn (rather than swallow silently) so a broken require path
+                // surfaces instead of masquerading as "feature unavailable".
                 try {
                     const RGA = require('../geometry/riemannian-ga.js');
                     this._connection = new RGA.ConnectionBivector(this.manifold);
                 } catch (e) {
-                    // Riemannian GA not available
+                    if (typeof console !== 'undefined' && console.warn) {
+                        console.warn('pilot-wave: curved-space connection unavailable, falling back to flat space:', e.message);
+                    }
                     this._connection = false;
                 }
             }

@@ -18,18 +18,10 @@
     let TriangleMesh, MeshGeometricDerivative;
 
     if (typeof require !== 'undefined') {
-        try {
-            const meshModule = require('./mesh.js');
-            TriangleMesh = meshModule.TriangleMesh;
-        } catch (e) {
-            // Will use global
-        }
-        try {
-            const ftgcModule = require('./mesh-ftgc.js');
-            MeshGeometricDerivative = ftgcModule.MeshGeometricDerivative;
-        } catch (e) {
-            // Will use global
-        }
+        const meshModule = require('./mesh.js');
+        TriangleMesh = meshModule.TriangleMesh;
+        const ftgcModule = require('./mesh-ftgc.js');
+        MeshGeometricDerivative = ftgcModule.MeshGeometricDerivative;
     }
 
     // Fallback to global (browser)

@@ -25,11 +25,7 @@
 
     let GA;
     if (typeof require !== 'undefined') {
-        try {
-            GA = require('./multivector.js');
-        } catch (e) {
-            // Will use global
-        }
+        GA = require('./multivector.js');
     }
     // Fallback to global (browser)
     if (!GA && typeof global !== 'undefined') {

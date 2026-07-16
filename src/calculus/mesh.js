@@ -23,11 +23,7 @@
 
     let Utils;
     if (typeof require !== 'undefined') {
-        try {
-            Utils = require('../utils.js');
-        } catch (e) {
-            Utils = global.ContactThermoUtils || {};
-        }
+        Utils = require('../utils.js');
     } else {
         Utils = global.ContactThermoUtils || {};
     }

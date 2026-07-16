@@ -176,6 +176,15 @@
      */
     function currentGuidanceVelocity1D(re, im, dx, prefactor = 1) {
         const n = re.length;
+        if (n < 2) {
+            throw new Error(`currentGuidanceVelocity1D: need at least 2 grid points, got re.length=${n}.`);
+        }
+        if (im.length !== n) {
+            throw new Error(`currentGuidanceVelocity1D: re/im length mismatch (re.length=${n}, im.length=${im.length}).`);
+        }
+        if (!(dx > 0)) {
+            throw new Error(`currentGuidanceVelocity1D: grid spacing dx must be positive, got dx=${dx}.`);
+        }
         const v = new Array(n).fill(0);
         for (let i = 0; i < n; i++) {
             const ip = Math.min(i + 1, n - 1), im_ = Math.max(i - 1, 0);
@@ -400,11 +409,21 @@
          * constant factor (the current differences the full ψ, so its truncation
          * error couples to the amplitude gradient ∇R, whereas the GA rotor
          * differences the amplitude-normalized U = ψ/|ψ| and its error is
-         * independent of ∇R). Both still diverge at the node as R → 0.
+         * independent of ∇R). At the node both forms clamp the denominator by
+         * Math.max(|ψ|², GA_EPSILON), so the returned velocity is capped (large
+         * but finite) rather than divergent; the underlying j/|ψ|² ratio still
+         * grows without bound as R → 0, which is what the Valentini smearing
+         * (`regularizedVelocityGA`) is there to tame.
          * @returns {{vx: number[][], vy: number[][]}}
          */
         deBroglieVelocityCurrent() {
             const { nx, ny, dx, dy } = this;
+            if (nx < 2 || ny < 2) {
+                throw new Error(`deBroglieVelocityCurrent: need at least a 2x2 grid, got ${nx}x${ny}.`);
+            }
+            if (!(dx > 0) || !(dy > 0)) {
+                throw new Error(`deBroglieVelocityCurrent: grid spacings must be positive, got dx=${dx}, dy=${dy}.`);
+            }
             const prefactor = this.hbar / this.mass;
             const re = this.psiRe, im = this.psiIm;
 

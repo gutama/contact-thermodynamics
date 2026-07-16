@@ -329,9 +329,23 @@ section('VI. H-theorem: coarse-grained H DECREASES toward equilibrium');
     class StdCurrentSystem1D {
         constructor(re, im) { this.re = re; this.im = im; }
         regularizedVelocity() {
-            const v = currentGuidanceVelocity1D(this.re, this.im, dx, 1.0);
-            const rho = this.re.map((r, i) => r * r + this.im[i] * this.im[i]);
-            const j = rho.map((r, i) => r * v[i]);
+            // Valentini recipe: form the TRUE unsmeared current numerator
+            //   j = (ħ/m)(ψ_r ∂_x ψ_i − ψ_i ∂_x ψ_r)     (ħ/m = 1 here),
+            // with NO division by ρ, then smear j and ρ independently and divide
+            // the smeared quantities. Building j = ρ·currentGuidanceVelocity1D()
+            // instead would smear a current that is already implicitly modified
+            // near nodes (that helper clamps its own denominator by max(ρ,ε)),
+            // which is not the current the recipe is meant to smear.
+            const re = this.re, im = this.im, N = re.length;
+            const j = new Array(N).fill(0), rho = new Array(N).fill(0);
+            for (let i = 0; i < N; i++) {
+                const ip = Math.min(i + 1, N - 1), im_ = Math.max(i - 1, 0);
+                const den = (ip - im_) * dx;
+                const dRe = (re[ip] - re[im_]) / den;
+                const dIm = (im[ip] - im[im_]) / den;
+                j[i] = re[i] * dIm - im[i] * dRe;
+                rho[i] = re[i] * re[i] + im[i] * im[i];
+            }
             const jReg = kernel.convolve1D(j, dx), rhoReg = kernel.convolve1D(rho, dx);
             return jReg.map((x, i) => x / Math.max(rhoReg[i], 1e-12));
         }

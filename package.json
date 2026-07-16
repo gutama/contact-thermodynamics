@@ -38,7 +38,8 @@
   },
   "homepage": "https://github.com/gutama/contact-thermodynamics#readme",
   "devDependencies": {
-    "eslint": "^8.0.0",
+    "eslint": "^9.0.0",
+    "globals": "^17.0.0",
     "jsdoc": "^4.0.0",
     "nodemon": "^3.0.0"
   },

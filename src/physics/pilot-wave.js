@@ -80,7 +80,7 @@
          * Check if kernel has time-dependent width
          * @returns {boolean}
          */
-        get isTimeDependant() {
+        get isTimeDependent() {
             return this._widthFunction !== null;
         }
 
@@ -923,7 +923,7 @@
             if (this._connection === null) {
                 // Try to load ConnectionBivector from riemannian-ga
                 try {
-                    const RGA = require('./riemannian-ga.js');
+                    const RGA = require('../geometry/riemannian-ga.js');
                     this._connection = new RGA.ConnectionBivector(this.manifold);
                 } catch (e) {
                     // Riemannian GA not available

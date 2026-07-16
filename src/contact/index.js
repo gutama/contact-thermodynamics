@@ -9,9 +9,11 @@
 const Manifold = require('./manifold');
 const Hamiltonian = require('./hamiltonian');
 const Legendrian = require('./legendrian');
+const GAContactForm = require('./ga-contact-form');
 
 module.exports = {
     ...Manifold,
     ...Hamiltonian,
-    ...Legendrian
+    ...Legendrian,
+    ...GAContactForm
 };

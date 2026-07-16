@@ -41,6 +41,47 @@
         matVecMul, det2x2, inv2x2, det3x3, inv3x3, invertMatrix
     } = Utils;
 
+    // Generic geometric-algebra layer, used to give the concrete low-dimensional
+    // bivector classes a closed-form exponential / rotor (research gap G3) by
+    // delegating to Algebra.exp rather than reimplementing it.
+    let GA;
+    if (typeof require !== 'undefined') {
+        GA = require('../algebra/multivector.js');
+    } else {
+        GA = global.GA;
+    }
+
+    // Lazily-built Cl(3,0,0) / Cl(4,0,0) carriers (product-table precompute is
+    // done once and reused across all exp/rotor calls).
+    let _cl3 = null, _cl4 = null;
+    const cl3 = () => (_cl3 || (_cl3 = new GA.Algebra(3, 0, 0)));
+    const cl4 = () => (_cl4 || (_cl4 = new GA.Algebra(4, 0, 0)));
+
+    /**
+     * Exponential of a general (possibly non-simple) bivector Multivector via
+     * scaling-and-squaring of the Taylor series. Uses only the generic
+     * geometric product / addition, so it is exact up to floating point for any
+     * grade-2 element (unlike the scalar-B² closed form, which assumes the
+     * bivector is simple). exp(B) = exp(B / 2^k)^(2^k).
+     */
+    function expSeriesMultivector(algebra, B) {
+        let maxCoeff = 0;
+        for (const v of Object.values(B.coeffs)) maxCoeff = Math.max(maxCoeff, abs(v));
+        const k = maxCoeff > 0.5 ? Math.ceil(Math.log2(maxCoeff / 0.5)) : 0;
+        const scaled = B.scale(1 / Math.pow(2, k));
+
+        // Taylor series exp(scaled) = Σ scaled^i / i!
+        let result = algebra.scalar(1);
+        let term = algebra.scalar(1);
+        for (let i = 1; i <= 24; i++) {
+            term = term.mul(scaled).scale(1 / i);
+            result = result.add(term);
+        }
+        // Square k times.
+        for (let i = 0; i < k; i++) result = result.mul(result);
+        return result;
+    }
+
     // ============================================================================
     // BIVECTOR CLASSES
     // ============================================================================
@@ -205,6 +246,45 @@
         innerWithBivector(other) {
             return this.e23 * other.e23 + this.e31 * other.e31 + this.e12 * other.e12;
         }
+
+        /**
+         * Convert to a grade-2 Multivector in Cl(3,0,0). Components map to the
+         * literal blades: e23 → e₂∧e₃, e31 → e₃∧e₁, e12 → e₁∧e₂ (signs handled
+         * by the outer product).
+         */
+        toMultivector(algebra = cl3()) {
+            const e = i => algebra.e(i);
+            return e(2).wedge(e(3)).scale(this.e23)
+                .add(e(3).wedge(e(1)).scale(this.e31))
+                .add(e(1).wedge(e(2)).scale(this.e12));
+        }
+
+        /**
+         * Closed-form exponential exp(B) as a rotor (grade 0 + grade 2)
+         * Multivector. 3D bivectors are always simple (B² is a negative
+         * scalar), so the generic Algebra.exp is exact — hence delegation
+         * rather than reimplementation (research gap G3).
+         */
+        exp() {
+            const A = cl3();
+            return A.exp(this.toMultivector(A));
+        }
+
+        /**
+         * Rotor implementing a rotation by `angle` in this bivector's plane,
+         * in the Hestenes convention R = exp(−(angle/2) B̂). Sandwiching a
+         * vector, R v R̃, then rotates it counter-clockwise by `angle` (e.g.
+         * e₁ ↦ e₂ for a +90° rotation in the e₁e₂ plane). Returns a
+         * Multivector. See docs/PHASE1_GA_CONTACT_FORM.md for the resolution of
+         * the rotor sign convention vs Algebra.rotor.
+         */
+        rotor(angle) {
+            const nrm = this.norm();
+            const A = cl3();
+            if (nrm < EPSILON) return A.scalar(1);
+            const Bhat = this.scale(1 / nrm).toMultivector(A);
+            return A.exp(Bhat.scale(-angle / 2));
+        }
     }
 
     /**
@@ -358,6 +438,46 @@
         innerWithBivector(other) {
             return this.e12 * other.e12 + this.e13 * other.e13 + this.e14 * other.e14 +
                 this.e23 * other.e23 + this.e24 * other.e24 + this.e34 * other.e34;
+        }
+
+        /**
+         * Convert to a grade-2 Multivector in Cl(4,0,0). Components map to the
+         * literal blades eᵢⱼ = eᵢ∧eⱼ.
+         */
+        toMultivector(algebra = cl4()) {
+            const e = i => algebra.e(i);
+            return e(1).wedge(e(2)).scale(this.e12)
+                .add(e(1).wedge(e(3)).scale(this.e13))
+                .add(e(1).wedge(e(4)).scale(this.e14))
+                .add(e(2).wedge(e(3)).scale(this.e23))
+                .add(e(2).wedge(e(4)).scale(this.e24))
+                .add(e(3).wedge(e(4)).scale(this.e34));
+        }
+
+        /**
+         * A bivector is *simple* (decomposable) iff B ∧ B = 0. General 4D
+         * bivectors are not simple, so the scalar-B² closed form does not apply
+         * to them; `exp()` uses this test to pick the correct method.
+         */
+        isSimple() {
+            const mv = this.toMultivector();
+            return mv.wedge(mv).isZero();
+        }
+
+        /**
+         * Closed-form / series exponential exp(B) as a Multivector (research
+         * gap G3). For a simple bivector (B∧B = 0) the generic Algebra.exp is
+         * exact and is reused directly. For a general non-simple 4D bivector it
+         * falls back to scaling-and-squaring of the Taylor series (still built
+         * only from the generic geometric product / addition).
+         */
+        exp() {
+            const A = cl4();
+            const mv = this.toMultivector(A);
+            if (mv.wedge(mv).isZero()) {
+                return A.exp(mv);
+            }
+            return expSeriesMultivector(A, mv);
         }
     }
 

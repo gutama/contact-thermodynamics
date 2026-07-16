@@ -55,6 +55,10 @@
             const coords = pt.coords;
             for (const c of this.manifold._allCoords) {
                 const original = coords[c];
+                // Perturb via an immutable spread rather than mutating and
+                // restoring coords in place: H may retain a reference to the
+                // object it is passed, so handing it a fresh copy avoids
+                // corrupting the caller's point mid-differentiation.
                 const plus = this.H({ ...coords, [c]: original + h });
                 const minus = this.H({ ...coords, [c]: original - h });
                 grad[c] = (plus - minus) / (2 * h);

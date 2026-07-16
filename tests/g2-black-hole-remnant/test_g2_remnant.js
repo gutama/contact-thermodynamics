@@ -397,7 +397,18 @@ assert(lastPhase === 'remnant' || lastPhase === 'purification',
 // Test: Remnant information
 const remInfo = info_p.remnantInformation();
 assert(remInfo.bits > 0, `Remnant stores ${remInfo.bits.toExponential(3)} bits`);
-assert(remInfo.can_resolve_paradox === true, 'Information paradox resolution: remnant stores info');
+assert(remInfo.hasRemnant === true, 'Information paradox: non-zero remnant stores info');
+
+// Test: GW classes handle τ₀ = 0 without NaN (Copilot review guard)
+const g2zero = new G2Manifold({ torsionStrength: 1.0 });
+const eczero = new EinsteinCartanG2(g2zero);
+const bhzero = new BlackHoleRemnant(1e12, eczero);
+bhzero.tau0 = 0;  // force degenerate torsion
+const gwzero = new GravitationalWaveSignature(bhzero);
+assert(isFinite(gwzero.energySpectrum(gwzero.characteristicFrequency())),
+    'energySpectrum finite at τ₀ = 0');
+const wfzero = gwzero.ringdownWaveform(1e6, 10);
+assert(wfzero.every(p => isFinite(p.h)), 'ringdownWaveform finite at τ₀ = 0');
 
 // ============================================================================
 // 11. GMET BRIDGE

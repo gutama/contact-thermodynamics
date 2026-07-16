@@ -396,8 +396,11 @@ function update() {
     var t_page = te / 2;
     var t_scr = schwarzR(M0) / PC.c * Math.log(Math.max(1, S_initial));
     var f_gw = Math.pow(PC.c, 3) / (PC.G * Mrem);
-    var cosmo_rc = 3 * 2.2e-18 * 2.2e-18 / (8 * Math.PI * PC.G);
-    var reqBeta = 0.264 * cosmo_rc * te / (Mrem * 4.15e-5 * cosmo_rc) * Mrem;
+    // Required PBH fraction β for Ω_rem = Ω_DM, matching RemnantCosmology.remnantAbundance():
+    // β = Ω_DM × ρ_crit × M_max / (M_rem × ρ_rad_eq),  ρ_rad_eq = 4.15e-5 × ρ_crit
+    var t_universe = 4.35e17;
+    var M_max_cosmo = Math.pow(t_universe * PC.hbar * Math.pow(PC.c, 4) / (5120 * Math.PI * Math.pow(PC.G, 2)), 1/3);
+    var reqBeta = 0.264 * M_max_cosmo / (Mrem * 4.15e-5);
 
     document.getElementById('resPageTime').textContent = t_page.toExponential(3) + ' s';
     document.getElementById('resScramble').textContent = t_scr.toExponential(3) + ' s';

@@ -1041,8 +1041,8 @@
         constructor(g2, options = {}) {
             this.g2 = g2;
             this.mass2 = 1 / (g2.R * g2.R);
-            this.lambda3 = options.selfCoupling || 0.1;
-            this.N = options.gridSize || 100;
+            this.lambda3 = options.selfCoupling ?? 0.1;
+            this.N = options.gridSize ?? 100;
 
             this.c_tau = C.c * 0.9;
         }
@@ -1159,12 +1159,13 @@
          * Torsion wave scattering cross section off a Schwarzschild BH
          *
          * σ ≈ π r_s² × (1 + (m_τ r_s)²) for long wavelengths
+         * (long-wavelength limit: independent of k)
          *
          * @param {number} M - Black hole mass [kg]
-         * @param {number} k - Wave number
+         * @param {number} _k - Wave number (unused in the long-wavelength limit)
          * @returns {number} Cross section [m²]
          */
-        scatteringCrossSection(M, k) {
+        scatteringCrossSection(M, _k) {
             const r_s = 2 * C.G_N * M / (C.c * C.c);
             const m_tau_r = sqrt(this.mass2) * C.c * C.c * r_s;
             return PI * r_s * r_s * (1 + m_tau_r * m_tau_r);
@@ -1199,9 +1200,9 @@
         constructor(remnant, options = {}) {
             this.remnant = remnant;
             this.M_rem = remnant.remnantMass();
-            this.H0 = options.hubbleConstant || 2.2e-18;  // H₀ ~ 67.4 km/s/Mpc in SI
-            this.T_cmb = options.T_cmb || 2.725;
-            this.Omega_DM = options.Omega_DM || 0.264;
+            this.H0 = options.hubbleConstant ?? 2.2e-18;  // H₀ ~ 67.4 km/s/Mpc in SI
+            this.T_cmb = options.T_cmb ?? 2.725;
+            this.Omega_DM = options.Omega_DM ?? 0.264;
         }
 
         /**
@@ -1269,12 +1270,12 @@
          * β(M) = erfc(δ_c / (√2 σ(M))) — fraction of horizon patches
          * collapsing to BHs at mass M.
          *
-         * @param {number} M - Initial BH mass [kg]
+         * @param {number} _M - Initial BH mass [kg] (mass-dependence of σ(M) not modeled yet)
          * @param {number} delta_c - Collapse threshold (typically ~0.45)
          * @param {number} sigma - Density fluctuation amplitude
          * @returns {number} Formation fraction
          */
-        formationFraction(M, delta_c = 0.45, sigma = 0.05) {
+        formationFraction(_M, delta_c = 0.45, sigma = 0.05) {
             const x = delta_c / (sqrt(2) * sigma);
             return this._erfc(x);
         }
@@ -1299,7 +1300,6 @@
         remnantAbundance(beta = 1e-20) {
             const rho_crit = this.criticalDensity();
             const M_max = this.maxEvaporatingMass();
-            const M_min = C.M_Pl;
 
             const rho_rad_eq = 4.15e-5 * rho_crit;
             const n_rem = beta * rho_rad_eq / M_max;
@@ -1405,7 +1405,8 @@
          */
         energySpectrum(f) {
             const f0 = this.characteristicFrequency();
-            const gamma = f0 / (2 * this.remnant.tau0);
+            const tau0 = max(abs(this.remnant.tau0), EPSILON);
+            const gamma = f0 / (2 * tau0);
             const lorentz = (gamma * gamma) /
                 ((f - f0) * (f - f0) + gamma * gamma);
             const amplitude = C.G_N * pow(this.M_rem * C.c * C.c, 2) / pow(C.c, 5);
@@ -1451,7 +1452,8 @@
         ringdownWaveform(r, n_points = 200) {
             const f0 = this.characteristicFrequency();
             const A = this.strainAmplitude(r);
-            const tau_d = 2 * this.remnant.tau0 / (2 * PI * f0);
+            const tau0 = max(abs(this.remnant.tau0), EPSILON);
+            const tau_d = 2 * tau0 / (2 * PI * f0);
             const T = 10 * tau_d;
             const dt = T / n_points;
 
@@ -1609,7 +1611,7 @@
                 bits,
                 qubits,
                 fraction_of_original: S / S_initial,
-                can_resolve_paradox: S >= S_initial * 0.99 || this.M_rem > 0
+                hasRemnant: this.M_rem > 0
             };
         }
 
@@ -1676,7 +1678,6 @@
          * @returns {Object} GMET point coordinates
          */
         toGMETPoint(M, position = [0, 0, 0]) {
-            const r_s = this.remnant.schwarzschildRadius(M);
             const T_H = this.remnant.hawkingTemperature(M);
             const S_BH = 4 * PI * pow(C.G_N, 2) * M * M / (C.hbar * C.c);
             const dMdt = this.remnant.massLossRate(M);
@@ -1713,7 +1714,6 @@
          */
         contactHamiltonian(coords) {
             const T = coords.momenta.T;
-            const S = coords.base.S;
             const ell = coords.base.ell;
             const M = C.M_Pl * exp(ell);
 

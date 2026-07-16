@@ -1,0 +1,165 @@
+name: PR Lifecycle Tracker
+
+# Tracks each pull request with a companion "tracking" issue:
+#   - PR opened  -> create a labelled tracking issue + link it back on the PR
+#   - PR merged  -> close the tracking issue (and attempt a hard delete)
+#   - PR closed unmerged -> close the tracking issue but keep it as an audit trail
+#
+# Uses only the built-in GITHUB_TOKEN; no external secrets required.
+
+on:
+  pull_request:
+    types: [opened, closed]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  track:
+    runs-on: ubuntu-latest
+    steps:
+      # --------------------------------------------------------------------
+      # PR OPENED: create the tracking issue and link it on the PR.
+      # --------------------------------------------------------------------
+      - name: Open tracking issue
+        if: github.event.action == 'opened'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const pr = context.payload.pull_request;
+            const label = 'pr-tracking';
+
+            // Ensure the label exists (create it on first use).
+            try {
+              await github.rest.issues.getLabel({ owner, repo, name: label });
+            } catch (err) {
+              if (err.status === 404) {
+                await github.rest.issues.createLabel({
+                  owner, repo, name: label,
+                  color: '0e8a16',
+                  description: 'Companion issue tracking a pull request lifecycle',
+                });
+              } else {
+                throw err;
+              }
+            }
+
+            const title = `Tracking: PR #${pr.number} - ${pr.title}`;
+            const body = [
+              `Automated tracking issue for pull request #${pr.number}.`,
+              '',
+              `- PR: ${pr.html_url}`,
+              `- Author: @${pr.user.login}`,
+              '',
+              'This issue is managed by `.github/workflows/pr-lifecycle-tracker.yml` ' +
+              'and will be closed automatically when the PR is closed or merged.',
+            ].join('\n');
+
+            const issue = await github.rest.issues.create({
+              owner, repo, title, body, labels: [label],
+            });
+
+            // Link the tracking issue back on the PR so the closing job (and
+            // humans) can always find it, independent of search indexing.
+            await github.rest.issues.createComment({
+              owner, repo, issue_number: pr.number,
+              body: `Tracking issue created: #${issue.data.number} (${issue.data.html_url})`,
+            });
+
+            core.info(`Created tracking issue #${issue.data.number} for PR #${pr.number}`);
+
+      # --------------------------------------------------------------------
+      # PR CLOSED (any outcome): locate the tracking issue, then either
+      # delete-on-merge (with close+comment fallback) or close-with-audit-note.
+      # --------------------------------------------------------------------
+      - name: Close tracking issue
+        if: github.event.action == 'closed'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const pr = context.payload.pull_request;
+            const merged = pr.merged === true;
+            const label = 'pr-tracking';
+            const titlePrefix = `Tracking: PR #${pr.number} - `;
+
+            // Primary lookup: open issues carrying the pr-tracking label whose
+            // title matches this PR number exactly.
+            let tracking = null;
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner, repo, state: 'open', labels: label, per_page: 100,
+            });
+            tracking = issues.find(i => !i.pull_request && i.title.startsWith(titlePrefix));
+
+            // Fallback lookup: parse the PR's own comments for the link the
+            // opening job left behind (covers label removal / search lag).
+            if (!tracking) {
+              const comments = await github.paginate(github.rest.issues.listComments, {
+                owner, repo, issue_number: pr.number, per_page: 100,
+              });
+              for (const c of comments) {
+                const m = c.body && c.body.match(/Tracking issue created: #(\d+)/);
+                if (m) {
+                  const found = await github.rest.issues.get({
+                    owner, repo, issue_number: Number(m[1]),
+                  });
+                  if (found.data.state === 'open') tracking = found.data;
+                  break;
+                }
+              }
+            }
+
+            if (!tracking) {
+              core.warning(`No open tracking issue found for PR #${pr.number}; nothing to do.`);
+              return;
+            }
+
+            const issue_number = tracking.number;
+
+            if (merged) {
+              // Merged: comment, close, then attempt a hard delete via GraphQL.
+              await github.rest.issues.createComment({
+                owner, repo, issue_number,
+                body: `PR #${pr.number} was **merged**. Closing this tracking issue.`,
+              });
+              await github.rest.issues.update({
+                owner, repo, issue_number, state: 'closed', state_reason: 'completed',
+              });
+
+              // Hard delete requires elevated permissions the default
+              // GITHUB_TOKEN usually lacks. Attempt it; on failure the issue
+              // simply stays closed (see PR description for this fallback).
+              try {
+                await github.graphql(
+                  `mutation($id: ID!) {
+                     deleteIssue(input: { issueId: $id }) { repository { id } }
+                   }`,
+                  { id: tracking.node_id }
+                );
+                core.info(`Deleted tracking issue #${issue_number}.`);
+              } catch (err) {
+                core.warning(
+                  `Could not hard-delete issue #${issue_number} ` +
+                  `(likely insufficient token permissions): ${err.message}. ` +
+                  `Left it closed instead.`
+                );
+                await github.rest.issues.createComment({
+                  owner, repo, issue_number,
+                  body: 'Note: automatic hard-delete was not permitted for this token, ' +
+                        'so this issue was closed rather than deleted.',
+                });
+              }
+            } else {
+              // Closed without merging: keep as an audit trail, just close it.
+              await github.rest.issues.createComment({
+                owner, repo, issue_number,
+                body: `PR #${pr.number} was **closed without merging**. ` +
+                      `Closing this tracking issue but keeping it for the record.`,
+              });
+              await github.rest.issues.update({
+                owner, repo, issue_number, state: 'closed', state_reason: 'not_planned',
+              });
+              core.info(`Closed (not deleted) tracking issue #${issue_number}.`);
+            }

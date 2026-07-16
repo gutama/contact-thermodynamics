@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-18%2B-green.svg)](https://nodejs.org/)
-[![Tests](https://img.shields.io/badge/Tests-106%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/Tests-150%20passing-brightgreen.svg)](#testing)
 
 A modular JavaScript framework for **Contact Geometry**, **Geometric Algebra**, **Discrete Geometric Calculus**, and **Pilot-Wave Theory**.
 
@@ -173,10 +173,25 @@ $$\Omega = d\omega + \omega \wedge \omega$$
 ## 🧪 Testing
 
 ```bash
-npm test
+npm test          # 79 core validation tests
+node tests/run_all.js   # full suite across all runners
 ```
 
-Test coverage: 79 core tests + 27 number systems tests = **106 total**
+Coverage spans the **namespaced API** (`src/<namespace>/*.js`) directly, not
+only the root entry point. Since the root files are now thin re-export shims of
+the namespaced modules, dedicated suites pin both layers so they cannot drift:
+
+| Suite | Command | Tests |
+|-------|---------|-------|
+| Core validation | `npm test` (`tests/test.js`) | 79 |
+| Number systems | `node tests/test_number_systems.js` | 27 |
+| Namespaced imports | `node tests/test_namespaced_imports.js` | 26 |
+| Root re-export shims | `node tests/test_root_shims.js` | 18 |
+| **Total** | | **150** |
+
+`test_root_shims.js` asserts each root export is identity-equal to its
+namespaced counterpart, and `test_namespaced_imports.js` exercises the
+`CT.<namespace>` surface directly.
 
 ## 📄 License
 

@@ -76,7 +76,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Collapsed the remaining duplicated `ContactHamiltonian` and
+  `LegendrianSubmanifold` class definitions out of `src/index.js`; the flat
+  entry point now imports them from `src/contact/` so the root and namespaced
+  APIs share a single source of truth (`src/index.js` ~1372 → ~1148 lines).
+- Documented that the Hamiltonian numerical gradient perturbs coordinates with
+  an immutable spread (`{ ...coords, [c]: … }`) rather than mutating and
+  restoring `coords` in place, so a Hamiltonian that retains a reference to the
+  object it is passed cannot corrupt the caller's point mid-differentiation.
+
 ### Added
+
+- `.github/workflows/pr-lifecycle-tracker.yml`: opens a labelled tracking issue
+  when a PR is opened and closes it when the PR is closed/merged.
 
 #### Discrete Riemannian Geometry
 - `riemannian-discrete.js` module for triangle meshes:

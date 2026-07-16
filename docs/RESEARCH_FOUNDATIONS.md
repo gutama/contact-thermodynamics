@@ -205,7 +205,13 @@ Subclasses: `GrandContactManifold` (the 13-D `M₁₃`, base
 `(q1,q2,q3,t,ell,S)`, momenta `(k1,k2,k3,omega,Delta,T)`, fiber `A`) and
 `HolographicContactManifold` (the 7-D `M₇`, base `(t,ell,S)`, momenta
 `(omega,Delta,T)`). Both are defined in the same file. `GaugeExtendedManifold`
-(in `src/index.js`) extends `GrandContactManifold` with a `(φ, I)` gauge pair.
+(in `src/index.js`) extends `GrandContactManifold` with a `(φ, I)` gauge pair —
+**caveat:** the current implementation only pushes `phi`/`I` into
+`baseCoords`/`momentaCoords` and bumps `n`/`dim`; it does not rebuild the
+inherited `_allCoords`/`_coordSet`. So `allCoords`, `hasCoord()`, and any other
+logic keyed on `_allCoords` will **not** see `phi`/`I` yet — the gauge
+extension is incomplete until that cache is rebuilt in the subclass
+constructor.
 
 #### `ContactPoint` — `src/contact/manifold.js`
 
@@ -418,7 +424,7 @@ relevant module; ❌ no codebase equivalent yet (gap).
 
 | Paper concept | Paper notation | Codebase identifier | File | Status |
 |---|---|---|---|---|
-| Spacetime algebra | `Cl(1,3)`, `{γ_μ}` | `ContactAlgebra.spacetime()` / `sta()` (basis `e0..e3`) | `src/algebra/multivector.js` | ✅ |
+| Spacetime algebra | `Cl(1,3)`, `{γ_μ}` | `ContactAlgebra.spacetime()` (custom basis `e0..e3`) — note: the top-level shortcut `sta()` also builds `Cl(1,3)` but via `new Algebra(1,3,0)` with **no** `basisNames` argument, so its default labels are `e1..e4`, not `e0..e3` | `src/algebra/multivector.js` | ✅ (two constructors, differing basis labels) |
 | Metric signature | `η = (+,−,−,−)` | `Algebra(1,3,0)` `signature` | `src/algebra/multivector.js` | ✅ |
 | Frame vector | `γ_μ` | `Algebra.e(i)` (1-indexed) | `src/algebra/multivector.js` | ✅ |
 | Geometric product | `ab = a·b + a∧b` | `gp` / `Multivector.mul` | `src/algebra/multivector.js` | ✅ |
@@ -479,8 +485,11 @@ genuine non-degeneracy check.
 
 **G2 — The GA layer and the contact layer are disconnected.** `src/algebra/`
 (`Algebra`, `Multivector`, `ContactAlgebra`) is never imported by
-`src/contact/`. The `ContactAlgebra` factory advertises contact-oriented signatures
-but is unused. A GA-native contact form will need either a degenerate Clifford /
+`src/contact/`. Note `ContactAlgebra` is not unused overall — it's actively
+consumed elsewhere (e.g. `src/physics/spacetime.js` constructs
+`GA.ContactAlgebra.spacetime()`). The gap is specifically that `src/contact/`
+itself never imports the GA layer, not that `ContactAlgebra` sits idle
+repo-wide. A GA-native contact form will need either a degenerate Clifford /
 Heisenberg-type algebra (e.g. `Cl(n, n, 1)` with one null direction for the Reeb
 axis) or an explicit graded module wired into `ContactManifold`. This bridge does
 not exist yet and is the core Phase-1 construction.

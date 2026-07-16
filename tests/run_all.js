@@ -17,7 +17,8 @@ const testSuites = [
     { name: 'PDE', runner: 'tests/run_pde.js' },
     { name: 'Contact', runner: 'tests/run_contact.js' },
     { name: 'Pilot-Wave', tests: ['tests/test_pilot_wave.js', 'tests/test_known_solutions.js'] },
-    { name: 'Namespaced Imports', tests: ['tests/test_namespaced_imports.js'] }
+    { name: 'Namespaced Imports', tests: ['tests/test_namespaced_imports.js'] },
+    { name: 'Root Shims', tests: ['tests/test_root_shims.js'] }
 ];
 
 let totalPassed = 0;

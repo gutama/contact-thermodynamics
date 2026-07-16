@@ -31,357 +31,22 @@
     function isZero(x) { return abs(x) < EPSILON; }
 
     // ============================================================================
-    // I. CONTACT MANIFOLD BASE CLASS
+    // I. CONTACT MANIFOLDS (imported from ./contact/manifold.js)
     // ============================================================================
+    //
+    // ContactManifold, ContactPoint, GrandContactManifold and
+    // HolographicContactManifold are defined once in the contact namespace and
+    // consumed here so there is a single source of truth for the manifold classes.
 
-    /**
-     * ContactManifold: Base class for contact manifolds
-     * A contact manifold is (M, α) where α ∧ (dα)^n ≠ 0
-     * Dimension is always 2n+1 for some n ≥ 1
-     */
-    class ContactManifold {
-        /**
-         * @param {string[]} baseCoords - Base configuration coordinates x^a
-         * @param {string[]} momentaCoords - Conjugate momenta p_a
-         * @param {string} fiberCoord - Fiber coordinate u (action/potential)
-         */
-        constructor(baseCoords, momentaCoords, fiberCoord = 'A') {
-            if (baseCoords.length !== momentaCoords.length) {
-                throw new Error('Base and momenta coordinates must have same dimension');
-            }
-            this.baseCoords = [...baseCoords];
-            this.momentaCoords = [...momentaCoords];
-            this.fiberCoord = fiberCoord;
-            this.n = this.baseCoords.length;  // dim(Q)
-            this.dim = 2 * this.n + 1;   // dim(M) = 2n + 1
-            this._allCoords = [...this.baseCoords, this.fiberCoord, ...this.momentaCoords];
-            this._coordSet = new Set(this._allCoords);
-        }
-
-        /**
-         * Dimension theorem: dim(M) = 2n + 1
-         */
-        get dimension() {
-            return this.dim;
-        }
-
-        /**
-         * Get coordinate names in canonical order
-         */
-        get allCoords() {
-            return [...this._allCoords];
-        }
-
-        /**
-         * Check whether a coordinate belongs to this manifold.
-         */
-        hasCoord(coord) {
-            return this._coordSet.has(coord);
-        }
-
-        /**
-         * Create a point on the contact manifold
-         * @param {Object} coords - Coordinate values { x^a: val, u: val, p_a: val }
-         */
-        point(coords) {
-            return new ContactPoint(this, coords);
-        }
-
-        /**
-         * Zero point (origin of coordinates)
-         */
-        get origin() {
-            const coords = {};
-            this._allCoords.forEach(c => coords[c] = 0);
-            return this.point(coords);
-        }
-
-        /**
-         * Canonical contact 1-form: α = du - p_a dx^a
-         * Returns symbolic representation
-         */
-        contactFormSymbolic() {
-            const terms = [`d${this.fiberCoord}`];
-            for (let i = 0; i < this.n; i++) {
-                terms.push(`-${this.momentaCoords[i]}·d${this.baseCoords[i]}`);
-            }
-            return terms.join(' ');
-        }
-
-        /**
-         * Evaluate contact form at a point with tangent vector
-         * α(v) = du(v) - p_a dx^a(v)
-         * @param {ContactPoint} pt - Point on manifold
-         * @param {Object} tangent - Tangent vector components
-         */
-        evaluateContactForm(pt, tangent) {
-            let result = tangent[this.fiberCoord] || 0;
-            for (let i = 0; i < this.n; i++) {
-                const p = pt.get(this.momentaCoords[i]);
-                const dx = tangent[this.baseCoords[i]] || 0;
-                result -= p * dx;
-            }
-            return result;
-        }
-
-        /**
-         * Verify non-degeneracy: α ∧ (dα)^n ≠ 0
-         * Returns the wedge product value at a point
-         */
-        verifyContactCondition(pt) {
-            // For canonical form, this is always satisfied
-            // α ∧ (dα)^n = n! du ∧ dx^1 ∧ dp_1 ∧ ... ∧ dx^n ∧ dp_n
-            return this.factorial(this.n);
-        }
-
-        factorial(n) {
-            let result = 1;
-            for (let i = 2; i <= n; i++) {
-                result *= i;
-            }
-            return result;
-        }
-
-        /**
-         * Reeb vector field R
-         * Defined by: α(R) = 1, ι_R dα = 0
-         * For canonical α = du - p_a dx^a, R = ∂/∂u
-         */
-        reebField(pt) {
-            const R = {};
-            this._allCoords.forEach(c => R[c] = 0);
-            R[this.fiberCoord] = 1;  // ∂/∂u
-            return R;
-        }
-
-        /**
-         * Information string
-         */
-        toString() {
-            return `ContactManifold J¹(Q${this.n}): dim=${this.dim}, α=${this.contactFormSymbolic()}`;
-        }
-    }
-
-    // ============================================================================
-    // CONTACT POINT CLASS
-    // ============================================================================
-
-    /**
-     * ContactPoint: A point on a contact manifold
-     */
-    class ContactPoint {
-        constructor(manifold, coords = {}) {
-            this.manifold = manifold;
-            this.coords = {};
-            manifold._allCoords.forEach(c => {
-                this.coords[c] = coords[c] !== undefined ? coords[c] : 0;
-            });
-        }
-
-        get(coord) {
-            return this.coords[coord];
-        }
-
-        set(coord, value) {
-            if (this.manifold.hasCoord(coord)) {
-                this.coords[coord] = value;
-            }
-            return this;
-        }
-
-        clone() {
-            return new ContactPoint(this.manifold, { ...this.coords });
-        }
-
-        /**
-         * Add tangent vector (flow)
-         */
-        add(tangent, dt = 1) {
-            const newPt = this.clone();
-            for (const c of this.manifold._allCoords) {
-                if (tangent[c] !== undefined) {
-                    newPt.coords[c] += tangent[c] * dt;
-                }
-            }
-            return newPt;
-        }
-
-        toString() {
-            const parts = this.manifold._allCoords.map(c =>
-                `${c}=${this.coords[c].toFixed(4)}`
-            );
-            return `(${parts.join(', ')})`;
-        }
-    }
-
-    // ============================================================================
-    // II. GRAND CONTACT MANIFOLD M₁₃
-    // ============================================================================
-
-    /**
-     * GrandContactManifold: The "honest" 13-dimensional contact manifold
-     * 
-     * Base Q₆: x^a = (q¹, q², q³, t, ℓ, S) where ℓ = log(λ)
-     * Momenta: p_a = (k₁, k₂, k₃, ω, Δ, T)
-     * Fiber: A (action/generating potential)
-     * 
-     * dim(Q₆) = 6, dim(M₁₃) = 2·6 + 1 = 13
-     * 
-     * Contact form: α = dA - k_i dq^i - ω dt - Δ dℓ - T dS
-     */
-    class GrandContactManifold extends ContactManifold {
-        constructor() {
-            super(
-                ['q1', 'q2', 'q3', 't', 'ell', 'S'],  // Base coords
-                ['k1', 'k2', 'k3', 'omega', 'Delta', 'T'],  // Momenta
-                'A'  // Fiber (action)
-            );
-
-            // Physical interpretations
-            this.physicalInterpretations = {
-                q1: 'spatial coordinate 1',
-                q2: 'spatial coordinate 2',
-                q3: 'spatial coordinate 3',
-                t: 'time',
-                ell: 'log(scale factor) = log(λ)',
-                S: 'entropy',
-                k1: 'wavenumber conjugate to q1',
-                k2: 'wavenumber conjugate to q2',
-                k3: 'wavenumber conjugate to q3',
-                omega: 'frequency conjugate to t',
-                Delta: 'dilatation/anomalous dimension conjugate to ℓ',
-                T: 'temperature conjugate to S (under entropy closure)',
-                A: 'action/generating potential'
-            };
-        }
-
-        /**
-         * Create point with physical naming
-         */
-        physicalPoint(q1, q2, q3, t, ell, S, k1, k2, k3, omega, Delta, T, A = 0) {
-            return this.point({
-                q1, q2, q3, t, ell, S,
-                k1, k2, k3, omega, Delta, T,
-                A
-            });
-        }
-
-        /**
-         * Spatial position vector (q¹, q², q³)
-         */
-        spatialPosition(pt) {
-            return [pt.get('q1'), pt.get('q2'), pt.get('q3')];
-        }
-
-        /**
-         * Wave vector (k₁, k₂, k₃)
-         */
-        waveVector(pt) {
-            return [pt.get('k1'), pt.get('k2'), pt.get('k3')];
-        }
-
-        /**
-         * Extended contact form (symbolic with physical meaning)
-         */
-        contactFormSymbolic() {
-            return 'dA - k₁dq¹ - k₂dq² - k₃dq³ - ω dt - Δ dℓ - T dS';
-        }
-
-        /**
-         * Verify contact condition: α ∧ (dα)⁶ ≠ 0
-         */
-        verifyContactCondition(pt) {
-            // For canonical form, always non-degenerate
-            // α ∧ (dα)⁶ = 6! · volume form
-            return super.verifyContactCondition(pt);
-        }
-
-        toString() {
-            return 'Grand Contact Manifold M₁₃ = J¹(Q₆): dim=13';
-        }
-    }
-
-    // ============================================================================
-    // III. HOLOGRAPHIC CONTACT MANIFOLD M₇
-    // ============================================================================
-
-    /**
-     * HolographicContactManifold: The 7-dimensional "holographic limit"
-     * 
-     * Base Q₃: x^a = (t, ℓ, S) where ℓ = log(λ)
-     * Momenta: p_a = (ω, Δ, T)
-     * Fiber: A (action)
-     * 
-     * dim(Q₃) = 3, dim(M₇) = 2·3 + 1 = 7
-     * 
-     * Space q^i becomes emergent: q^i = q^i(t, ℓ, S) as scalar fields on Q₃
-     * 
-     * Contact form: α = dA - ω dt - Δ dℓ - T dS
-     */
-    class HolographicContactManifold extends ContactManifold {
-        constructor() {
-            super(
-                ['t', 'ell', 'S'],  // Base coords (reduced)
-                ['omega', 'Delta', 'T'],  // Momenta
-                'A'  // Fiber (action)
-            );
-
-            // Emergent spatial fields (not coordinates, but dependent fields)
-            this.emergentFields = ['q1', 'q2', 'q3'];
-
-            this.physicalInterpretations = {
-                t: 'time',
-                ell: 'log(scale factor) = log(λ)',
-                S: 'entropy',
-                omega: 'frequency',
-                Delta: 'dilatation/anomalous dimension',
-                T: 'temperature',
-                A: 'action',
-                q1: 'emergent spatial field q¹(t,ℓ,S)',
-                q2: 'emergent spatial field q²(t,ℓ,S)',
-                q3: 'emergent spatial field q³(t,ℓ,S)'
-            };
-        }
-
-        /**
-         * Create holographic point
-         */
-        holographicPoint(t, ell, S, omega, Delta, T, A = 0) {
-            return this.point({ t, ell, S, omega, Delta, T, A });
-        }
-
-        /**
-         * Define emergent spatial configuration
-         * q^i = q^i(t, ℓ, S) as scalar fields
-         * @param {Function} fieldFunc - (t, ell, S) => [q1, q2, q3]
-         */
-        createEmergentSpace(pt, fieldFunc) {
-            const [q1, q2, q3] = fieldFunc(pt.get('t'), pt.get('ell'), pt.get('S'));
-            return { q1, q2, q3 };
-        }
-
-        /**
-         * Extended point including emergent fields
-         */
-        extendedPoint(pt, emergent) {
-            return {
-                ...pt.coords,
-                ...emergent
-            };
-        }
-
-        contactFormSymbolic() {
-            return 'dA - ω dt - Δ dℓ - T dS';
-        }
-
-        verifyContactCondition(pt) {
-            // α ∧ (dα)³ = 3! · volume form
-            return super.verifyContactCondition(pt);
-        }
-
-        toString() {
-            return 'Holographic Contact Manifold M₇ = J¹(Q₃): dim=7, space emergent';
-        }
+    let ContactManifold, ContactPoint, GrandContactManifold, HolographicContactManifold;
+    if (typeof require !== 'undefined') {
+        const Manifold = require('./contact/manifold.js');
+        ContactManifold = Manifold.ContactManifold;
+        ContactPoint = Manifold.ContactPoint;
+        GrandContactManifold = Manifold.GrandContactManifold;
+        HolographicContactManifold = Manifold.HolographicContactManifold;
+    } else if (typeof global !== 'undefined' && global.ContactManifold) {
+        ({ ContactManifold, ContactPoint, GrandContactManifold, HolographicContactManifold } = global.ContactManifold);
     }
 
     // ============================================================================
@@ -1559,31 +1224,35 @@
     // New modular subpackages
     let AlgebraModule, GeometryModule, CalculusModule, ContactModule, PhysicsModule;
 
+    // These are all first-party modules that must resolve. Requiring them
+    // directly (rather than swallowing failures in an empty catch) means a
+    // broken path surfaces immediately instead of silently producing a
+    // half-populated public API.
     if (typeof require !== 'undefined') {
         // Mesh modules (legacy paths for compatibility)
-        try { MeshModule = require('./mesh.js'); } catch (e) { }
-        try { MeshFTGCModule = require('./mesh-ftgc.js'); } catch (e) { }
-        try { MeshSolversModule = require('./mesh-solvers.js'); } catch (e) { }
-        try { EntropicGravityModule = require('./entropic-gravity.js'); } catch (e) { }
-        try { MeshEntropicFlowModule = require('./mesh-entropic-flow.js'); } catch (e) { }
+        MeshModule = require('./mesh.js');
+        MeshFTGCModule = require('./mesh-ftgc.js');
+        MeshSolversModule = require('./mesh-solvers.js');
+        EntropicGravityModule = require('./entropic-gravity.js');
+        MeshEntropicFlowModule = require('./mesh-entropic-flow.js');
 
         // Riemannian Geometry modules (legacy paths)
-        try { RiemannianGAModule = require('./riemannian-ga.js'); } catch (e) { }
-        try { GeodesicGAModule = require('./geodesic-ga.js'); } catch (e) { }
-        try { GeometricCalculusModule = require('./geometric-calculus.js'); } catch (e) { }
-        try { RiemannianDiscreteModule = require('./riemannian-discrete.js'); } catch (e) { }
-        try { RiemannianSpacetimeModule = require('./riemannian-spacetime.js'); } catch (e) { }
+        RiemannianGAModule = require('./riemannian-ga.js');
+        GeodesicGAModule = require('./geodesic-ga.js');
+        GeometricCalculusModule = require('./geometric-calculus.js');
+        RiemannianDiscreteModule = require('./riemannian-discrete.js');
+        RiemannianSpacetimeModule = require('./riemannian-spacetime.js');
 
         // Quantum / Information modules (legacy paths)
-        try { PilotWaveModule = require('./pilot-wave.js'); } catch (e) { }
-        try { InformationGeometryModule = require('./information-geometry.js'); } catch (e) { }
+        PilotWaveModule = require('./pilot-wave.js');
+        InformationGeometryModule = require('./information-geometry.js');
 
         // New modular subpackages
-        try { AlgebraModule = require('./algebra'); } catch (e) { }
-        try { GeometryModule = require('./geometry'); } catch (e) { }
-        try { CalculusModule = require('./calculus'); } catch (e) { }
-        try { ContactModule = require('./contact'); } catch (e) { }
-        try { PhysicsModule = require('./physics'); } catch (e) { }
+        AlgebraModule = require('./algebra');
+        GeometryModule = require('./geometry');
+        CalculusModule = require('./calculus');
+        ContactModule = require('./contact');
+        PhysicsModule = require('./physics');
     }
 
     // ============================================================================

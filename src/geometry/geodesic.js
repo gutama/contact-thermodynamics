@@ -24,11 +24,7 @@
 
     let Utils;
     if (typeof require !== 'undefined') {
-        try {
-            Utils = require('../utils.js');
-        } catch (e) {
-            Utils = global.ContactThermoUtils || {};
-        }
+        Utils = require('../utils.js');
     } else {
         Utils = global.ContactThermoUtils || {};
     }
@@ -38,14 +34,10 @@
         dot, norm, vecAdd, vecScale
     } = Utils;
 
-    // Import RiemannianGA if available
+    // Import RiemannianGA (first-party dependency in Node; browser uses global)
     let RiemannianGA;
     if (typeof require !== 'undefined') {
-        try {
-            RiemannianGA = require('./riemannian-ga');
-        } catch (e) {
-            // Will use global
-        }
+        RiemannianGA = require('./riemannian-ga');
     }
     if (!RiemannianGA && typeof global !== 'undefined') {
         RiemannianGA = global.RiemannianGA;

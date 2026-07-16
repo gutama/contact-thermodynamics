@@ -81,7 +81,7 @@
     const { Algebra } = GA;
     const { SmearingKernel } = PilotWave;
 
-    const EPSILON = 1e-12;
+    const GA_EPSILON = 1e-12;
     const cos = Math.cos;
     const sin = Math.sin;
     const sqrt = Math.sqrt;
@@ -122,7 +122,7 @@
      */
     function unitRotorFromComponents(re, im) {
         const R = sqrt(re * re + im * im);
-        if (R < EPSILON) return PLANE.zero();
+        if (R < GA_EPSILON) return PLANE.zero();
         return PLANE.scalar(re / R).add(I2.scale(im / R));
     }
 
@@ -140,6 +140,9 @@
      */
     function guidanceFromRotor(U, dU, prefactor) {
         const dim = dU.length;
+        if (dim > 2) {
+            throw new Error(`Unsupported spatial dimension: ${dim}. guidanceFromRotor uses the 2-D plane algebra Cl(2,0,0), which only defines basis vectors e1, e2; a higher-dimensional Clifford algebra is required to guide in ${dim} dimensions.`);
+        }
         if (U.isZero()) return new Array(dim).fill(0);
         const Uinv = U.inverse();
 
@@ -256,7 +259,7 @@
             const n = jReg.length;
             const vReg = new Array(n);
             for (let i = 0; i < n; i++) {
-                vReg[i] = jReg[i] / Math.max(rhoReg[i], EPSILON);
+                vReg[i] = jReg[i] / Math.max(rhoReg[i], GA_EPSILON);
             }
             return vReg;
         }
@@ -410,7 +413,7 @@
             for (let i = 0; i < this.nx; i++) {
                 vxReg[i] = []; vyReg[i] = [];
                 for (let j = 0; j < this.ny; j++) {
-                    const d = Math.max(rhoReg[i][j], EPSILON);
+                    const d = Math.max(rhoReg[i][j], GA_EPSILON);
                     vxReg[i][j] = jxReg[i][j] / d;
                     vyReg[i][j] = jyReg[i][j] / d;
                 }
@@ -591,7 +594,7 @@
         planeAlgebra: PLANE,
         phaseBivector: I2,
 
-        EPSILON
+        GA_EPSILON
     };
 
     if (typeof module !== 'undefined' && module.exports) {

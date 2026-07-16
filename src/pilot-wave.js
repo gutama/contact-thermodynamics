@@ -9,24 +9,22 @@
  * @license MIT
  */
 
-(function (global) {
+(function (root, factory) {
     'use strict';
 
-    let PilotWave;
-    if (typeof require !== 'undefined') {
-        PilotWave = require('./physics/pilot-wave.js');
-    } else if (typeof global !== 'undefined') {
-        PilotWave = global.PilotWave;
+    if (typeof module === 'object' && module.exports) {
+        // CommonJS / Node: load the implementation synchronously.
+        module.exports = factory(require('./physics/pilot-wave.js'));
+    } else if (typeof define === 'function' && define.amd) {
+        // AMD (e.g. RequireJS): declare the dependency so the loader resolves it
+        // asynchronously — never call a synchronous require() here.
+        define(['./physics/pilot-wave.js'], factory);
+    } else {
+        // Browser global.
+        root.PilotWave = factory(root.PilotWave);
     }
 
-    if (typeof module !== 'undefined' && module.exports) {
-        module.exports = PilotWave;
-    }
-    if (typeof define === 'function' && define.amd) {
-        define([], () => PilotWave);
-    }
-    if (typeof global !== 'undefined') {
-        global.PilotWave = PilotWave;
-    }
-
-})(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
+})(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this), function (PilotWave) {
+    'use strict';
+    return PilotWave;
+});

@@ -9,24 +9,22 @@
  * @license MIT
  */
 
-(function (global) {
+(function (root, factory) {
     'use strict';
 
-    let GeodesicGA;
-    if (typeof require !== 'undefined') {
-        GeodesicGA = require('./geometry/geodesic.js');
-    } else if (typeof global !== 'undefined') {
-        GeodesicGA = global.GeodesicGA;
+    if (typeof module === 'object' && module.exports) {
+        // CommonJS / Node: load the implementation synchronously.
+        module.exports = factory(require('./geometry/geodesic.js'));
+    } else if (typeof define === 'function' && define.amd) {
+        // AMD (e.g. RequireJS): declare the dependency so the loader resolves it
+        // asynchronously — never call a synchronous require() here.
+        define(['./geometry/geodesic.js'], factory);
+    } else {
+        // Browser global.
+        root.GeodesicGA = factory(root.GeodesicGA);
     }
 
-    if (typeof module !== 'undefined' && module.exports) {
-        module.exports = GeodesicGA;
-    }
-    if (typeof define === 'function' && define.amd) {
-        define([], () => GeodesicGA);
-    }
-    if (typeof global !== 'undefined') {
-        global.GeodesicGA = GeodesicGA;
-    }
-
-})(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
+})(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this), function (GeodesicGA) {
+    'use strict';
+    return GeodesicGA;
+});

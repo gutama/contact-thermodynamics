@@ -39,7 +39,11 @@
     // consumed here so there is a single source of truth for the manifold classes.
 
     let ContactManifold, ContactPoint, GrandContactManifold, HolographicContactManifold;
-    if (typeof require !== 'undefined') {
+    // Gate the synchronous require() on `module.exports` (CommonJS/Node) rather
+    // than `typeof require`, which is also truthy under AMD loaders (e.g.
+    // RequireJS) whose `require` is not a synchronous CommonJS loader and would
+    // throw here before the UMD `define.amd` branch runs.
+    if (typeof module !== 'undefined' && module.exports) {
         const Manifold = require('./contact/manifold.js');
         ContactManifold = Manifold.ContactManifold;
         ContactPoint = Manifold.ContactPoint;
@@ -1228,7 +1232,12 @@
     // directly (rather than swallowing failures in an empty catch) means a
     // broken path surfaces immediately instead of silently producing a
     // half-populated public API.
-    if (typeof require !== 'undefined') {
+    //
+    // Gate on `module.exports` (CommonJS/Node) rather than `typeof require`,
+    // which is also truthy under AMD loaders (e.g. RequireJS) whose `require`
+    // is not a synchronous CommonJS loader and would throw here before the UMD
+    // `define.amd` branch at the bottom of this file runs.
+    if (typeof module !== 'undefined' && module.exports) {
         // Mesh modules (legacy paths for compatibility)
         MeshModule = require('./mesh.js');
         MeshFTGCModule = require('./mesh-ftgc.js');

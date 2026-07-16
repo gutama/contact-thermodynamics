@@ -9,24 +9,22 @@
  * @license MIT
  */
 
-(function (global) {
+(function (root, factory) {
     'use strict';
 
-    let GeometricCalculus;
-    if (typeof require !== 'undefined') {
-        GeometricCalculus = require('./calculus/grid.js');
-    } else if (typeof global !== 'undefined') {
-        GeometricCalculus = global.GeometricCalculus;
+    if (typeof module === 'object' && module.exports) {
+        // CommonJS / Node: load the implementation synchronously.
+        module.exports = factory(require('./calculus/grid.js'));
+    } else if (typeof define === 'function' && define.amd) {
+        // AMD (e.g. RequireJS): declare the dependency so the loader resolves it
+        // asynchronously — never call a synchronous require() here.
+        define(['./calculus/grid.js'], factory);
+    } else {
+        // Browser global.
+        root.GeometricCalculus = factory(root.GeometricCalculus);
     }
 
-    if (typeof module !== 'undefined' && module.exports) {
-        module.exports = GeometricCalculus;
-    }
-    if (typeof define === 'function' && define.amd) {
-        define([], () => GeometricCalculus);
-    }
-    if (typeof global !== 'undefined') {
-        global.GeometricCalculus = GeometricCalculus;
-    }
-
-})(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
+})(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this), function (GeometricCalculus) {
+    'use strict';
+    return GeometricCalculus;
+});

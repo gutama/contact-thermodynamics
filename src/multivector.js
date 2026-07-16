@@ -9,24 +9,22 @@
  * @license MIT
  */
 
-(function (global) {
+(function (root, factory) {
     'use strict';
 
-    let GA;
-    if (typeof require !== 'undefined') {
-        GA = require('./algebra/multivector.js');
-    } else if (typeof global !== 'undefined') {
-        GA = global.GA;
+    if (typeof module === 'object' && module.exports) {
+        // CommonJS / Node: load the implementation synchronously.
+        module.exports = factory(require('./algebra/multivector.js'));
+    } else if (typeof define === 'function' && define.amd) {
+        // AMD (e.g. RequireJS): declare the dependency so the loader resolves it
+        // asynchronously — never call a synchronous require() here.
+        define(['./algebra/multivector.js'], factory);
+    } else {
+        // Browser global.
+        root.GA = factory(root.GA);
     }
 
-    if (typeof module !== 'undefined' && module.exports) {
-        module.exports = GA;
-    }
-    if (typeof define === 'function' && define.amd) {
-        define([], () => GA);
-    }
-    if (typeof global !== 'undefined') {
-        global.GA = GA;
-    }
-
-})(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
+})(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this), function (GA) {
+    'use strict';
+    return GA;
+});

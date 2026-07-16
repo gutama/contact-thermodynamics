@@ -9,24 +9,25 @@
  * @license MIT
  */
 
-(function (global) {
+(function (root, factory) {
     'use strict';
 
-    let MeshModule;
-    if (typeof require !== 'undefined') {
-        MeshModule = require('./calculus/mesh.js');
-    } else if (typeof global !== 'undefined') {
-        MeshModule = global.ContactThermo;
+    if (typeof module === 'object' && module.exports) {
+        // CommonJS / Node: load the implementation synchronously.
+        module.exports = factory(require('./calculus/mesh.js'));
+    } else if (typeof define === 'function' && define.amd) {
+        // AMD (e.g. RequireJS): declare the dependency so the loader resolves it
+        // asynchronously — never call a synchronous require() here.
+        define(['./calculus/mesh.js'], factory);
+    } else {
+        // Browser global: merge the mesh exports into the shared namespace.
+        const MeshModule = factory(root.ContactThermo);
+        if (MeshModule) {
+            root.ContactThermo = Object.assign(root.ContactThermo || {}, MeshModule);
+        }
     }
 
-    if (typeof module !== 'undefined' && module.exports) {
-        module.exports = MeshModule;
-    }
-    if (typeof define === 'function' && define.amd) {
-        define([], () => MeshModule);
-    }
-    if (typeof global !== 'undefined' && MeshModule) {
-        global.ContactThermo = Object.assign(global.ContactThermo || {}, MeshModule);
-    }
-
-})(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
+})(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this), function (MeshModule) {
+    'use strict';
+    return MeshModule;
+});

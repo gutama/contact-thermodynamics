@@ -9,24 +9,25 @@
  * @license MIT
  */
 
-(function (global) {
+(function (root, factory) {
     'use strict';
 
-    let MeshFTGCModule;
-    if (typeof require !== 'undefined') {
-        MeshFTGCModule = require('./calculus/mesh-derivative.js');
-    } else if (typeof global !== 'undefined') {
-        MeshFTGCModule = global.ContactThermo;
+    if (typeof module === 'object' && module.exports) {
+        // CommonJS / Node: load the implementation synchronously.
+        module.exports = factory(require('./calculus/mesh-derivative.js'));
+    } else if (typeof define === 'function' && define.amd) {
+        // AMD (e.g. RequireJS): declare the dependency so the loader resolves it
+        // asynchronously — never call a synchronous require() here.
+        define(['./calculus/mesh-derivative.js'], factory);
+    } else {
+        // Browser global: merge the mesh FTGC exports into the shared namespace.
+        const MeshFTGCModule = factory(root.ContactThermo);
+        if (MeshFTGCModule) {
+            root.ContactThermo = Object.assign(root.ContactThermo || {}, MeshFTGCModule);
+        }
     }
 
-    if (typeof module !== 'undefined' && module.exports) {
-        module.exports = MeshFTGCModule;
-    }
-    if (typeof define === 'function' && define.amd) {
-        define([], () => MeshFTGCModule);
-    }
-    if (typeof global !== 'undefined' && MeshFTGCModule) {
-        global.ContactThermo = Object.assign(global.ContactThermo || {}, MeshFTGCModule);
-    }
-
-})(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
+})(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this), function (MeshFTGCModule) {
+    'use strict';
+    return MeshFTGCModule;
+});

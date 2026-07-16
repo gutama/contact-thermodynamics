@@ -9,24 +9,22 @@
  * @license MIT
  */
 
-(function (global) {
+(function (root, factory) {
     'use strict';
 
-    let EntropicGravity;
-    if (typeof require !== 'undefined') {
-        EntropicGravity = require('./physics/entropic-gravity.js');
-    } else if (typeof global !== 'undefined') {
-        EntropicGravity = global.EntropicGravity;
+    if (typeof module === 'object' && module.exports) {
+        // CommonJS / Node: load the implementation synchronously.
+        module.exports = factory(require('./physics/entropic-gravity.js'));
+    } else if (typeof define === 'function' && define.amd) {
+        // AMD (e.g. RequireJS): declare the dependency so the loader resolves it
+        // asynchronously — never call a synchronous require() here.
+        define(['./physics/entropic-gravity.js'], factory);
+    } else {
+        // Browser global.
+        root.EntropicGravity = factory(root.EntropicGravity);
     }
 
-    if (typeof module !== 'undefined' && module.exports) {
-        module.exports = EntropicGravity;
-    }
-    if (typeof define === 'function' && define.amd) {
-        define([], () => EntropicGravity);
-    }
-    if (typeof global !== 'undefined') {
-        global.EntropicGravity = EntropicGravity;
-    }
-
-})(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
+})(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this), function (EntropicGravity) {
+    'use strict';
+    return EntropicGravity;
+});

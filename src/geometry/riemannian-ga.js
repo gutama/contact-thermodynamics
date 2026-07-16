@@ -51,11 +51,25 @@
         GA = global.GA;
     }
 
+    // Guard: the bivector exp()/rotor() helpers delegate to the generic GA
+    // layer. If that module was never loaded (e.g. browser bundle without GA,
+    // or a require path issue) `new GA.Algebra(...)` throws an opaque
+    // TypeError; surface an actionable message instead.
+    function requireGA() {
+        if (!GA || typeof GA.Algebra !== 'function') {
+            throw new Error(
+                'GA module not loaded — require(\'../algebra/multivector\') ' +
+                '(or set global.GA) before calling Bivector3D/Bivector4D.exp()/rotor()'
+            );
+        }
+        return GA;
+    }
+
     // Lazily-built Cl(3,0,0) / Cl(4,0,0) carriers (product-table precompute is
     // done once and reused across all exp/rotor calls).
     let _cl3 = null, _cl4 = null;
-    const cl3 = () => (_cl3 || (_cl3 = new GA.Algebra(3, 0, 0)));
-    const cl4 = () => (_cl4 || (_cl4 = new GA.Algebra(4, 0, 0)));
+    const cl3 = () => (_cl3 || (_cl3 = new (requireGA()).Algebra(3, 0, 0)));
+    const cl4 = () => (_cl4 || (_cl4 = new (requireGA()).Algebra(4, 0, 0)));
 
     /**
      * Exponential of a general (possibly non-simple) bivector Multivector via
@@ -265,9 +279,8 @@
          * scalar), so the generic Algebra.exp is exact — hence delegation
          * rather than reimplementation (research gap G3).
          */
-        exp() {
-            const A = cl3();
-            return A.exp(this.toMultivector(A));
+        exp(algebra = cl3()) {
+            return algebra.exp(this.toMultivector(algebra));
         }
 
         /**
@@ -278,12 +291,11 @@
          * Multivector. See docs/PHASE1_GA_CONTACT_FORM.md for the resolution of
          * the rotor sign convention vs Algebra.rotor.
          */
-        rotor(angle) {
+        rotor(angle, algebra = cl3()) {
             const nrm = this.norm();
-            const A = cl3();
-            if (nrm < EPSILON) return A.scalar(1);
-            const Bhat = this.scale(1 / nrm).toMultivector(A);
-            return A.exp(Bhat.scale(-angle / 2));
+            if (nrm < EPSILON) return algebra.scalar(1);
+            const Bhat = this.scale(1 / nrm).toMultivector(algebra);
+            return algebra.exp(Bhat.scale(-angle / 2));
         }
     }
 
@@ -471,13 +483,12 @@
          * falls back to scaling-and-squaring of the Taylor series (still built
          * only from the generic geometric product / addition).
          */
-        exp() {
-            const A = cl4();
-            const mv = this.toMultivector(A);
+        exp(algebra = cl4()) {
+            const mv = this.toMultivector(algebra);
             if (mv.wedge(mv).isZero()) {
-                return A.exp(mv);
+                return algebra.exp(mv);
             }
-            return expSeriesMultivector(A, mv);
+            return expSeriesMultivector(algebra, mv);
         }
     }
 

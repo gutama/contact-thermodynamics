@@ -267,7 +267,10 @@
         hamiltonianVectorField(hamiltonian, pt) {
             const m = this.manifold;
             const grad = hamiltonian.gradient(pt);
-            const RH = grad[m.fiberCoord];
+            // ∂H/∂s = 0 for many Hamiltonians; an analytic gradient may simply
+            // omit the fiber component, leaving it undefined. Default to 0 so
+            // R(H) α does not inject NaN into the vector field.
+            const RH = grad[m.fiberCoord] ?? 0;
             const Hval = hamiltonian.evaluate(pt);
 
             // dH as a grade-1 form, and α at the point.
@@ -302,7 +305,9 @@
         verifyHamiltonianVectorField(hamiltonian, pt) {
             const m = this.manifold;
             const grad = hamiltonian.gradient(pt);
-            const RH = grad[m.fiberCoord];
+            // Default missing ∂H/∂s to 0 (see hamiltonianVectorField) so the
+            // residual check stays finite rather than NaN.
+            const RH = grad[m.fiberCoord] ?? 0;
             const Hval = hamiltonian.evaluate(pt);
 
             const { vector: X } = this.hamiltonianVectorField(hamiltonian, pt);

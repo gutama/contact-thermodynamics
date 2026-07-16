@@ -233,4 +233,40 @@ section('VII. Bivector exponentials / rotors (gap G3)');
         'Bivector4D.exp (non-simple) is a unit rotor');
 }
 
+// ---------------------------------------------------------------------------
+section('VIII. Analytic gradient omitting ∂H/∂s ⇒ R(H) defaults to 0 (no NaN)');
+// ---------------------------------------------------------------------------
+
+{
+    // A common case: ∂H/∂s = 0, and the analytic gradient function simply omits
+    // the fiber component. R(H) must default to 0 rather than injecting NaN.
+    const M = new ContactManifold(['q'], ['p'], 'A');
+    const ga = new GAContactForm(M);
+    // dH deliberately omits 'A' (the fiber coord) → grad['A'] is undefined.
+    const H = new ContactHamiltonian(
+        M,
+        c => 0.5 * c.p * c.p,
+        c => ({ q: 0, p: c.p })
+    );
+    const pt = M.point({ q: 0.7, p: 1.3, A: 0.2 });
+
+    const { components } = ga.hamiltonianVectorField(H, pt);
+    const finite = Object.values(components).every(Number.isFinite);
+    assert(t, finite,
+        'X_H components are all finite (missing ∂H/∂s ⇒ R(H)=0, not NaN)');
+
+    // With R(H)=0 the field reduces to the standard symplectic form: q̇ = p,
+    // ṗ = 0, ṡ = p·q̇ − H = p² − ½p².
+    assertApprox(t, components.q, 1.3, 1e-12, 'q̇ = ∂H/∂p = p');
+    assertApprox(t, components.p, 0, 1e-12, 'ṗ = −∂H/∂q = 0');
+    assertApprox(t, components.A, 1.3 * 1.3 - 0.5 * 1.3 * 1.3, 1e-12,
+        'ṡ = p·q̇ − H is finite');
+
+    const ver = ga.verifyHamiltonianVectorField(H, pt);
+    assert(t, Number.isFinite(ver.contactResidual) && ver.contactResidual < 1e-9,
+        'α(X_H) = −H residual finite and ~0 with missing ∂H/∂s');
+    assert(t, Number.isFinite(ver.symplecticResidual) && ver.symplecticResidual < 1e-9,
+        'ι_{X_H}dα residual finite and ~0 with missing ∂H/∂s');
+}
+
 process.exit(summary(t));

@@ -162,6 +162,32 @@
         return v;
     }
 
+    /**
+     * Standard 1-D current velocity from complex components:
+     * v = (ħ/m) Im(ψ* ∂_x ψ)/|ψ|² = (ħ/m)(ψ_r ∂_x ψ_i − ψ_i ∂_x ψ_r)/|ψ|²,
+     * central-differenced on ψ_r, ψ_i (no phase-angle reconstruction). The
+     * honest textbook baseline the GA rotor form is compared against (see
+     * `GAPilotWaveField2D.deBroglieVelocityCurrent`).
+     * @param {number[]} re - ψ_r on the grid
+     * @param {number[]} im - ψ_i on the grid
+     * @param {number} dx - Grid spacing
+     * @param {number} prefactor - ħ/m
+     * @returns {number[]}
+     */
+    function currentGuidanceVelocity1D(re, im, dx, prefactor = 1) {
+        const n = re.length;
+        const v = new Array(n).fill(0);
+        for (let i = 0; i < n; i++) {
+            const ip = Math.min(i + 1, n - 1), im_ = Math.max(i - 1, 0);
+            const den = (ip - im_) * dx;
+            const dRe = (re[ip] - re[im_]) / den;
+            const dIm = (im[ip] - im[im_]) / den;
+            const rho = re[i] * re[i] + im[i] * im[i];
+            v[i] = prefactor * (re[i] * dIm - im[i] * dRe) / Math.max(rho, GA_EPSILON);
+        }
+        return v;
+    }
+
     // ============================================================================
     // 1D GA PILOT-WAVE SYSTEM
     // ============================================================================
@@ -360,9 +386,54 @@
         }
 
         /**
+         * Standard current velocity field, computed directly from the complex
+         * components: v = (ħ/m) Im(ψ* ∇ψ)/|ψ|², with ordinary central
+         * differences on ψ_r and ψ_i (never reconstructing a phase angle).
+         *
+         *   Im(ψ* ∂_k ψ) = ψ_r ∂_k ψ_i − ψ_i ∂_k ψ_r
+         *
+         * This is the honest textbook de Broglie–Bohm baseline. Unlike the
+         * atan2 form (`deBroglieVelocityPhase`) it has *no* branch cut: it never
+         * forms the multivalued phase angle, so it does not spike on the
+         * negative-axis locus of a phase vortex. It is the correct reference to
+         * compare the GA rotor form against; the two differ only by an O(dx²)
+         * constant factor (the current differences the full ψ, so its truncation
+         * error couples to the amplitude gradient ∇R, whereas the GA rotor
+         * differences the amplitude-normalized U = ψ/|ψ| and its error is
+         * independent of ∇R). Both still diverge at the node as R → 0.
+         * @returns {{vx: number[][], vy: number[][]}}
+         */
+        deBroglieVelocityCurrent() {
+            const { nx, ny, dx, dy } = this;
+            const prefactor = this.hbar / this.mass;
+            const re = this.psiRe, im = this.psiIm;
+
+            const vx = [], vy = [];
+            for (let i = 0; i < nx; i++) {
+                vx[i] = new Array(ny).fill(0);
+                vy[i] = new Array(ny).fill(0);
+                for (let j = 0; j < ny; j++) {
+                    const ip = Math.min(i + 1, nx - 1), im_ = Math.max(i - 1, 0);
+                    const jp = Math.min(j + 1, ny - 1), jm = Math.max(j - 1, 0);
+                    const dReX = (re[ip][j] - re[im_][j]) / ((ip - im_) * dx);
+                    const dImX = (im[ip][j] - im[im_][j]) / ((ip - im_) * dx);
+                    const dReY = (re[i][jp] - re[i][jm]) / ((jp - jm) * dy);
+                    const dImY = (im[i][jp] - im[i][jm]) / ((jp - jm) * dy);
+                    const rho = re[i][j] * re[i][j] + im[i][j] * im[i][j];
+                    const d = Math.max(rho, GA_EPSILON);
+                    vx[i][j] = prefactor * (re[i][j] * dImX - im[i][j] * dReX) / d;
+                    vy[i][j] = prefactor * (re[i][j] * dImY - im[i][j] * dReY) / d;
+                }
+            }
+            return { vx, vy };
+        }
+
+        /**
          * Conventional velocity field: central-difference the wrapped phase
-         * angle S = atan2(ψ_i, ψ_r). This is the baseline that suffers the
-         * branch-cut artifact at a phase vortex.
+         * angle S = atan2(ψ_i, ψ_r). This is the *strawman* baseline that
+         * suffers the branch-cut artifact at a phase vortex — kept only to
+         * exhibit that artifact. The honest standard baseline is
+         * `deBroglieVelocityCurrent` (which avoids it); see the doc.
          * @returns {{vx: number[][], vy: number[][]}}
          */
         deBroglieVelocityPhase() {
@@ -590,6 +661,7 @@
         phaseRotor,
         unitRotorFromComponents,
         guidanceFromRotor,
+        currentGuidanceVelocity1D,
         vectorComponent,
         planeAlgebra: PLANE,
         phaseBivector: I2,

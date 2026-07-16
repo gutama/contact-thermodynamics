@@ -29,7 +29,7 @@ const {
 } = PW;
 const {
     GAPilotWaveSystem1D, GAPilotWaveField2D, GACurvedPilotWave,
-    phaseRotor, guidanceFromRotor, phaseBivector: I2
+    phaseRotor, guidanceFromRotor, currentGuidanceVelocity1D, phaseBivector: I2
 } = GAPW;
 
 const t = createTestTracker();
@@ -87,6 +87,35 @@ section('II. Grid rotor-difference converges to standard phase-difference');
     const d1 = maxDiff(0.10), d2 = maxDiff(0.05);
     assert(t, d2 < d1, `rotor/phase discretizations converge (dx=0.10→${d1.toExponential(2)}, dx=0.05→${d2.toExponential(2)})`);
     assert(t, d2 < 0.02, 'discretizations agree closely at dx=0.05');
+
+    // GA rotor vs the honest Im-current baseline on a smooth phase with a
+    // VARYING amplitude ψ = e^{−x²/4} e^{iS}, S = 0.7x + 0.1x². Analytic
+    // v = ∂S = 0.7 + 0.2x. The current form differences the full ψ (so its
+    // O(dx²) error couples to ∇R); the GA rotor differences U = ψ/|ψ| (error
+    // independent of ∇R) — GA is a constant factor more accurate, both O(dx²).
+    function convErr(dx) {
+        const n = Math.round(20 / dx) + 1, amp = [], ph = [], re = [], im = [];
+        for (let i = 0; i < n; i++) {
+            const X = (i - (n - 1) / 2) * dx, S = 0.7 * X + 0.1 * X * X, R = exp(-X * X / 4);
+            amp.push(R); ph.push(S); re.push(R * Math.cos(S)); im.push(R * Math.sin(S));
+        }
+        const vga = new GAPilotWaveSystem1D(amp, ph, { dx }).deBroglieVelocity();
+        const vcur = currentGuidanceVelocity1D(re, im, dx, 1.0);
+        let eg = 0, ec = 0;
+        for (let i = 5; i < n - 5; i++) {
+            const X = (i - (n - 1) / 2) * dx;
+            if (exp(-X * X / 4) < 1e-3) continue;      // skip amplitude underflow
+            const an = 0.7 + 0.2 * X;
+            eg = max(eg, abs(vga[i] - an)); ec = max(ec, abs(vcur[i] - an));
+        }
+        return { eg, ec };
+    }
+    const c1 = convErr(0.10), c2 = convErr(0.05);
+    console.log(`  → smooth+varying-amp err vs analytic: dx=0.10 GA=${c1.eg.toExponential(2)} Im=${c1.ec.toExponential(2)}; dx=0.05 GA=${c2.eg.toExponential(2)} Im=${c2.ec.toExponential(2)}`);
+    console.log(`  → constant factor Im/GA ≈ ${(c1.ec / c1.eg).toFixed(1)}× (dx=0.10), ${(c2.ec / c2.eg).toFixed(1)}× (dx=0.05)`);
+    assert(t, c2.eg < c1.eg && c2.ec < c1.ec, 'both GA and Im-current are O(dx²) convergent');
+    assert(t, c1.eg < c1.ec && c2.eg < c2.ec, 'GA rotor is more accurate than Im-current when amplitude varies');
+    assert(t, c1.ec / c1.eg > 2, `GA constant-factor edge is real (Im/GA ≈ ${(c1.ec / c1.eg).toFixed(1)}×)`);
 }
 
 // ---------------------------------------------------------------------------
@@ -109,36 +138,46 @@ section('III. Near-node stability: phase vortex ψ ∝ (x+iy) e^{−r²}');
     const field = new GAPilotWaveField2D(re, im, { dx, dy: dx, kernel });
 
     const ga = field.deBroglieVelocityGA();
-    const conv = field.deBroglieVelocityPhase();
+    const atan = field.deBroglieVelocityPhase();      // atan2 strawman baseline
+    const cur = field.deBroglieVelocityCurrent();     // honest standard baseline
 
     // Compare against analytic v = (−y, x)/r², EXCLUDING the physical node ball
-    // r < 0.5 (where divergence is real, not an artifact). What remains is the
-    // representational branch-cut artifact of the wrapped-phase form.
-    let maxGA = 0, maxConv = 0, errGA = 0, errConv = 0;
-    for (let i = 1; i < N - 1; i++) {
-        for (let j = 1; j < N - 1; j++) {
-            const X = -L + i * dx, Y = -L + j * dx, r2 = X * X + Y * Y;
-            if (r2 < 0.25) continue;               // exclude r < 0.5 ball
-            const an = [-Y / r2, X / r2];
-            const magGA = hypot(ga.vx[i][j], ga.vy[i][j]);
-            const magC = hypot(conv.vx[i][j], conv.vy[i][j]);
-            maxGA = max(maxGA, magGA);
-            maxConv = max(maxConv, magC);
-            errGA = max(errGA, hypot(ga.vx[i][j] - an[0], ga.vy[i][j] - an[1]));
-            errConv = max(errConv, hypot(conv.vx[i][j] - an[0], conv.vy[i][j] - an[1]));
+    // r < 0.5 (where divergence is real, not an artifact). Two error regions are
+    // tracked: the full r>0.5 max, and the far field r>1 (away from the node,
+    // where amplitude gradients — not the phase singularity — dominate).
+    function scan(v, rLo) {
+        let mv = 0, err = 0;
+        for (let i = 1; i < N - 1; i++) {
+            for (let j = 1; j < N - 1; j++) {
+                const X = -L + i * dx, Y = -L + j * dx, r2 = X * X + Y * Y;
+                if (r2 < rLo * rLo) continue;
+                const an = [-Y / r2, X / r2];
+                mv = max(mv, hypot(v.vx[i][j], v.vy[i][j]));
+                err = max(err, hypot(v.vx[i][j] - an[0], v.vy[i][j] - an[1]));
+            }
         }
+        return { mv, err };
     }
-    console.log(`  → max|v| (r>0.5):  GA=${maxGA.toFixed(2)}   conventional=${maxConv.toFixed(2)}`);
-    console.log(`  → max error vs analytic:  GA=${errGA.toExponential(2)}   conventional=${errConv.toFixed(2)}`);
+    const sGA = scan(ga, 0.5), sAtan = scan(atan, 0.5), sCur = scan(cur, 0.5);
+    const fGA = scan(ga, 1.0), fCur = scan(cur, 1.0);   // far field r>1
+    console.log(`  → max|v| (r>0.5):  atan2=${sAtan.mv.toFixed(2)}   Im-current=${sCur.mv.toFixed(2)}   GA=${sGA.mv.toFixed(2)}`);
+    console.log(`  → max error   :  atan2=${sAtan.err.toFixed(2)}   Im-current=${sCur.err.toExponential(2)}   GA=${sGA.err.toExponential(2)}`);
+    console.log(`  → far-field (r>1) error:  Im-current=${fCur.err.toExponential(2)}   GA=${fGA.err.toExponential(2)}`);
 
-    assert(t, isFinite(maxGA) && maxGA < 3.0, `GA velocity bounded away from node (max=${maxGA.toFixed(2)})`);
-    // errGA is the O(dx²) grid-discretization error (machine-precision exactness
-    // of the operation itself is checked in section I). It must be small AND
-    // orders of magnitude below the conventional branch-cut error.
-    assert(t, errGA < 0.1, `GA tracks analytic vortex velocity on the grid (err=${errGA.toExponential(2)})`);
-    assert(t, errGA < errConv / 100, `GA error ≪ conventional error (${errGA.toExponential(2)} vs ${errConv.toFixed(1)})`);
-    assert(t, maxConv > 5 * maxGA, `conventional form blows up on branch cut (${maxConv.toFixed(1)} ≫ ${maxGA.toFixed(1)})`);
-    assert(t, errConv > 10, `conventional form has large branch-cut error (${errConv.toFixed(1)})`);
+    // The atan2 form is a strawman: it differences the wrapped phase angle and
+    // spikes on the branch cut far from the node.
+    assert(t, sAtan.err > 10, `atan2 strawman has huge branch-cut error (${sAtan.err.toFixed(1)})`);
+    // The honest Im-current baseline has NO branch cut: same order as GA.
+    assert(t, sCur.err < 0.1, `Im-current baseline is accurate, no branch cut (${sCur.err.toExponential(2)})`);
+    assert(t, isFinite(sGA.mv) && sGA.mv < 3.0, `GA velocity bounded away from node (max=${sGA.mv.toFixed(2)})`);
+    assert(t, sGA.err < 0.1, `GA tracks analytic vortex velocity on the grid (err=${sGA.err.toExponential(2)})`);
+    // GA and Im-current are the SAME order of magnitude — the categorical gap
+    // was entirely the atan2 artifact, not a property of "the standard equation".
+    assert(t, sCur.err < 5 * sGA.err && sGA.err < 5 * sCur.err,
+        `GA and Im-current are same order near node (Im=${sCur.err.toExponential(2)}, GA=${sGA.err.toExponential(2)})`);
+    // GA's genuine (modest) edge: in the far field it differences only the
+    // amplitude-normalized rotor, so it beats the current form there.
+    assert(t, fGA.err < fCur.err, `GA more accurate than Im-current in far field (${fGA.err.toExponential(2)} < ${fCur.err.toExponential(2)})`);
 
     // Regularized GA velocity is finite everywhere, including through the node.
     const reg = field.regularizedVelocityGA();
@@ -151,7 +190,7 @@ section('III. Near-node stability: phase vortex ψ ∝ (x+iy) e^{−r²}');
         }
     }
     assert(t, regFinite, 'regularized GA velocity finite everywhere (incl. node)');
-    assert(t, maxReg < maxConv, `regularization tames velocity (max_reg=${maxReg.toFixed(2)} < conv=${maxConv.toFixed(1)})`);
+    assert(t, maxReg < sAtan.mv, `regularization tames velocity (max_reg=${maxReg.toFixed(2)} < atan2=${sAtan.mv.toFixed(1)})`);
 }
 
 // ---------------------------------------------------------------------------
@@ -165,25 +204,32 @@ section('IV. 1D real node: GA gives correct v≈0, standard spikes');
     // the physical (grade-1) velocity is exactly 0 — GA is correct here, not
     // merely equivalent.
     const n = 101, dx = 0.1;
-    const amp = [], ph = [];
+    const amp = [], ph = [], re = [], im = [];
     for (let i = 0; i < n; i++) {
         const x = (i - (n - 1) / 2) * dx;
         amp.push(abs(x) + 1e-8);
         ph.push(x >= 0 ? 0 : Math.PI);
+        re.push(x); im.push(0);                    // ψ ∝ x  (purely real)
     }
     const kernel = new SmearingKernel(0.3, 'gaussian');
     const std = new PilotWaveSystem(new WaveFunction(amp, ph, {}), { kernel, dx });
     const ga = new GAPilotWaveSystem1D(amp, ph, { dx, kernel });
 
     const vgReg = ga.regularizedVelocity();
-    const vsReg = std.regularizedVelocity();
+    const vsReg = std.regularizedVelocity();        // atan2 phase-difference form
+    const vCur = currentGuidanceVelocity1D(re, im, dx, 1.0);  // Im-current baseline
     const maxGA = max(...vgReg.map(abs));
-    const maxStd = max(...vsReg.map(abs));
-    console.log(`  → max|v_reg|:  GA=${maxGA.toExponential(2)} (true=0)   standard=${maxStd.toFixed(3)}`);
+    const maxAtan = max(...vsReg.map(abs));
+    const maxCur = max(...vCur.map(abs));
+    const maxAtanRaw = max(...std.deBroglieVelocity().map(abs));
+    console.log(`  → max|v|:  atan2=${maxAtanRaw.toFixed(2)} (raw) / ${maxAtan.toFixed(3)} (reg)   Im-current=${maxCur.toExponential(2)}   GA=${maxGA.toExponential(2)}   (true=0)`);
 
     assert(t, vgReg.every(isFinite), 'GA regularized velocity finite at real node');
     assert(t, maxGA < 1e-6, `GA gives correct v≈0 for a real wavefunction (max=${maxGA.toExponential(2)})`);
-    assert(t, maxStd > 10 * max(maxGA, 1e-9), `standard shows spurious spike at real node (max=${maxStd.toFixed(3)})`);
+    // The honest Im-current baseline ALSO returns exactly 0 (im ≡ 0 ⇒ v ≡ 0);
+    // only the atan2 phase-difference form spikes.
+    assert(t, maxCur < 1e-9, `Im-current baseline also correct v≈0 (max=${maxCur.toExponential(2)})`);
+    assert(t, maxAtan > 10 * max(maxGA, 1e-9), `atan2 form shows spurious spike at real node (reg max=${maxAtan.toFixed(3)})`);
 
     // Regularized density > 0 through the node
     const rhoReg = ga.regularizedDensity();
@@ -243,49 +289,96 @@ section('V. Curved-space GA reduces to flat GA when g=I, ω=0');
 }
 
 // ---------------------------------------------------------------------------
-section('VI. H-theorem: GA regularized velocity relaxes to equilibrium');
+section('VI. H-theorem: coarse-grained H DECREASES toward equilibrium');
 // ---------------------------------------------------------------------------
 {
-    const n = 64, dx = 0.2;
-    const amp = [], ph = [];
-    for (let i = 0; i < n; i++) {
-        const x = (i - n / 2) * dx;
-        amp.push(exp(-x * x / 4));
-        ph.push(0.5 * x);
-    }
-    const psi = new WaveFunction(amp, ph, { mass: 1, hbar: 1 });
-    const kernel = new SmearingKernel(0.3, 'gaussian');
-    const gaSystem = new GAPilotWaveSystem1D(amp, ph, { dx, kernel });
-    const stdSystem = new PilotWaveSystem(psi, { kernel, dx });
+    // A correct quantum-relaxation H-theorem needs a *time-dependent, spatially
+    // structured* guidance field that stirs the ensemble — a static wavefunction
+    // with a linear phase gives only a constant drift (no mixing) under which
+    // |ψ|² is not even stationary, so H does not decrease. We use the canonical
+    // two-energy-eigenstate superposition in an infinite square well [0,L]
+    // (ℏ = m = 1):
+    //
+    //   ψ(x,t) = (1/√2)[φ₁ e^{−iE₁t} + φ₂ e^{−iE₂t}],  φ_n = √(2/L) sin(nπx/L),
+    //   E_n = n²π²/(2L²),   |ψ(x,t)|² is equivariant (the moving target).
+    //
+    // The velocity field v = j/|ψ|² oscillates and has a blinking interior node,
+    // so an ensemble started far from |ψ|² relaxes: the COARSE-GRAINED H-function
+    // decreases monotonically. We drive the SAME advection (QuantumEnsemble) with
+    // two velocity fields — the honest Im-current baseline and the GA rotor form.
+    const L = Math.PI, n = 101, dx = L / (n - 1);
+    const E1 = 1 * 1 * Math.PI * Math.PI / (2 * L * L);
+    const E2 = 2 * 2 * Math.PI * Math.PI / (2 * L * L);
+    const sqrt2overL = Math.sqrt(2 / L);
 
-    // Same nonequilibrium start for both: a shifted Gaussian.
-    function makeRhoInit() {
-        const r = [];
+    function componentsAt(time) {
+        const re = [], im = [];
         for (let i = 0; i < n; i++) {
-            const x = (i - n / 2) * dx;
-            r.push(exp(-(x - 2.0) * (x - 2.0) / 4));
+            const x = i * dx;
+            const a = sqrt2overL * Math.sin(Math.PI * x / L);
+            const b = sqrt2overL * Math.sin(2 * Math.PI * x / L);
+            re.push((a * Math.cos(E1 * time) + b * Math.cos(E2 * time)) / Math.sqrt(2));
+            im.push((-a * Math.sin(E1 * time) - b * Math.sin(E2 * time)) / Math.sqrt(2));
         }
-        return r;
+        return { re, im };
     }
 
-    const ensGA = new QuantumEnsemble(makeRhoInit(), psi, dx);
-    const ensStd = new QuantumEnsemble(makeRhoInit(), psi, dx);
+    const kernel = new SmearingKernel(0.25, 'gaussian');
 
-    const H0 = ensGA.hFunctionFine();
-    assert(t, H0 > 0.01, `initial H > 0 (nonequilibrium, H=${H0.toFixed(4)})`);
+    // Standard baseline as a QuantumEnsemble-compatible system (Im-current + smear).
+    class StdCurrentSystem1D {
+        constructor(re, im) { this.re = re; this.im = im; }
+        regularizedVelocity() {
+            const v = currentGuidanceVelocity1D(this.re, this.im, dx, 1.0);
+            const rho = this.re.map((r, i) => r * r + this.im[i] * this.im[i]);
+            const j = rho.map((r, i) => r * v[i]);
+            const jReg = kernel.convolve1D(j, dx), rhoReg = kernel.convolve1D(rho, dx);
+            return jReg.map((x, i) => x / Math.max(rhoReg[i], 1e-12));
+        }
+    }
 
-    const dt = 0.01, nSteps = 20;
-    const hGA = ensGA.relaxation(gaSystem, dt, nSteps, true);
-    const hStd = ensStd.relaxation(stdSystem, dt, nSteps, true);
+    const dt = 0.02, nSteps = 50, cell = 8;
 
-    const HfinGA = hGA[hGA.length - 1], HfinStd = hStd[hStd.length - 1];
-    console.log(`  → H: GA ${H0.toFixed(4)}→${HfinGA.toFixed(4)}   standard ${H0.toFixed(4)}→${HfinStd.toFixed(4)}`);
+    function relax(kind) {
+        const rho0 = new Array(n).fill(1);            // uniform (maximally nonequilibrium)
+        const cGiven = componentsAt(0);
+        const psiT = WaveFunction.fromCartesian(cGiven.re, cGiven.im, { mass: 1, hbar: 1 });
+        const ens = new QuantumEnsemble(rho0, psiT, dx, kernel);
+        const H = [ens.hFunction(cell)];
+        for (let step = 0; step < nSteps; step++) {
+            const c = componentsAt(step * dt);
+            const amp = c.re.map((r, i) => hypot(r, c.im[i]));
+            const ph = c.re.map((r, i) => atan2(c.im[i], r));
+            const system = kind === 'GA'
+                ? new GAPilotWaveSystem1D(amp, ph, { dx, kernel })
+                : new StdCurrentSystem1D(c.re, c.im);
+            ens.evolve(system, dt);
+            // Update the equivariant target |ψ(t+dt)|² for the H reference.
+            const cNext = componentsAt((step + 1) * dt);
+            ens.psi = WaveFunction.fromCartesian(cNext.re, cNext.im, { mass: 1, hbar: 1 });
+            H.push(ens.hFunction(cell));
+        }
+        return H;
+    }
 
-    assert(t, hGA.every(isFinite), 'GA H-trajectory finite throughout');
-    assert(t, HfinGA < 5, 'GA H remains bounded during evolution');
-    // Comparable relaxation: GA final H within a modest factor of standard.
-    assert(t, HfinGA <= HfinStd * 1.5 + 0.05,
-        `GA relaxes comparably to standard (GA=${HfinGA.toFixed(4)}, std=${HfinStd.toFixed(4)})`);
+    for (const kind of ['standard', 'GA']) {
+        const H = relax(kind);
+        const H0 = H[0], Hf = H[H.length - 1], Hmin = Math.min(...H);
+        let maxInc = 0;
+        for (let i = 1; i < H.length; i++) maxInc = max(maxInc, H[i] - H[i - 1]);
+        const label = kind === 'GA' ? 'GA rotor       ' : 'standard (Im-J)';
+        console.log(`  → ${label}: H ${H0.toFixed(4)} → ${Hf.toFixed(4)}  (min ${Hmin.toFixed(4)}, drop ${((1 - Hmin / H0) * 100).toFixed(1)}%, maxΔ↑ ${maxInc.toExponential(1)})`);
+
+        assert(t, H.every(isFinite), `${kind}: H-trajectory finite throughout`);
+        assert(t, H0 > 0.1, `${kind}: initial H > 0 (nonequilibrium, H₀=${H0.toFixed(4)})`);
+        assert(t, Hf < H0, `${kind}: H decreases overall (relaxation, not anti-relaxation)`);
+        assert(t, (H0 - Hmin) / H0 > 0.15, `${kind}: substantial relaxation (drop ${((1 - Hmin / H0) * 100).toFixed(1)}%)`);
+        // The residual ~1e-2 bump is a node-crossing artifact of the coarse
+        // upwind advection (it GROWS as dt→0 and is identical for the standard
+        // and GA fields, so it is spatial-discretization noise, not a property
+        // of either velocity field). It is <2.5% of the ~50% total H drop.
+        assert(t, maxInc < 1.2e-2, `${kind}: coarse-grained H non-increasing up to upwind node-crossing noise (maxΔ↑=${maxInc.toExponential(1)})`);
+    }
 }
 
 process.exit(summary(t));

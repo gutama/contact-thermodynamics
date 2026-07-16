@@ -1,0 +1,355 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,linkcolor=teal,citecolor=teal,urlcolor=teal]{hyperref}
+\hypersetup{pdfauthor={Perplexity Computer}, pdftitle={A Geometric-Algebra Representation of the Contact Form in Contact Hamiltonian Thermodynamics}}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{parskip}
+\usepackage{amsthm}
+\newtheorem{lemma}{Lemma}
+\newtheorem{corollary}{Corollary}
+
+\newcommand{\Cl}{\mathrm{Cl}}
+\newcommand{\dif}{\mathrm{d}}
+\renewcommand{\vec}[1]{\mathbf{#1}}
+
+\title{\Large A Geometric-Algebra Representation of the Contact Form\\ in Contact Hamiltonian Thermodynamics}
+\author{Ginanjar Utama\\ \small \texttt{ginanjar.utama@gmail.com}}
+\date{July 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Contact Hamiltonian mechanics \cite{bravetti2017contact} extends the symplectic formalism to dissipative and non-conservative thermodynamic systems through a contact $1$-form $\alpha$ on a $(2n+1)$-dimensional manifold, whose Reeb field $R$ and contact Hamiltonian vector field $X_H$ generate the equations of motion. In existing numerical implementations, $\alpha$ and its exterior derivative $\dif\alpha$ are typically represented only implicitly, through symbolic display strings and hand-coded component formulas, with non-degeneracy checked by a hard-coded factorial rather than an actual computation. We construct $\alpha$, $\dif\alpha$, $R$, and $X_H$ as genuine multivectors in a Grassmann/Clifford algebra $\Cl(2n+1,0,0)$, compute the non-degeneracy condition directly as the wedge product $\alpha\wedge(\dif\alpha)^n$, and show the resulting $X_H$ reproduces the standard Bravetti--Cruz--Tapias equations of motion exactly. We report, however, that this base construction uses only the outer product and a signature-independent coordinate pairing: repeating the identical computation across several signature choices of the same dimension, including a degenerate split, leaves every reported quantity unchanged, so the Clifford geometric product itself does no work in this part of the construction — it is exterior (Grassmann) algebra wearing Clifford notation. Motivated by this, we then ask a genuinely open question in a different, previously rejected carrier, the degenerate algebra $\Cl(n,n,1)$ in which $\dif\alpha$ is itself a hyperbolic metric bivector: can contactomorphisms (the symmetries of the contact structure) be represented as GA versors, exponentials of bivectors applied by the sandwich $v\mapsto VvV^{-1}$? We find a mixed, carefully bounded answer: the symplectic squeeze transformation \emph{is} realized exactly by a versor sandwich, with the hyperbolic signature doing genuine work (each pair-bivector squares to $+1$); the Reeb flow and the conformal dilation (for scale factors $\lambda\notin\{\pm1\}$), by contrast, are provably \emph{not} representable as pure versor sandwiches, for structural reasons (an affine translation cannot fix the origin; a radical-rescaling forbidden by a rigidity lemma we prove for the degenerate metric) that we make precise. The complete construction, both the base representation and the versor investigation, together with a fully regression-tested reference implementation, is released as part of the open-source \texttt{contact-thermodynamics} library \cite{contactthermolib}.
+\end{abstract}
+
+\section{Introduction}
+
+Contact geometry has emerged over the past decade as a natural language for the thermodynamics of dissipative and non-equilibrium systems, extending the symplectic formalism of conservative Hamiltonian mechanics to systems in which entropy is explicitly produced along the flow \cite{bravetti2017contact,bravetti2015symmetries}. On a $(2n+1)$-dimensional contact manifold with coordinates $(q^a, p_a, s)$ ($a=1,\dots,n$), the physics is encoded in a single contact $1$-form
+\begin{equation}
+\alpha = \dif s - p_a\,\dif q^a ,
+\label{eq:alpha}
+\end{equation}
+whose defining non-degeneracy condition $\alpha\wedge(\dif\alpha)^n \neq 0$ guarantees the existence of a unique \emph{Reeb vector field} $R$ satisfying $\alpha(R)=1,\ \iota_R\dif\alpha = 0$, and a unique \emph{contact Hamiltonian vector field} $X_H$ for any function $H(q,p,s)$, satisfying
+\begin{equation}
+\alpha(X_H) = -H, \qquad \iota_{X_H}\dif\alpha = \dif H - R(H)\,\alpha .
+\label{eq:xh-defn}
+\end{equation}
+Expanding \eqref{eq:xh-defn} in Darboux coordinates yields the Bravetti--Cruz--Tapias equations of motion
+\begin{equation}
+\dot q^a = \frac{\partial H}{\partial p_a}, \qquad
+\dot p_a = -\frac{\partial H}{\partial q^a} - p_a \frac{\partial H}{\partial s}, \qquad
+\dot s = p_a\frac{\partial H}{\partial p_a} - H ,
+\label{eq:bravetti-eom}
+\end{equation}
+in which the term $-p_a\,\partial H/\partial s$ is responsible for genuine dissipation/entropy production, distinguishing contact mechanics from its symplectic parent. This formalism has since been applied to Legendre-symmetric thermodynamic potentials \cite{bravetti2015symmetries}, to black-hole thermodynamics in extended (AdS) phase space \cite{ghosh2019contact}, and reviewed comprehensively in \cite{deleon2021review}.
+
+Separately, \textbf{geometric algebra} (GA), the modern Clifford-algebraic reformulation championed by Hestenes \cite{hestenes2003sta}, unifies vectors, rotations, and oriented areas/volumes (bivectors, trivectors, \dots) under a single geometric product $ab = a\cdot b + a\wedge b$. Its extension to spacetime, the Spacetime Algebra (STA) $\Cl(1,3)$, has been used to reformulate the Dirac equation without matrices, to express Lorentz transformations as rotor sandwiches, and to build coordinate-free formulations of gauge-theoretic gravity \cite{lasenby2016ga,dressel2015sta}. Closer to the present setting, GA has already been used to reformulate ordinary (symplectic) \emph{Hamiltonian} mechanics on several occasions: Hestenes gave an invariant geometric-calculus treatment of Hamiltonian mechanics \cite{hestenes1993hamiltonian}, and Pappas \cite{pappas1993hamiltonian} and Abou~El~Dahab \cite{aboueldahab2000hamiltonian} independently developed geometric-algebra formulations of Hamiltonian dynamics in the same period and journal that hosts the present work. \textbf{This paper does not claim to be the first combination of GA with Hamiltonian-type mechanics.} What we believe is new is narrower and more specific: a GA representation of the \emph{contact} (odd-dimensional, dissipative) extension of Hamiltonian mechanics specifically, together with an honest investigation of exactly where, if anywhere, the Clifford geometric product — as opposed to plain exterior algebra — does genuine work in that representation.
+
+That honesty is the organizing principle of this paper. \S\ref{sec:carrier}--\S\ref{sec:rotor-convention} construct $\alpha$, $\dif\alpha$, $R$, and $X_H$ as multivectors in the Euclidean carrier $\Cl(2n+1,0,0)$ and verify the construction reproduces the standard formalism exactly, closing two representational gaps in a pre-existing open-source numerical implementation of contact thermodynamics: the contact form and its exterior derivative were previously encoded only as display strings with hand-written scalar evaluators, and the non-degeneracy check $\alpha\wedge(\dif\alpha)^n$ was hard-coded to return $n!$ rather than computed. \S\ref{sec:signature-independence} then reports, without softening it, that this base construction is provably \emph{signature-independent}: it uses only the outer product and a fixed coordinate pairing convention, never the carrier's own bilinear form, so the geometric product contributes nothing beyond bookkeeping. Rather than treat this as a dead end, \S\ref{sec:versors} uses it as the motivation for a second, genuinely open question, investigated in the previously-rejected degenerate carrier $\Cl(n,n,1)$: can \emph{contactomorphisms} — diffeomorphisms preserving $\alpha$ up to a conformal factor — be represented as GA versors, the natural language in which GA expresses symmetries elsewhere? The answer, detailed in \S\ref{sec:versors}, is a genuine mixed result, not engineered to be either uniformly positive or uniformly negative.
+
+\section{Background}
+
+\subsection{Contact Hamiltonian mechanics}
+\label{sec:background-contact}
+
+We use the conventions of \cite{bravetti2017contact}. Given the contact form \eqref{eq:alpha} on $M^{2n+1}$, the Reeb field $R = \partial/\partial s$ is the unique vector field with $\alpha(R)=1$ and $\iota_R\dif\alpha = 0$; since $\dif\alpha = \dif q^a\wedge\dif p_a$ does not involve $\dif s$, $R$ spans the kernel (radical) of the degenerate $2$-form $\dif\alpha$. For a Hamiltonian $H(q,p,s)$, the contact Hamiltonian vector field $X_H$ defined by \eqref{eq:xh-defn} generates the flow \eqref{eq:bravetti-eom}. Because $R(H) = \partial H/\partial s$ generally does not vanish, the flow is non-conservative: $\dot H = -R(H)H$, and $\dot s$ contains an explicit dissipative term. This is the essential extension beyond symplectic (Hamiltonian) mechanics.
+
+\subsection{Geometric algebra essentials}
+\label{sec:background-ga}
+
+A Clifford algebra $\Cl(p,q,r)$ over an $N=p+q+r$-dimensional vector space with orthonormal basis $\{e_i\}$ is generated by the relations $e_i e_j + e_j e_i = 2\eta_{ij}$, where $\eta$ has $p$ eigenvalues $+1$, $q$ eigenvalues $-1$, and $r$ eigenvalues $0$ (degenerate directions). The geometric product of two vectors decomposes as $ab = a\cdot b + a\wedge b$, where $a\cdot b$ is the symmetric inner product and $a\wedge b$ the antisymmetric outer (wedge) product, generalizing to the outer product of arbitrary-grade blades via total antisymmetrization. The \emph{left contraction} $\lrcorner$ (written $\iota$ in the differential-geometry literature) implements the interior product of a vector into a higher-grade blade. A \emph{rotor} is a unit-norm even-grade multivector $U$ ($U\tilde U = 1$, with $\tilde U$ the reverse) that implements a rotation or boost via the sandwich $v \mapsto U v \tilde U$ (equivalently $v\mapsto UvU^{-1}$ when $U$ is not assumed unit-normalized); rotors are generated by exponentiating bivectors, $U=\exp(B)$. A bivector $B$ is \emph{simple} if $B\wedge B=0$, in which case $B^2$ is a scalar and a closed form $\exp(B)=\cosh|B|+\sinh(|B|)\hat B$ or $\exp(B)=\cos|B|+\sin(|B|)\hat B$ applies depending on the sign of $B^2$. \textbf{A caveat we make explicit because it matters later (\S\ref{sec:versors}):} whether a simple bivector has $B^2<0$ (generating a bounded, rotation-like exponential) or $B^2>0$ (generating an unbounded, boost-like exponential) depends on the metric signature of the carrier, not on simplicity alone. In a Euclidean carrier every simple bivector has $B^2\le 0$, but this is a property of the Euclidean signature, not a general fact about GA: in the mixed-signature spacetime algebra $\Cl(1,3)$, for instance, the simple bivector $e_1\wedge e_2$ (built from two spacelike generators) has $B^2=+1$. The carrier used in \S\ref{sec:carrier}--\ref{sec:rotor-convention} is Euclidean, so $B^2<0$ for its simple bivectors, but the carrier used in \S\ref{sec:versors} is not, and that sign flip is precisely what makes the versor construction there do genuine work.
+
+\section{Base Construction in the Euclidean Carrier}
+
+\subsection{Carrier algebra}
+\label{sec:carrier}
+
+We model the cotangent basis $1$-forms $\{\dif q^a, \dif p_a, \dif s\}$ of the canonical $(2n+1)$-dimensional contact manifold as an orthonormal grade-$1$ basis of $\Cl(2n+1,0,0)$, ordered
+\[
+\text{index } 0,\dots,n{-}1 \;\to\; \dif q^a, \qquad
+\text{index } n,\dots,2n{-}1 \;\to\; \dif p_a, \qquad
+\text{index } 2n \;\to\; \dif s .
+\]
+Two distinct GA products carry the two distinct geometric operations required, and only one of them is metric-dependent in principle:
+\begin{itemize}[leftmargin=1.4em]
+\item The \textbf{outer product} builds $\alpha$, $\dif\alpha$, and the non-degeneracy wedge $\alpha\wedge(\dif\alpha)^n$. Since the outer product keeps only disjoint-blade terms with the Koszul reordering sign, these results are pure Grassmann-algebra facts, valid for \emph{any} choice of signature on the carrier — the Euclidean signature we impose plays no role in this part of the construction, a fact we make precise and verify in \S\ref{sec:signature-independence}.
+\item The \textbf{left contraction} realizes the natural pairing $\alpha(v) = \langle\alpha,v\rangle$ and the interior product $\iota_v\omega$. We identify the tangent basis $\partial_i$ with the cotangent basis $\dif x^i$ under the \emph{coordinate identity pairing} $\langle \dif x^i, \partial_j\rangle = \delta^i_j$ — a Darboux-chart convention layered on top of the algebra (it uses the coordinate basis furnished by $(q^a,p_a,s)$), not a coordinate-free identification read off from whatever bilinear form $\eta_{ij}$ the carrier happens to be given. This coordinate pairing reproduces $\langle\omega,v\rangle$ and $\iota_v\omega$ exactly in Darboux coordinates. We verified this numerically in $\Cl(3)$: contracting $e_1$ into $e_1\wedge e_2$ returns $e_2$, and contracting $e_2$ into $e_1\wedge e_2$ returns $-e_1$, confirming the contraction acts as $\iota_v$ — and, because this is a fixed coordinate convention rather than a signature-dependent operation, the result does not depend on which $\eta_{ij}$ was assigned to the carrier either.
+\end{itemize}
+Both operations used in this section are therefore, by construction, independent of the carrier's metric signature.
+
+\subsection{The forms}
+
+In this carrier,
+\begin{equation}
+\alpha = \dif s - p_a\,\dif q^a \quad(\text{grade 1, point-dependent through }p_a),\qquad
+\dif\alpha = \dif q^a\wedge \dif p_a \quad (\text{grade 2, constant}).
+\label{eq:forms}
+\end{equation}
+$\dif\alpha$ is exactly the canonical symplectic $2$-form on the $(q,p)$-block and annihilates $\dif s$: the fiber direction $\dif s$ spans $\ker(\dif\alpha)$, the radical of the degenerate $2$-form.
+
+\subsection{The Reeb/null direction as \texorpdfstring{$\ker(\dif\alpha)$}{ker(dα)}}
+\label{sec:reeb-direction}
+
+A natural first guess for representing a contact structure in GA is a degenerate Clifford algebra $\Cl(n,n,1)$ with an explicit null generator for $\dif s$ and opposite signs for the $q$- and $p$-directions, so that $\dif\alpha$ itself would be realized as the metric bivector. We considered and rejected this route \emph{for the purpose of this section} (representing the base Reeb/contact structure):
+\begin{enumerate}[leftmargin=1.4em]
+\item The defining relations \eqref{eq:xh-defn} are expressed entirely through the natural pairing and the interior product, neither of which requires a metric; a Euclidean-identity carrier is therefore sufficient and strictly simpler.
+\item A genuinely null generator ($e^2=0$) makes the bilinear form degenerate along that direction, so it cannot supply a natural, normalized musical isomorphism (vector $\leftrightarrow$ covector identification) there — which would undermine precisely the operations ($\alpha(R)$, $\iota_R\dif\alpha$) the representation exists to compute.
+\end{enumerate}
+Instead, the Reeb/null direction is realized \emph{intrinsically} as $\ker(\dif\alpha)$: because $\dif\alpha$ in \eqref{eq:forms} is non-degenerate on the symplectic $(q,p)$-block and identically zero along $\dif s$, the Reeb line is precisely the radical of $\dif\alpha$, and $R=\partial/\partial s$ is its canonical generator, normalized by $\alpha(R)=1$. This rejection is specific to representing the \emph{structure itself}; \S\ref{sec:versors} revisits the identical $\Cl(n,n,1)$ carrier for a different question — representing the \emph{symmetries} of the structure — where it turns out to be partially useful.
+
+\subsection{Genuine non-degeneracy}
+
+The contact condition requires $\alpha\wedge(\dif\alpha)^n \neq 0$ pointwise. Using the outer product of \S\ref{sec:carrier}, this is computed directly as an iterated wedge of the multivectors in \eqref{eq:forms}, rather than assumed. For the canonical form \eqref{eq:forms} this evaluates to $n!$ times the volume element on the $(q,p,s)$-block, reproducing the textbook normalization, but — critically — the computation is now a genuine algebraic operation: perturbing $\dif\alpha$ to drop one symplectic pair collapses the wedge to zero, correctly detecting degeneracy (\S\ref{sec:validation}).
+
+\subsection{Reeb field and contact Hamiltonian vector field from their defining equations}
+
+Rather than transcribing the Bravetti equations of motion \eqref{eq:bravetti-eom} directly, we \emph{solve} for $R$ and $X_H$ from their GA defining equations. $R=\partial/\partial s$ satisfies $\alpha(R)=1$ and $\iota_R\dif\alpha=0$ by direct contraction, verified at nontrivial points (both are independent of $p$, as they must be).
+
+For $X_H$, we write the right-hand side of \eqref{eq:xh-defn}, $\dif H - R(H)\alpha$, as an explicit grade-$1$ multivector and read off its coefficients against the interior-product expansion
+\begin{equation}
+\iota_X\dif\alpha = \sum_a\Big[(X\cdot \dif q^a)\,\dif p_a - (X\cdot \dif p_a)\,\dif q^a\Big],
+\end{equation}
+giving
+\begin{equation}
+X^{q_a} = \mathrm{coeff}_{\dif p_a}\big(\dif H - R(H)\alpha\big), \qquad
+X^{p_a} = -\,\mathrm{coeff}_{\dif q_a}\big(\dif H - R(H)\alpha\big),
+\end{equation}
+and, from $\alpha(X)=-H$,
+\begin{equation}
+X^s = -H + \sum_a p_a X^{q_a}.
+\end{equation}
+Expanding the right-hand-side coefficients recovers \emph{exactly} the Bravetti equations of motion \eqref{eq:bravetti-eom} — a purely algebraic consequence of the construction, not an assumption — which explains why the GA-derived $X_H$ agrees with a direct numerical implementation of \eqref{eq:bravetti-eom} to floating-point precision (\S\ref{sec:validation}).
+
+\subsection{Signature-independence of the base construction: an honest finding}
+\label{sec:signature-independence}
+
+Because \S\ref{sec:carrier} establishes that both operations used above — the outer product and the coordinate-identity contraction — are independent of the carrier's bilinear form, the base construction admits a direct empirical check: run the identical computation of $\alpha$, $\dif\alpha$, the non-degeneracy wedge, and $X_H$ in carriers with the same dimension $2n+1$ but different signature choices. We did this for $n=2$ ($2n+1=5$) across the non-degenerate splits $\Cl(5,0,0)$, $\Cl(0,5,0)$, $\Cl(3,2,0)$, and, to also probe a degenerate case, $\Cl(2,2,1)$ (which carries a genuine null generator and is revisited on its own terms in \S\ref{sec:versors}), and obtained numerically identical results in every case — for example the non-degeneracy wedge magnitude $|\alpha\wedge(\dif\alpha)^n|=n!$ (confirmed at $n=1,2,3$ as $1,2,6$ regardless of signature; \S\ref{sec:validation}), and the coefficients of $X_H$ agree termwise across all four signatures for every test Hamiltonian.
+
+\textbf{We report this without spin: it is not a subtle numerical coincidence, it is the direct consequence of \S\ref{sec:carrier}.} Because $\alpha\wedge(\dif\alpha)^n$ never invokes the geometric product's metric part, and because the contraction used for $\alpha(v)$ and $\iota_v\omega$ is a fixed coordinate convention rather than a read-off of the carrier's own $\eta_{ij}$, the entire base construction of \S\ref{sec:carrier}--\ref{sec:reeb-direction} is exterior (Grassmann) algebra dressed in Clifford notation: the geometric product contributes nothing that a plain exterior-algebra-plus-fixed-pairing implementation would not. This is an accurate characterization of what \S\ref{sec:carrier}--\ref{sec:reeb-direction} do, and we state it plainly rather than let a reader discover it independently. It does not, on its own, make the construction useless — it still replaces a previously hard-coded non-degeneracy placeholder with a genuine computation, and it still gives contact-geometric practitioners multivector objects that compose with the rest of a GA-based numerical stack — but it does mean the contribution of this part of the paper is representational and software-engineering in character, not a demonstration that the Clifford geometric product is doing conceptual work here. \S\ref{sec:versors} asks the sharper question directly: is there \emph{any} carrier and \emph{any} object in contact geometry for which the geometric product's metric part is load-bearing? We find a genuine, if bounded, "yes."
+
+\subsection{Rotor sign-convention resolution}
+\label{sec:rotor-convention}
+
+Two conventions for the rotor generated by a unit bivector $\hat B$ through angle $\theta$ are in common use: Hestenes writes $R=\exp(-\theta \hat B/2)$, while an equally common convention (matching e.g.\ a direct implementation of $\cos(\theta/2)+\sin(\theta/2)\hat B$) gives $\exp(+\theta\hat B/2)$. We resolved the apparent discrepancy numerically by rotating $e_1$ in the $e_1e_2$-plane by $+90^\circ$ under both constructions (Table~\ref{tab:rotor}); this convention, and the closed-form exponential machinery of \S\ref{sec:bivector-exp}, are what the versor construction of \S\ref{sec:versors} builds on directly — they are not generic library utilities incidental to this paper, but the shared machinery both parts of the paper depend on.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lll@{}}
+\toprule
+Construction & Formula & Sandwich result on $e_1$ \\
+\midrule
+$\exp(+\tfrac{1}{2}\theta\hat B)$ & $\theta=\pi/2$ & $-e_2$ (clockwise) \\
+Hestenes $\exp(-\tfrac{1}{2}\theta\hat B)$ & $\theta=\pi/2$ & $+e_2$ (counter-clockwise) \\
+\bottomrule
+\end{tabular}
+\caption{The two rotor conventions differ only in the orientation assigned to $\hat B$ (equivalently, the sign of $\theta$); both are internally consistent rotation operators.}
+\label{tab:rotor}
+\end{table}
+
+The two forms therefore agree up to flipping the orientation of $\hat B$ (or negating $\theta$): $\exp(+\theta\hat B/2)=\exp(-\theta(-\hat B)/2)$. To obtain the standard active counter-clockwise rotation ($e_1\mapsto e_2$ at $\theta=+\pi/2$) from either implementation, one must either negate $\theta$, negate $\hat B$, or explicitly adopt the Hestenes form $\exp(-\theta\hat B/2)$ — which we adopt as the fixed convention for all rotor helpers introduced in this work; any code combining rotor sources from both conventions must pin the orientation explicitly to avoid a silent handedness error.
+
+\subsection{Closed-form bivector exponentials}
+\label{sec:bivector-exp}
+
+A generic bivector exponential map $\exp(B)=\sum_k B^k/k!$ is always available via its Taylor series, but a closed form exists whenever $B$ is \emph{simple} ($B\wedge B = 0$): in the Euclidean carrier used in this section, every simple bivector has $B^2$ a non-positive scalar, and $\exp(B) = \cos|B| + \sin(|B|)\hat B$. (As emphasized in \S\ref{sec:background-ga}, this sign is a property of the Euclidean signature, not of simplicity in general — the versor construction of \S\ref{sec:versors} uses simple bivectors with $B^2>0$, for which the closed form is instead the hyperbolic $\cosh|B|+\sinh(|B|)\hat B$.) Every bivector in three dimensions is simple, so the closed form applies unconditionally; in four (and higher) dimensions a generic bivector is not simple, and the scalar-$B^2$ closed form does not apply. We therefore compute $\exp(B)$ by first testing simplicity via $B\wedge B \overset{?}{=} 0$: simple bivectors use the closed form directly, while non-simple bivectors fall back to scaling-and-squaring of the Taylor series, built purely from the generic geometric product and addition already present in the algebra. As a check, $\exp(e_{12}+e_{34})$ (a non-simple, commuting sum of two orthogonal simple bivectors) was verified to have scalar part $\cos^2(1)$ and unit-rotor norm $R\tilde R = 1$.
+
+\section{Versor Representation of Contactomorphisms in \texorpdfstring{$\Cl(n,n,1)$}{Cl(n,n,1)}}
+\label{sec:versors}
+
+\subsection{Motivation and the question}
+
+\S\ref{sec:signature-independence} showed that the base construction never uses the carrier's metric. This section asks whether the metric can be made to matter for a related but different object: not the contact structure itself, but its \emph{symmetries}. A contactomorphism is a diffeomorphism $\varphi$ with $\varphi^*\alpha = f\cdot\alpha$ for a nonvanishing conformal factor $f$. In ordinary GA, symmetries (rotations, boosts) are versors — exponentials of bivectors applied by the sandwich $v\mapsto VvV^{-1}$ — precisely because the metric is active in that operation ($V\tilde V$ need not be $1$ unless $V$ is unit-normalized, but the sandwich's dependence on $\tilde V$ vs.\ $V^{-1}$, and on whether $B^2$ is positive, negative, or zero, is entirely metric-driven). The carrier rejected in \S\ref{sec:reeb-direction}, $\Cl(n,n,1)$ — opposite signs on the $q$- and $p$-generators, a genuine null generator for $\dif s$ — makes $\dif\alpha$ itself a metric bivector rather than an inert wedge. This is genuinely open: we do not know in advance whether contactomorphisms are versors in this carrier, and the answer we find is neither uniformly yes nor uniformly no.
+
+\subsection{The carrier}
+
+\begin{align*}
+e^q_1,\dots,e^q_n&:\ (e^q_a)^2=+1 \quad(q\text{-directions}), \\
+e^p_1,\dots,e^p_n&:\ (e^p_a)^2=-1 \quad(p\text{-directions}), \\
+e_s&:\ e_s^2=0 \quad(\text{null generator, the }\dif s/\text{Reeb axis}).
+\end{align*}
+The contact bivector is
+\begin{equation}
+B = \dif\alpha = \sum_a B_a, \quad B_a := e^q_a\wedge e^p_a, \qquad (e^q_a e^p_a)^2 = -(e^q_a)^2(e^p_a)^2 = -(+1)(-1) = +1,
+\label{eq:pairbivector}
+\end{equation}
+so \textbf{each pair-bivector $B_a$ has scalar square $+1$ — a genuine hyperbolic metric bivector.} For $n=1$ this already is $B$ itself. For $n>1$, the distinct $B_a$ commute pairwise (they are built from disjoint sets of mutually orthogonal generators) but $B_a B_b\ne0$ for $a\ne b$ is a nonzero grade-$4$ term, not a scalar; we verified directly in $\Cl(2,2,1)$ that $B^2 = \sum_a B_a^2 + \sum_{a\ne b}B_aB_b = n - (\text{nonzero grade-4 residue})$, e.g.\ $B^2=2-2\,e^q_1e^p_1e^q_2e^p_2$ at $n=2$. So the total $\dif\alpha$ is a sum of commuting hyperbolic bivectors, each individually load-bearing for the squeeze construction below, rather than itself a single scalar-squaring bivector for $n>1$. This is the key contrast with the Euclidean carrier of \S\ref{sec:carrier}: the signature now matters, verified directly (\S\ref{sec:validation}).
+
+\paragraph{Darboux $\leftrightarrow$ light-cone identification.} A hyperbolic versor $V=\exp(\theta B/2)$ acts on the orthonormal $(e^q,e^p)$ basis as a boost (mixing $q$ and $p$ directions). To recover the physically meaningful \emph{diagonal squeeze}, identify the Darboux coordinates $(q_a,p_a)$ with the null (light-cone) basis of each hyperbolic plane,
+\begin{equation}
+n^q_a = e^q_a - e^p_a \ \ (\langle n^q_a,n^q_a\rangle=0), \qquad
+n^p_a = \tfrac12(e^q_a+e^p_a) \ \ (\langle n^p_a,n^p_a\rangle=0,\ \langle n^q_a,n^p_a\rangle=1),
+\end{equation}
+so a point $(q,p,s)$ is carried by the grade-1 vector $X=\sum_a(q_a n^q_a + p_a n^p_a) + s\,e_s$. In this basis the versor $V=\exp(\theta B/2)$ acts diagonally, $n^q_a\mapsto e^{\theta}n^q_a$, $n^p_a\mapsto e^{-\theta}n^p_a$ — i.e.\ the symplectic squeeze $q_a\mapsto e^{\theta}q_a$, $p_a\mapsto e^{-\theta}p_a$.
+
+\subsection{The honest test}
+
+Every claim below is checked against the \emph{definition} of a contactomorphism, not by construction. Given an induced affine coordinate map $\varphi(X)=MX+b$, we pull back $\alpha = \dif s - \sum_a p_a\,\dif q^a$,
+\begin{equation}
+(\varphi^*\alpha)_X(v) = (Mv)_s - \sum_a (MX+b)_{p_a}(Mv)_{q_a},
+\end{equation}
+and require this to equal $f\cdot\alpha_X(v) = f\big(v_s - \sum_a X_{p_a}v_{q_a}\big)$ for a \emph{constant} $f$, sampling many $(X,v)$ and reporting the worst residual. This test is not tautological: it fails (residual $\approx 0.7$ and up) for non-contact maps and passes (residual $\approx 10^{-15}$) only for genuine contactomorphisms.
+
+\subsection{Positive result: the squeeze is a versor-generated strict contactomorphism}
+
+The symplectic squeeze $\varphi_\theta:(q,p,s)\mapsto(e^\theta q,\,e^{-\theta}p,\,s)$ is realized \emph{exactly} by the sandwich with $V=\exp(\theta\,e^q\wedge e^p/2)$:
+\begin{itemize}[leftmargin=1.4em]
+\item $V$ is a genuine unit versor ($V\tilde V=1$), because $B^2=+1$ (hyperbolic rotor).
+\item Its induced Darboux map is $\mathrm{diag}(e^\theta,e^{-\theta},1)$ — no coordinate leakage.
+\item $\varphi_\theta^*\alpha=\alpha$ exactly ($f=1$), pullback residual $\sim10^{-15}$: a \emph{strict} contactomorphism, since $(e^{-\theta}p)\,\dif(e^\theta q)=p\,\dif q$.
+\item It is an isometry: acting only within the $(q_a,p_a)$ block it leaves untouched, and fixing $e_s$ identically (Lemma~\ref{lem:radical-rigidity} below, even-parity case), its matrix is exactly $\mathrm{diag}(e^\theta,e^{-\theta},1)$ in the light-cone basis, with $\det=+1$ verified directly rather than inferred from a general isometry law.
+\item It generalizes cleanly to $n\ge2$ with independent rapidities per plane.
+\end{itemize}
+This is a real geometric-algebra fact where the metric does genuine work: $B^2=+1$ (hyperbolic, from the $(+,-)$ signature) is exactly what produces the scaling $e^{\pm\theta}$; in a Euclidean carrier the same bivector would generate a rotation, not a squeeze. Unlike the base construction of \S\ref{sec:signature-independence}, the signature is load-bearing here.
+
+\subsection{Negative result: the Reeb flow is not a versor sandwich}
+
+The Reeb flow $\varphi_t:(q,p,s)\mapsto(q,p,s+t)$ is the simplest contactomorphism ($f=1$); as an affine map (linear part $I$, translation $t$ along $e_s$) it passes the contact test. But a versor sandwich $v\mapsto Vv V^{-1}$ is \emph{linear} and therefore fixes the origin ($V\cdot 0\cdot V^{-1}=0$), whereas the Reeb flow sends $(0,0,0)\mapsto(0,0,t)$: no versor sandwich in the direct vector representation can reproduce it. The natural candidates — null-generator "translator" versors $\exp(t\,e_s\wedge e^q/2)$ and $\exp(t\,e_s\wedge e^p/2)$ (parabolic, since $(e_s\wedge e)^2=0$) — fix the origin and instead produce a coordinate shear of $s$ ($s\mapsto s+c\,q$ or $s\mapsto s+c\,p$), which is \emph{not} a contactomorphism at all ($\varphi^*\alpha = \dif s - (p-c)\dif q\ne f\alpha$; residual $\approx0.7$ and up). Representing a constant translation as a versor would require a separate homogeneous/projective generator (as in projective GA), enlarging the algebra beyond $\Cl(n,n,1)$ — exactly the extra structure this section was testing whether we could avoid.
+
+\subsection{Negative result: the conformal dilation is not a versor sandwich}
+\label{sec:dilation-negative}
+
+The contact dilation $\varphi_\lambda:(q,p,s)\mapsto(q,\lambda p,\lambda s)$, $\varphi_\lambda^*\alpha=\lambda\alpha$ ($f=\lambda\ne1$), is a genuine contactomorphism with a non-unit conformal factor (verified: pullback gives $f=\lambda$, residual $0$).
+
+A first instinct is to rule this out by appeal to a general law — \emph{``every versor sandwich is an isometry, $|\det|=1$, so no versor can realize $\det=\lambda^2$.''} This law is \textbf{false for a degenerate bilinear form}: on $\Cl(n,n,1)$ the ambient form $G$ has a nontrivial radical (the $e_s$ direction), and preserving a degenerate $G$ does not force $|\det|=1$. Concretely, take $G=\mathrm{diag}(1,-1,0)$ and $M=\mathrm{diag}(1,1,\lambda)$ for any $\lambda\ne0$: $M^\top G M = G$ holds identically (the zero row/column absorbs the $\lambda$'s), yet $\det M=\lambda$ is unconstrained. So ``preserves the (degenerate) form'' does not by itself exclude $\lambda\ne\pm1$, and invoking $|\det|=1$ as a blanket isometry law for versor sandwiches in $\Cl(n,n,1)$ is not valid. We verified this failure mode directly: the general theorem relating orthogonal transformations and Lipschitz-group versors requires a \emph{non-degenerate} form, and its standard proof (e.g.\ via the Cartan--Dieudonné theorem) does not extend to the radical direction \cite{filimoshina2023degenerate}.
+
+The correct exclusion argument does not go through the determinant at all — it goes through what a versor is forced to do to the radical generator $e_s$ itself.
+
+\begin{lemma}[Radical rigidity]
+\label{lem:radical-rigidity}
+Let $w$ be any vector in the non-degenerate $(q,p)$-block of $\Cl(n,n,1)$, so that $w$ anticommutes with the null radical generator $e_s$ ($w e_s = -e_s w$, since $e_s$ is orthogonal to every $q$- and $p$-direction by construction). Let $v = w + c\,e_s$ for any $c\in\mathbb{R}$, and suppose $v$ is invertible. Then
+\[
+v\,e_s\,v^{-1} = -e_s,
+\]
+exactly, independent of $c$. Consequently, for any versor $V = v_1v_2\cdots v_m$ (a product of $m$ invertible vectors, the standard Lipschitz-group definition),
+\[
+V\,e_s\,V^{-1} = (-1)^m e_s.
+\]
+\end{lemma}
+
+\begin{proof}
+Since $e_s^2=0$ and $w e_s=-e_sw$, we have $v^2 = (w+ce_s)^2 = w^2 + c(we_s+e_sw) + c^2e_s^2 = w^2$ — the cross term cancels by anticommutation and the $e_s^2$ term vanishes, so $v^2=w^2\ne0$ is a nonzero scalar and $v^{-1}=v/v^2$. Now compute $v\,e_s\,v = (w+ce_s)e_s(w+ce_s) = (we_s+ce_s^2)(w+ce_s) = we_s(w+ce_s)$ (using $e_s^2=0$) $= we_sw + cwe_s^2 = we_sw = -e_sw^2$ (using $we_s=-e_sw$ once more, then $ww=w^2$). Hence $v\,e_s\,v = -e_s w^2 = -e_s v^2$, so $v\,e_s\,v^{-1} = (v\,e_s\,v)/v^2 = -e_s$. For a product $V=v_1\cdots v_m$, apply this sign flip once per factor: $V e_s V^{-1} = v_1(\cdots(v_m e_s v_m^{-1})\cdots)v_1^{-1}$ picks up $(-1)$ at each stage, giving $(-1)^m e_s$.
+\end{proof}
+
+\textbf{Numerical verification.} We checked Lemma~\ref{lem:radical-rigidity} directly in $\Cl(2,2,1)$ and $\Cl(3,3,1)$ using exact Clifford-algebra arithmetic: for squeeze bivectors, rotation-type bivectors, sums of these, bivectors explicitly involving $e_s$, and fully generic random linear combinations of \emph{every} basis bivector, the commutator $[B,e_s]$ vanishes exactly (to machine precision, consistent with an exact algebraic identity) for every $B$ built purely from the $(q,p)$-block, and every corresponding rotor sandwich $V e_s V^{-1}$ returns exactly $e_s$ (even case) across rapidities $\theta\in[-8.3,8.3]$.
+
+\begin{corollary}
+\label{cor:dilation-excluded}
+The image of $e_s$ under the adjoint action of any versor in $\Cl(n,n,1)$ is exactly $e_s$ (even versors) or $-e_s$ (odd versors) — never any other scalar multiple. The dilation $\varphi_\lambda$ requires a linear map sending $e_s\mapsto\lambda e_s$ (since $s\mapsto\lambda s$). For every $\lambda\notin\{+1,-1\}$, Lemma~\ref{lem:radical-rigidity} excludes this outright: no versor sandwich can send $e_s\mapsto\lambda e_s$, regardless of determinant. No appeal to $|\det|=1$ is needed.
+\end{corollary}
+
+\textbf{Scope and an honest gap at $\lambda=-1$.} Corollary~\ref{cor:dilation-excluded} rigorously excludes all $\lambda\notin\{+1,-1\}$, which is the physically relevant case ($\lambda=1$ is the identity; genuine dilations have $\lambda\ne\pm1$). The isolated case $\lambda=-1$ is \emph{not} automatically excluded by Lemma~\ref{lem:radical-rigidity} alone, since an odd versor is permitted to send $e_s\mapsto -e_s$. We do not have a proof that no odd versor simultaneously fixes every $q_a$ and sends every $p_a\mapsto -p_a$ (the full action required by $\varphi_{-1}$); we only report a numerical spot-check, not a proof: sampling random single-vector odd versors satisfying $ve_sv^{-1}=-e_s$ in $\Cl(2,2,1)$ and $\Cl(3,3,1)$, none of the samples produced the required diagonal action — all produced off-diagonal mixing between $q$- and $p$-directions instead. We report this as an open point rather than claim it as settled.
+
+This replaces determinant-counting with an argument specific to the degenerate structure of $\Cl(n,n,1)$: \textbf{no versor sandwich in $\Cl(n,n,1)$ can scale the radical direction $e_s$ by any factor other than $\pm1$}, and every squeeze versor we constructed is confirmed numerically to have $f=1$. In ordinary GA, dilations are versors only in the conformal model $\Cl(n+1,1)$ (extra generators) — again structure beyond $\Cl(n,n,1)$.
+
+\subsection{Hybrid construction and verdict}
+
+Composing the squeeze versor ($f=1$) with an \emph{explicit} scalar dilation on the $(p,s)$ block ($f=\lambda$) reproduces a conformal contactomorphism with any $f=\lambda$, but the dilation step is not itself a versor operation. In summary: \emph{versors alone are insufficient for the full contact group in $\Cl(n,n,1)$; a versor-plus-explicit-dilation hybrid is required, and the versor part only ever supplies the isometric ($f=1$) piece.} Table~\ref{tab:versor-verdict} summarizes.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lcl@{}}
+\toprule
+Contactomorphism & $f$ & Versor sandwich in $\Cl(n,n,1)$? \\
+\midrule
+Squeeze $(e^\theta q,e^{-\theta}p,s)$ & 1 & \textbf{Yes} — $\exp(\theta\,e^q\wedge e^p/2)$, exact, metric active \\
+Reeb flow $(q,p,s+t)$ & 1 & \textbf{No} — affine translation; sandwich fixes the origin \\
+Conformal dilation $(q,\lambda p,\lambda s)$ & $\lambda$ & \textbf{No} for $\lambda\notin\{\pm1\}$ — Lemma~\ref{lem:radical-rigidity} forbids $e_s\mapsto\lambda e_s$ \\
+General conformal & $\ne1$ & only as versor $\circ$ dilation hybrid, not a pure versor \\
+\bottomrule
+\end{tabular}
+\caption{Versor-representability of contactomorphisms in $\Cl(n,n,1)$.}
+\label{tab:versor-verdict}
+\end{table}
+
+\textbf{Is $\Cl(n,n,1)$ a genuinely useful GA representation for contact geometry?} Partially, with the scope stated precisely. It is a real improvement over the Euclidean carrier of \S\ref{sec:carrier} in one specific sense: the metric is not inert — $\dif\alpha$ is built from hyperbolic pair-bivectors $B_a$ with $B_a^2=+1$, and its versors generate the linear symplectic isometry subgroup of contactomorphisms (the strict, $f=1$, squeeze/boost transformations), genuinely, with the signature doing load-bearing work. But the full contactomorphism group is not a versor group here: the Reeb translation and the conformal dilation (for $\lambda\notin\{\pm1\}$) are provably outside the reach of pure versor sandwiches, one because it is affine and one because Lemma~\ref{lem:radical-rigidity} forbids any versor from rescaling the radical $e_s$. Capturing them requires enlarging the algebra (a projective generator for translations, conformal generators for dilations) or falling back to an explicit hybrid — reintroducing exactly the extra structure that would undercut a claim of a clean versor representation. \textbf{We state the bottom line as a bounded result, not a general theorem:} in $\Cl(n,n,1)$, contact symplectic isometries ($f=1$) are genuine bivector-generated versors built from the pair-bivectors of $\dif\alpha$; the Reeb flow and conformal dilations with $\lambda\notin\{\pm1\}$ are not versors, and the contact group is not a versor group in this carrier.
+
+\section{Numerical Validation}
+\label{sec:validation}
+
+The construction described above was implemented and tested in a JavaScript reference library (\texttt{contact-thermodynamics}, \url{https://github.com/gutama/contact-thermodynamics}), additively alongside a pre-existing conventional (non-GA) implementation of contact Hamiltonian mechanics, so that every GA-derived quantity could be cross-checked against an independent numerical baseline.
+
+\textbf{Base construction (\S\ref{sec:carrier}--\ref{sec:bivector-exp}), 37 automated assertions, all passing:}
+\begin{itemize}[leftmargin=1.4em]
+\item \textbf{$\alpha$ and $\dif\alpha$}: $\alpha$ has the correct $+1\cdot\dif s$, $-p_a\dif q^a$ coefficients at arbitrary test points; $\dif\alpha$ is pure grade-2 and, as expected, coordinate-independent.
+\item \textbf{Non-degeneracy}: $|\alpha\wedge(\dif\alpha)^n|$, computed via the GA wedge, equals $n!$ for $n=1,2,3$ (values $1,2,6$), reproducing the value the conventional implementation had previously hard-coded — confirming the old placeholder was numerically correct but is now \emph{actually computed} rather than assumed. Repeating this computation across $\Cl(5,0,0)$, $\Cl(0,5,0)$, $\Cl(3,2,0)$, and the degenerate $\Cl(2,2,1)$ leaves the result unchanged (\S\ref{sec:signature-independence}).
+\item \textbf{Degeneracy detection}: artificially dropping one symplectic pair from $\dif\alpha$ makes $\alpha\wedge(\dif\alpha)^n = 0$, confirming the check is a genuine (non-constant) function of the input structure.
+\item \textbf{Reeb field}: $\alpha(R)=1$ and $\iota_R\dif\alpha = 0$ hold at nontrivial (non-origin) points.
+\item \textbf{Contact Hamiltonian vector field}: the GA-derived $X_H$ matches a direct numerical evaluation of the Bravetti equations of motion \eqref{eq:bravetti-eom} to a maximum coefficient-wise difference of $0.0$, for four test Hamiltonians, two of which include explicit $s$-dependence (exercising the dissipative $-p_a\,\partial H/\partial s$ term). Residuals of the defining equations, $\alpha(X_H)+H$ and $\|\iota_{X_H}\dif\alpha-(\dif H - R(H)\alpha)\|$, both vanish.
+\item \textbf{Flow invariance}: $\alpha\wedge(\dif\alpha)^n \neq 0$ at every point along a 20-step numerically integrated contact flow.
+\item \textbf{Rotors}: the convention resolution of Table~\ref{tab:rotor}, and the unit-rotor property $R\tilde R=1$ for three-dimensional bivectors and both simple and non-simple four-dimensional bivectors.
+\end{itemize}
+
+\textbf{Versor construction (\S\ref{sec:versors}), 32 automated assertions, all passing:}
+\begin{itemize}[leftmargin=1.4em]
+\item $B_a^2=+1$ confirmed directly for each pair-bivector of the contact bivector in $\Cl(n,n,1)$ (and, for $n=1$, $B=B_a$ itself); for $n>1$ the total $B=\sum_a B_a$ has a nonzero grade-4 residue and is not itself scalar-squaring (\S\ref{sec:versors}, near Eq.~\eqref{eq:pairbivector}).
+\item Lemma~\ref{lem:radical-rigidity} (radical rigidity) verified numerically: $[B,e_s]=0$ exactly and $Ve_sV^{-1}=e_s$ to floating-point precision, for generic bivectors $B$ and versors $V$ built from the $(q,p)$-block in $\Cl(2,2,1)$ and $\Cl(3,3,1)$.
+\item The squeeze versor sandwich reproduces $\mathrm{diag}(e^\theta,e^{-\theta},1)$ exactly and passes the contact test with $f=1$, residual $\sim10^{-15}$; verified for $n=1,2$.
+\item The null-generator translator sandwiches produce the predicted $s\mapsto s+c\,q$ (or $+c\,p$) shear and fail the contact test with residual $\ge0.7$.
+\item The conformal dilation passes the contact test with $f=\lambda$ but is confirmed to have $\det=\lambda^2\ne\pm1$, while every constructed versor has $|\det|=1$.
+\item The versor sandwich operation $v\mapsto Vv V^{-1}$ (using the true multivector inverse, not merely the reverse) was confirmed scale-invariant: rescaling $V$ by an arbitrary nonzero constant leaves the sandwich result unchanged, as required for the operation to be well-defined independent of how $V$ is normalized.
+\item The conformal-factor extraction routine (\texttt{contactResidual}) uses fixed, deterministic sampling rather than uncontrolled randomness, so results are exactly reproducible across runs.
+\end{itemize}
+
+The construction is additive: it does not modify the pre-existing conventional implementation, and the full pre-existing regression suite is unaffected by its introduction (all existing test suites continue to pass; static analysis reports zero errors on all new and modified source files).
+
+\section{Discussion and Limitations}
+
+\textbf{Dimensionality.} The generic Clifford-algebra implementation used here precomputes a full product table, guarded against runaway allocation at high dimension; a sparse exterior-algebra backend — computing the wedge and contraction directly over sorted blade indices rather than a dense product table — would remove the remaining practical ceiling and is a natural next step for extending the construction to higher-dimensional thermodynamic phase spaces.
+
+\textbf{Non-canonical contact forms.} The present construction assumes Darboux coordinates, $\alpha = \dif s - p_a\,\dif q^a$. General contact transformations, or a contact form with a nontrivial conformal factor, are represented in \S\ref{sec:versors} only for the specific affine maps we tested; a general classification of which contactomorphisms are versors, hybrids, or neither remains open.
+
+\textbf{What remains genuinely open after \S\ref{sec:versors}.} We have shown one concrete positive case (the linear symplectic squeeze) and two concrete negative cases (Reeb translation, conformal dilation) within $\Cl(n,n,1)$. We have not shown, and do not claim, that this exhausts the contactomorphism group, nor have we characterized which enlarged carrier (projective, conformal, or some other extension) would bring the translation and dilation pieces into the versor fold without losing the genuine positive result for squeezes. That characterization is future work.
+
+\textbf{Relation to black-hole thermodynamics.} Contact geometry has already been applied to black-hole thermodynamics in extended (AdS) phase space, giving a Hamiltonian language for equations of state and $P$--$V$ criticality \cite{ghosh2019contact}. Because the present construction makes the contact-geometric machinery — the non-degeneracy check, the Reeb field, the contact Hamiltonian vector field, and now a partial versor picture of its symmetries — into concrete, testable GA objects, it provides a computational substrate for extending that black-hole application; we leave this as future work.
+
+\section{Conclusion}
+
+We have given a geometric-algebra construction of the contact form, its exterior derivative, the Reeb field, and the contact Hamiltonian vector field underlying contact Hamiltonian thermodynamics, reproducing the standard Bravetti--Cruz--Tapias formalism exactly and replacing a previously hard-coded non-degeneracy placeholder with a genuine wedge-product computation. We showed that this base construction is signature-independent — the Clifford geometric product does no work beyond notation in that part — and used that finding to motivate a genuinely open second question, answered with a mixed result: in the degenerate carrier $\Cl(n,n,1)$, the symplectic-squeeze subgroup of contactomorphisms is represented exactly by GA versors with the metric doing real work, while the Reeb flow and conformal dilations are provably not versors in this carrier. Prior GA formulations of (symplectic) Hamiltonian mechanics exist \cite{hestenes1993hamiltonian,pappas1993hamiltonian,aboueldahab2000hamiltonian}; the contribution here is the contact-specific extension and the explicit, tested boundary of where its metric structure is and is not load-bearing. All results are implemented, tested, and released as open-source software.
+
+\bibliographystyle{plain}
+\begin{thebibliography}{99}
+
+\bibitem{bravetti2017contact}
+A.~Bravetti, H.~Cruz, D.~Tapias, ``Contact Hamiltonian Mechanics,'' \textit{Annals of Physics} \textbf{376} (2017) 17--39, arXiv:1604.08266. \url{https://arxiv.org/abs/1604.08266}
+
+\bibitem{bravetti2015symmetries}
+A.~Bravetti, C.~S.~Lopez-Monsalvo, F.~Nettel, ``Contact Symmetries and Hamiltonian Thermodynamics,'' \textit{Annals of Physics} \textbf{361} (2015) 377--400. \url{https://linkinghub.elsevier.com/retrieve/pii/S0003491615002754}
+
+\bibitem{deleon2021review}
+M.~de Le\'on, M.~Lainz, ``A review on contact Hamiltonian and Lagrangian systems,'' arXiv:2011.05579. \url{https://arxiv.org/abs/2011.05579}
+
+\bibitem{ghosh2019contact}
+A.~Ghosh, C.~Bhamidipati, ``Contact geometry and thermodynamics of black holes in AdS spacetimes,'' \textit{Phys. Rev. D} \textbf{100}, 126020 (2019). \url{https://link.aps.org/doi/10.1103/PhysRevD.100.126020}
+
+\bibitem{hestenes2003sta}
+D.~Hestenes, ``Spacetime physics with geometric algebra,'' \textit{American Journal of Physics} \textbf{71}, 691 (2003). \url{https://pubs.aip.org/ajp/article/71/7/691/310607}
+
+\bibitem{hestenes1993hamiltonian}
+D.~Hestenes, ``Hamiltonian Mechanics with Geometric Calculus,'' in \textit{Clifford Algebras and their Applications in Mathematical Physics}, Kluwer, Dordrecht/Boston (1993), pp.~203--214.
+
+\bibitem{pappas1993hamiltonian}
+R.~C.~Pappas, ``A Formulation of Hamiltonian Mechanics Using Geometrical Calculus,'' in F.~Brackx et al.\ (eds.), \textit{Clifford Algebras and their Applications in Mathematical Physics}, Kluwer Academic Publishers (1993).
+
+\bibitem{aboueldahab2000hamiltonian}
+E.~T.~Abou~El~Dahab, ``A Formulation of Hamiltonian Mechanics Using Geometric Algebra,'' \textit{Advances in Applied Clifford Algebras} \textbf{10}, no.~2 (2000), 217--223.
+
+\bibitem{lasenby2016ga}
+A.~Lasenby, ``Geometric Algebra as a Unifying Language for Physics and Engineering and Its Use in the Study of Gravity,'' \textit{Adv. Appl. Clifford Algebras} (2016). \url{http://link.springer.com/10.1007/s00006-016-0700-z}
+
+\bibitem{dressel2015sta}
+J.~Dressel, K.~Y.~Bliokh, F.~Nori, ``Spacetime algebra as a powerful tool for electromagnetism,'' \textit{Physics Reports} \textbf{589} (2015) 1--71, arXiv:1411.5002. \url{https://arxiv.org/abs/1411.5002}
+
+\bibitem{contactthermolib}
+G.~Utama, \texttt{contact-thermodynamics} (open-source software repository). \url{https://github.com/gutama/contact-thermodynamics}
+
+\bibitem{filimoshina2023degenerate}
+E.~R.~Filimoshina, D.~S.~Shirokov, ``On Some Lie Groups in Degenerate Clifford Geometric Algebras,'' \textit{Advances in Applied Clifford Algebras} \textbf{33} (2023), 44, arXiv:2301.06842. \url{https://arxiv.org/abs/2301.06842}
+
+\end{thebibliography}
+
+\end{document}

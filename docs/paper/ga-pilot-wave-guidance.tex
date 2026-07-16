@@ -1,0 +1,227 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,linkcolor=teal,citecolor=teal,urlcolor=teal]{hyperref}
+\hypersetup{pdfauthor={Perplexity Computer}, pdftitle={Geometric-Algebra Regularization of the de Broglie-Bohm Guidance Equation Near Wavefunction Nodes}}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{parskip}
+
+\newcommand{\Cl}{\mathrm{Cl}}
+
+\title{\Large A Rotor Discretization of the de~Broglie--Bohm\\ Guidance Equation: A Modest, Honestly-Scoped Numerical Note}
+\author{Ginanjar Utama\\ \small \texttt{ginanjar.utama@gmail.com}}
+\date{July 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+The de~Broglie--Bohm guidance equation, $v=(\hbar/m)\,\mathrm{Im}(\nabla\psi/\psi)$, is sometimes discretized on a grid by differentiating the wrapped phase angle $\theta=\mathrm{atan2}(\psi_i,\psi_r)$. Because $\theta$ has an arbitrary $2\pi$ branch cut, central-differencing it numerically produces a spurious, unbounded artifact along the entire cut. We reformulate the guidance equation in geometric algebra (GA), representing the wavefunction's phase factor as a unit rotor $U=\exp(I\theta)$ in the plane algebra $\Cl(2,0,0)$, with $I$ the unit pseudoscalar, and computing the guidance velocity as the grade-1 part of the rotor's logarithmic derivative, $v=(\hbar/m)\langle(\nabla U)U^{-1}I^{-1}\rangle_1$. This is analytically identical to the standard guidance equation in flat, non-relativistic space, so it introduces no new continuum physics; the interesting content is purely in how the two mathematically equivalent expressions discretize. We report the comparison honestly against \emph{two} baselines, not one: a naive $\nabla\mathtt{atan2}$ scheme, and the standard current form $v=(\hbar/m)\,\mathrm{Im}(\psi^*\nabla\psi)/|\psi|^2$ central-differenced directly on $\mathrm{Re}\,\psi,\mathrm{Im}\,\psi$ without ever forming an angle. Against the naive scheme the rotor form looks like a categorical fix (errors of order $30$ vs.\ $0.02$--$0.04$ near a phase-vortex node); against the honest standard current form, which has no branch cut and is already accurate, the rotor form is \emph{comparable} near the node and offers a modest, real $\sim\!4$--$5\times$ constant-factor accuracy advantage away from it, from differencing the amplitude-normalized rotor $\psi/|\psi|$ rather than the full complex field. At a one-dimensional real (sign-flip) node, both the standard current and the rotor form return the exact value $v=0$; only the naive angle-differencing scheme spikes. We also correct an error in an earlier version of this analysis: a coarse-grained $H$-function relaxation test that used a static (non-mixing) wavefunction produced a spurious $H$-\emph{increasing} trajectory for both fields, which we show was an artifact of the test setup, not of either guidance formulation; using the canonical time-dependent two-eigenstate superposition, $H$ decreases monotonically (modulo small, correlated solver noise) for both the standard and rotor fields at closely comparable rates. We report the result without overclaiming: this is a narrow, tested constant-factor discretization improvement, not a new physical prediction, and GA/Clifford formulations of pilot-wave guidance (including the relativistic Dirac-current case) are not new.
+\end{abstract}
+
+\section{Introduction}
+
+De~Broglie--Bohm pilot-wave theory (Bohmian mechanics) is a deterministic hidden-variable completion of quantum mechanics in which point particles follow definite trajectories guided by the wavefunction through the \emph{guidance equation}
+\begin{equation}
+v = \frac{\hbar}{m}\,\mathrm{Im}\!\left(\frac{\nabla\psi}{\psi}\right) = \frac{\hbar}{m}\,\frac{\mathrm{Im}(\psi^*\nabla\psi)}{|\psi|^2} = \frac{\hbar}{m}\nabla \theta,
+\qquad \psi = R\,e^{i\theta},
+\label{eq:guidance-standard}
+\end{equation}
+where $R=|\psi|$ and $\theta$ is the wavefunction's (dimensionless) phase angle. The theory reproduces the Born-rule statistics of orthodox quantum mechanics provided the initial particle ensemble is distributed as $|\psi|^2$ — the \emph{quantum equilibrium} hypothesis. Valentini's program treats this not as a postulate but as the endpoint of a genuine relaxation process, described by a coarse-grained $H$-function that decreases as an initially non-equilibrium ensemble relaxes toward $|\psi|^2$ \cite{valentini2005dynamical}, quantified further in \cite{towler2011relaxation}, and opening the possibility of observable quantum non-equilibrium in extreme regimes such as the early universe \cite{valentini2024search}.
+
+A separate, purely technical difficulty affects any implementation of \eqref{eq:guidance-standard}: the velocity field diverges at \emph{nodes} where $\psi=0$. Bell proposed regularizing the divergence at nodes by convolving the current with a smoothing kernel \cite{bell1987}; Valentini and Westman's relaxation studies use a coarse-grained smoothing of exactly this kind to define a well-behaved velocity field for ensemble evolution near nodes \cite{valentini2005dynamical}. A related but distinct issue arises purely from \emph{how} the phase is computed on a grid: reconstructing $\theta$ via an inverse-tangent function ($\mathtt{atan2}$) inherits an arbitrary branch cut along which the reconstructed phase jumps discontinuously by $2\pi$, and differencing across that cut produces a numerical artifact that has nothing to do with the physical node. \textbf{The central correction of this paper relative to an earlier draft of this analysis is separating these two issues cleanly}: the branch-cut artifact is a property of one particular (naive) discretization choice, not of the guidance equation itself, since the standard current form $\mathrm{Im}(\psi^*\nabla\psi)/|\psi|^2$ in \eqref{eq:guidance-standard} never needs to reconstruct an angle and has no branch cut.
+
+This paper asks a narrower, discretization-level question: does representing the phase factor as a rotor in geometric algebra (GA), following the Hestenes/Doran--Lasenby treatment of spinorial quantum mechanics \cite{hestenes2003sta}, and differentiating that rotor directly, offer any advantage over the \emph{honest} standard discretization — not merely over a naive angle-differencing strawman? We find a real but modest advantage: a constant-factor ($\sim\!4$--$5\times$) reduction in truncation error away from singularities, because the rotor discretization differences an amplitude-normalized object whose error does not couple to the amplitude gradient. We scope the novelty claim narrowly: GA/Clifford treatments of the Pauli/Dirac current and of relativistic Bohmian trajectories already exist \cite{hestenes2003sta,colin2012dirac}; the specific, tested contribution here is a rotor-based discretization of the \emph{non-relativistic} guidance equation that avoids wrapped-phase branch-cut artifacts by construction.
+
+\section{Background}
+
+\subsection{Node divergence and smoothing regularization}
+
+Near an isolated simple node $\psi(x_0)=0$, both $R=|\psi|\to0$ and, generically, the phase $\theta$ winds by a nonzero multiple of $2\pi$ around $x_0$ (a phase vortex) or jumps by $\pi$ across $x_0$ (a real, sign-changing node in one dimension). In either case the guidance equation \eqref{eq:guidance-standard} must be regularized near the node. Bell's smoothing prescription \cite{bell1987}, used in Valentini and Westman's relaxation studies \cite{valentini2005dynamical}, replaces the bare current $j=\rho v$ by a spatially averaged current $j_{\mathrm{reg}}=(j\ast\mu)$ over a kernel $\mu$, giving a regularized velocity $v_{\mathrm{reg}}=(j\ast\mu)/(\rho\ast\mu)$ that remains finite through the node.
+
+\subsection{Geometric algebra representation of the wavefunction phase}
+
+Following the standard GA treatment of Pauli/Schr\"odinger spinors \cite{hestenes2003sta}, we work in the plane algebra $\Cl(2,0,0)$ with orthonormal basis $\{e_1,e_2\}$ and unit pseudoscalar $I=e_1\wedge e_2$, satisfying $I^2=-1$ — the same algebraic role as the ordinary imaginary unit. A complex wavefunction $\psi=\psi_r+i\psi_i$ maps to $\psi_r+I\psi_i = R\,U$, where $U=\exp(I\theta)=\psi/|\psi|$ is a unit rotor: the \emph{phase rotor}.
+
+\section{Construction}
+
+\subsection{Guidance velocity as a rotor logarithmic derivative}
+
+We define the GA guidance velocity as the grade-1 part of the phase rotor's logarithmic derivative, de-rotated by $I^{-1}$:
+\begin{equation}
+v \;=\; \frac{\hbar}{m}\,\big\langle (\nabla U)\,U^{-1} I^{-1} \big\rangle_1 , \qquad U = \exp(I\theta).
+\label{eq:guidance-ga}
+\end{equation}
+
+\paragraph{Proof of flat-space equivalence.} With $\nabla = \sum_k e_k\,\partial_k$ the ordinary vector derivative operator and $\nabla \theta = \sum_k e_k\,\partial_k \theta$ an ordinary gradient vector,
+\begin{equation}
+\nabla U = (\nabla \theta)\,I\,U
+\;\;\Longrightarrow\;\;
+(\nabla U)U^{-1} = (\nabla \theta)\,I
+\;\;\Longrightarrow\;\;
+(\nabla U)U^{-1}I^{-1} = (\nabla \theta)\,I\,I^{-1} = \nabla \theta,
+\end{equation}
+so \eqref{eq:guidance-ga} reduces to $v=(\hbar/m)\nabla \theta$ \emph{exactly}, term for term identical to \eqref{eq:guidance-standard}. Analytically, therefore, the GA formulation carries \textbf{no new predictive content} in flat, non-relativistic space; this equivalence was verified to machine precision ($\le 2.2\times10^{-16}$) for a plane wave, a quadratic phase, and a phase vortex.
+
+\textbf{A note on the grade-1 projection.} In the two-dimensional plane algebra $\Cl(2,0,0)$, the quantity $(\nabla U)U^{-1}I^{-1}$ is \emph{already} pure grade 1 for a unit rotor $U$, so the projection $\langle\cdot\rangle_1$ in \eqref{eq:guidance-ga} discards nothing here — it is a redundant no-op in this specific low-dimensional construction. We keep it written explicitly only because it becomes load-bearing in higher-dimensional or spacetime-algebra generalizations, where the analogous quantity can acquire grade-3 components that must be projected out; in the present two-dimensional setting it is notation for that future case, not an active operation.
+
+The interesting content of this paper is not the continuum identity but how the two mathematically equivalent expressions \emph{discretize} differently (\S\ref{sec:results}).
+
+\subsection{Rejected alternative: the un-normalized spinor current}
+
+An apparently more direct transcription of the standard probability current, $j=(\hbar/m)\,\mathrm{Im}(\psi^*\nabla\psi)$, would use the GA expression $j=(\hbar/m)\langle\tilde\psi\,\nabla\psi\,I^{-1}\rangle$ built from the \emph{un-normalized} spinor $\psi=\psi_r+I\psi_i$ directly, without first dividing by $R=|\psi|$. We considered and rejected this route: in the two-dimensional plane algebra, an ordinary real vector and a pseudoscalar-times-vector $I\!\cdot\! b$ are \emph{both} grade 1, so expanding $\tilde\psi\nabla\psi = R\,\nabla R + \rho(\nabla \theta)I$ does not separate the amplitude-gradient term $\nabla R$ from the phase-gradient term $\rho\nabla \theta$ by a clean grade projection — extracting the guidance velocity from the un-normalized current requires exactly the reversion/normalization bookkeeping that dividing by $R$ up front already performs. Normalizing first (i.e., working with the unit rotor $U=\psi/|\psi|$, as in \eqref{eq:guidance-ga}) is simpler, removes the $\nabla R$ contamination by construction, and — the point of this paper — differentiates the smooth rotor rather than the wrapped phase angle. The un-normalized route offers no compensating advantage for pure guidance, but is the natural object once amplitude dynamics or the quantum potential must be modeled; we flag this for future work.
+
+\section{Numerical Experiments}
+\label{sec:results}
+
+\subsection{Near-node comparison: three discretizations of the same equation}
+
+We compare \textbf{three} discretizations of the identical continuum guidance velocity \eqref{eq:guidance-standard} on a $41\times41$ grid over $[-2,2]^2$ ($\Delta x\approx0.1$) for the canonical phase-vortex wavefunction $\psi\propto(x+iy)e^{-r^2}$, whose exact guidance velocity is the azimuthal field $v=(\hbar/m)(-y,x)/r^2$:
+\begin{enumerate}[leftmargin=1.4em]
+\item $\nabla\mathtt{atan2}$ — central-differencing the wrapped phase angle $\theta=\mathtt{atan2}(\psi_i,\psi_r)$. This is a \emph{naive} discretization, not ``the conventional guidance equation.''
+\item \textbf{Im-current} — the honest standard baseline, $v=(\hbar/m)\,\mathrm{Im}(\psi^*\nabla\psi)/|\psi|^2$, central-differenced directly on $\mathrm{Re}\,\psi$, $\mathrm{Im}\,\psi$, never forming an angle. This is what \eqref{eq:guidance-standard} actually specifies and what simulation codes typically implement.
+\item \textbf{GA rotor} — the $\langle(\nabla U)U^{-1}I^{-1}\rangle_1$ form of \eqref{eq:guidance-ga}, differencing the unit rotor $U=\psi/|\psi|$.
+\end{enumerate}
+We report $\max|v|$ and the maximum error against the exact analytic field, over grid points \emph{excluding} the physical node ball $r<0.5$ (isolating representational artifacts from the real physical divergence at the node), together with a separate far-field column ($r>1$) isolating the regime where amplitude gradients, not the phase singularity, dominate.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Quantity (grid) & $\nabla\mathtt{atan2}$ (naive) & Im-current (standard) & \textbf{GA rotor} \\
+\midrule
+$\max|v|$ ($r>0.5$) & 30.9 & 1.98 & 1.98 \\
+Max error vs.\ analytic ($r>0.5$) & 31.4 & 0.023 & 0.039 \\
+Max error vs.\ analytic (far field $r>1$) & (large, branch-cut driven) & 0.023 & \textbf{0.0050} \\
+Regularized $\max|v|$ (through node) & --- & --- & 1.54 (finite) \\
+\bottomrule
+\end{tabular}
+\caption{Guidance velocity near a phase-vortex node, comparing three discretizations. Excluding $r<0.5$ isolates representational artifacts from the physical node divergence; the far-field column ($r>1$) isolates the regime away from any singularity.}
+\label{tab:vortex}
+\end{table}
+
+\textbf{The branch cut is a $\mathtt{atan2}$ artifact, not a property of the standard equation.} The $\nabla\mathtt{atan2}$ form differences the wrapped phase angle, which has a $2\pi$ branch cut along an entire codimension-1 locus (conventionally the negative-$x$ axis). Central-differencing across that cut produces a spurious $\approx2\pi/\Delta x$ spike along the \emph{whole} cut — hence $\max|v|=30.9$, error $31.4$, even far from the node. \textbf{But the standard current form has no branch cut at all}: it differences $\mathrm{Re}\,\psi,\mathrm{Im}\,\psi$ (smooth everywhere), tracking the analytic velocity to $0.023$ and bounded at $1.98$ — essentially the same order of magnitude as GA. An earlier version of this analysis reported the GA-vs-$\nabla\mathtt{atan2}$ gap (roughly three orders of magnitude, $31.4$ vs.\ $0.039$) as if it demonstrated a fix to the guidance equation itself; that comparison was against a strawman. The honest standard current already implements the guidance equation robustly and has no branch-cut pathology to fix.
+
+\textbf{GA's genuine, modest advantage} is a constant-factor accuracy gain \emph{away from the singularity}: GA differences the amplitude-normalized rotor $U=\psi/|\psi|$, whose $O(\Delta x^2)$ truncation error is independent of $\nabla R$, whereas Im-current differences the full $\psi$, so its error couples to the amplitude gradient. This shows up in the far field as $0.0050$ (GA) vs.\ $0.023$ (Im-current) — a real but $\sim\!4$--$5\times$ effect, not a categorical fix.
+
+\subsection{The one-dimensional real node: both honest methods agree}
+
+For a real wavefunction $\psi\propto x$ (a sign-flip node), the true de~Broglie velocity is zero everywhere ($\mathrm{Im}(\nabla\psi/\psi)=0$).
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lc@{}}
+\toprule
+Method & $\max|v|$ (true value $=0$) \\
+\midrule
+$\nabla\mathtt{atan2}$ (naive) & 15.7 raw / \textbf{0.22} regularized (spurious spike) \\
+Im-current (standard) & \textbf{0.0} (exact) \\
+GA rotor & \textbf{0.0} (exact) \\
+\bottomrule
+\end{tabular}
+\caption{Guidance velocity at a one-dimensional real (sign-flip) node.}
+\label{tab:realnode}
+\end{table}
+
+The $\nabla\mathtt{atan2}$ form encodes the sign flip as a $0\to\pi$ phase jump and differencing it spikes. The Im-current baseline is trivially exact here ($\mathrm{Im}\,\psi\equiv0\Rightarrow v\equiv0$). The GA rotor also returns the physically correct $v=0$, but \textbf{we correct the mechanism as described in an earlier version of this analysis}: that version attributed the cancellation to the jump landing "in the internal bivector direction, off the physical grade-1 axis,'' which is imprecise. In the one-dimensional embedding $\Cl(2,0,0)$ with $I=e_1\wedge e_2$, the auxiliary basis vector $e_2$ is itself grade 1 (a vector), not grade 2 (a bivector). The actual mechanism: at the sign-flip, $U$ jumps between the pure scalars $\pm1$, so $\nabla U=c\,e_1$ is grade 1 along the physical axis $e_1$; right-multiplying by $I^{-1}=-e_1e_2$ sends $e_1\mapsto e_1(-e_1e_2)=-e_2$ exactly (using $e_1^2=1$), so the divergent term lands entirely on the auxiliary embedding axis $e_2$ — introduced solely so that $I=e_1\wedge e_2$ is a genuine bivector for the rotor formalism in one dimension — and not on the physical space direction $e_1$. The reported physical velocity, read off as only the $e_1$-component, is therefore exactly zero, while the discarded $e_2$-component diverges and is simply not reported. \textbf{We also correct an overclaim from an earlier version of this analysis here}: GA is not uniquely correct where the standard equation supposedly fails — the honest standard form is already correct at this node, and GA's zero result here follows from discarding a divergent auxiliary component by convention, not from any special geometric-algebra cancellation mechanism.
+
+\subsection{Convergence away from singularities}
+
+Away from any phase singularity, GA and Im-current agree to $O(\Delta x^2)$ and converge to each other as $\Delta x\to0$: for a smooth, varying-amplitude test phase, GA is $\sim4.9\times$ more accurate than Im-current at $\Delta x=0.10$ and $\sim5.0\times$ more accurate at $\Delta x=0.05$, both methods remaining $O(\Delta x^2)$; the ratio between them holds steady rather than growing, consistent with a constant-factor (not asymptotic-order) advantage. The GA rotor-difference has its own $O(\Delta x^2)$ error (a $\mathrm{sinc}(k\Delta x)$-type factor for a locally linear phase) and is not bit-identical to the standard grid at finite $\Delta x$ — the underlying continuum \emph{operation} is exact (\S3.1), the grid \emph{discretization} is merely convergent. We flag that the $\sim\!4$--$5\times$ ratio itself was checked at only two grid resolutions ($\Delta x=0.10,0.05$) and one test phase profile; a wider $\Delta x$ sweep and additional phase profiles would be needed to establish that the ratio is truly constant (rather than slowly drifting) across the full range of resolutions and phase shapes practitioners might use.
+
+\subsection{\texorpdfstring{$H$}{H}-theorem relaxation: correcting a sign-error bug}
+
+An earlier version of this analysis reported a coarse-grained $H$-function \emph{increasing} from $1.2187$ to $1.4194$ under both the standard and GA-regularized velocity fields — the opposite of the Valentini $H$-theorem, which requires monotonic decrease toward quantum equilibrium. \textbf{We identify and fix the cause}: that test drove the ensemble with a \emph{static} wavefunction (a fixed shifted Gaussian, purely linear phase). A static, simply-connected phase gives only a constant drift velocity — it translates the ensemble without mixing it, and, critically, the target $|\psi|^2$ is not stationary under that drift, so there is nothing for the coarse-grained $H$ to relax toward. This was a broken test setup, not evidence of physical anti-relaxation, and the bug was undetected because only standard-vs-GA agreement was checked, never the sign of $\Delta H$ against the definition of an $H$-theorem.
+
+The corrected experiment uses the canonical relaxation scenario: a time-dependent two-energy-eigenstate superposition in the infinite square well $[0,L]$ ($\hbar=m=1$),
+\begin{equation}
+\psi(x,t) = \frac{1}{\sqrt2}\Big[\varphi_1 e^{-iE_1 t} + \varphi_2 e^{-iE_2 t}\Big], \qquad
+\varphi_n = \sqrt{2/L}\sin(n\pi x/L), \qquad E_n = \frac{n^2\pi^2}{2L^2}.
+\end{equation}
+The velocity field $v=j/|\psi|^2$ now oscillates and has a blinking interior node, genuinely stirring the ensemble, with $|\psi(x,t)|^2$ the equivariant moving target the $H$-function is measured against. Starting from a uniform (maximally non-equilibrium) ensemble and advecting with the same solver driven by each velocity field ($L=\pi$, $n=101$ grid points, $\Delta t=0.02$, $50$ steps, Gaussian smearing $\varepsilon=0.25$, coarse-grain cell size $8$):
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+ & Initial $H$ & Final $H$ (50 steps) & Total drop & Max single-step increase \\
+\midrule
+Standard (Im-current) & 0.9327 & 0.4504 & \textbf{51.7\%} & $9.0\times10^{-3}$ \\
+GA rotor & 0.9327 & 0.4387 & \textbf{53.0\%} & $9.6\times10^{-3}$ \\
+\bottomrule
+\end{tabular}
+\caption{Corrected $H$-function relaxation. $H$ now decreases monotonically (modulo small, correlated solver noise, discussed below) for both velocity fields, recovering the expected sign of the Valentini $H$-theorem.}
+\label{tab:htheorem}
+\end{table}
+
+$H$ now decreases for both fields, with the sign corrected and the expected relaxation toward quantum equilibrium recovered. The two trajectories are nearly identical, as expected since the smooth-phase parts of the field agree to $O(\Delta x^2)$; GA relaxes at essentially the same rate as the honest standard field, rather than faster or slower.
+
+\textbf{The residual $\sim10^{-2}$ bump is solver noise, not anti-relaxation.} A single step occasionally raises $H$ by $\sim9\times10^{-3}$ (under $2.5\%$ of the total $\sim0.48$ drop). This is a node-crossing artifact of the coarse first-order upwind advection scheme: it grows as $\Delta t\to0$ (ruling out a time-integration error) and is identical for the standard and GA fields (ruling out a velocity-field cause). It is spatial-discretization noise from the blinking node sweeping the grid, not a property of either guidance form; a higher-order flux-limited advection scheme would remove it, orthogonal to the comparison at hand.
+
+\textbf{Honest scope of this relaxation test.} The result above should be read as a single, one-dimensional sanity check that both velocity fields drive $H$ in the correct direction on one specific mixing test case, not as a general validation of relaxation behavior. Several controls that would be needed to support a stronger claim were not run: (i) a genuinely mixing higher-dimensional test (e.g.\ a 2D box or harmonic-oscillator superposition), since the 1D two-eigenstate case has no trajectory crossing and may under-sample the diffusive/mixing behavior a real relaxation study needs; (ii) a $\Delta x$/$\Delta t$ refinement study to check that the reported drop and the residual noise both converge as the grid is refined, rather than being artifacts of the specific $n=101$, $\Delta t=0.02$ choice; (iii) a comparison against a less numerically diffusive advection scheme than first-order upwind, to separate genuine relaxation from numerical-diffusion-driven smoothing of the ensemble (first-order upwind schemes are well known to add artificial diffusion that can itself drive an ensemble toward a smoother, lower-$H$ state independent of the underlying dynamics); (iv) an explicit mass-conservation and equilibrium-preservation check, confirming the advected ensemble integrates to constant total probability and that $|\psi(x,t)|^2$ itself remains an exact fixed point of the scheme; (v) a discrete continuity-equation (or equivariance) residual, verifying the advection scheme's discretized $\partial_t\rho+\nabla\cdot(\rho v)=0$ holds to the expected order; and (vi) a check of how the reported $H$ values and the noise floor depend on the coarse-graining cell size ($8$ grid cells here), since the Valentini $H$-function is defined relative to a coarse-graining scale and different choices can change both the magnitude of the drop and the size of the residual bump. Absent these controls, the $51$--$53\%$ drop and the near-identical standard/GA relaxation rates should be read as consistent with, not a rigorous demonstration of, the expected $H$-theorem behavior.
+
+\subsection{Curved-space limit}
+
+We extended the flat construction \eqref{eq:guidance-ga} to curved space by raising the covariant phase gradient with the manifold's inverse metric, $v^i=(\hbar/m)\,g^{ij}\partial_j \theta$, with $\partial_j \theta$ computed via the same rotor operation as in the flat case, composed with an existing connection-bivector parallel-transport machinery for the phase bivector. We verified: (i) with $g^{ij}=\delta^{ij}$, the curved-space velocity equals the flat GA velocity exactly (difference $0.0$), the required reduction; (ii) a diagonal metric $g^{ij}=\mathrm{diag}(2,\tfrac12)$ scales the velocity components by exactly $(2,\tfrac12)$, confirming the metric genuinely acts; and (iii) on a flat, identity-frame manifold the connection bivector vanishes, and parallel transport of the phase bivector leaves it exactly unchanged (drift $0.0$).
+
+\textbf{Honest scope of the curved-space claim.} These three checks exercise only the flat-reduction and metric-scaling limits, on a manifold with $g=\delta$ or a constant diagonal metric and a vanishing connection; they do not by themselves demonstrate a genuinely curved, non-trivial-connection evaluation. In the released code, the grid-based (non-GA) curved-space path — the \texttt{\_interpolatePhase} method of \texttt{CurvedSpacePilotWave} — is an explicit placeholder: it performs nearest-grid-point lookup at a hardcoded grid spacing and uses only the first coordinate, with a code comment noting that a full implementation would need bilinear or trilinear interpolation; the companion density interpolation has the same placeholder character. The GA-specific curved-space path used for the checks above, \texttt{GACurvedPilotWave}, avoids this by evaluating a supplied \emph{analytic} phase function directly at shifted coordinates rather than interpolating from a grid, so it is not subject to the same placeholder limitation — but this also means the three checks above exercise an analytic-phase convenience case, not a generic numerically-sourced curved-space field. The connection itself falls back to flat when the underlying Riemannian-GA module is unavailable, and the parallel-transport and geodesic-ball routines used elsewhere in the codebase are simplified (linear transport; a Monte Carlo tangent-space approximation to the geodesic ball). We therefore state the curved-space result narrowly: the metric-covariant \emph{formula} composes correctly with parallel transport in the flat and constant-diagonal-metric limits for an analytically supplied phase, and the extension to curved space with numerically-sourced fields and a non-trivial connection remains to be implemented and tested.
+
+\section{Discussion}
+
+Table~\ref{tab:verdict} summarizes the questions this construction was designed to answer, updated to reflect the corrected numerics.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}p{0.30\linewidth}p{0.63\linewidth}@{}}
+\toprule
+Question & Finding \\
+\midrule
+More natural formulation? & Yes — a single rotor logarithmic derivative — but analytically identical to $\nabla \theta$ in flat space (no new continuum physics). \\
+More numerically stable near nodes? & \textbf{Modestly, and only relative to a strawman.} Against the honest standard current form (no branch cut, already accurate near nodes and exact at the real node), GA is \emph{comparable} near singularities and offers a real but constant-factor ($\sim4$--$5\times$) accuracy edge away from them, from differencing the amplitude-normalized rotor. \\
+Extends to curved space? & \textbf{Partially, and narrowly tested.} The formula is metric-covariant and reduces exactly to the flat case when $g=\delta$ and the connection vanishes, and composes with parallel transport for an analytically supplied phase. The checks performed do not exercise a generic numerically-sourced field or a non-trivial connection; the released grid-based curved-space interpolation is an explicit placeholder (nearest-grid-point lookup), and parallel transport/geodesic-ball routines elsewhere in the codebase are simplified. \\
+\bottomrule
+\end{tabular}
+\caption{Summary verdict on the sub-questions motivating this construction, after correcting the strawman baseline and the $H$-theorem sign bug.}
+\label{tab:verdict}
+\end{table}
+
+Stated without overclaiming: the geometric-algebra reformulation of the guidance equation adds no new predictive content in the flat continuum limit, and its numerical benefit is \emph{not} a repair of a broken standard equation — the honest current form $\mathrm{Im}(\psi^*\nabla\psi)/|\psi|^2$ is already free of the branch-cut and real-node artifacts that afflict only a naive $\nabla\mathtt{atan2}$ implementation. GA's defensible, narrowly-scoped contribution is a rotor-based discretization of the non-relativistic guidance equation that avoids wrapped-phase artifacts by construction and carries a modest $\sim4$--$5\times$ constant-factor accuracy edge away from singularities; the metric-covariant formula composes correctly with parallel transport in the flat and constant-diagonal-metric limits for an analytically supplied phase, but a genuinely curved, numerically-sourced extension has not yet been implemented or tested (\S4.5).
+
+\textbf{Relation to prior work.} GA/Clifford formulations of pilot-wave theory are not new: the relativistic Dirac-current guidance in Spacetime Algebra is standard \cite{hestenes2003sta}, and quantum-relaxation studies for relativistic (Dirac) fermions already exist, e.g.\ Colin's work on relaxation to quantum equilibrium for Dirac fermions in de~Broglie--Bohm theory \cite{colin2012dirac}. This paper does not claim to originate GA pilot-wave theory or the STA guidance law. The scoped contribution here is the concrete, tested observation that a rotor/unit-spinor discretization of the \emph{non-relativistic} guidance equation avoids wrapped-phase branch-cut artifacts by construction and gives a modest constant-factor accuracy gain, plus the metric-covariant framing that sets up a future curved/relativistic extension.
+
+\textbf{Limitations.} The two-dimensional node-regularization results reported here use a Euclidean-grid convolution kernel; a curved-space, geodesic-ball-native version of the smoothing kernel, composing directly with the connection used in \S4.5, is left for future work. The relativistic (spacetime-algebra) case — generalizing the plane pseudoscalar $I=e_1\wedge e_2$ to a spacetime bivector and treating the Dirac current rather than the Pauli/Schr\"odinger current — was not implemented here. Amplitude dynamics and the quantum potential are not modeled in the present construction (only guidance); these require the un-normalized spinor current rejected in \S3.2. Finally, the residual $\sim10^{-2}$ solver noise identified in \S4.4 reflects a limitation of the first-order upwind advection scheme used for both fields, not of the guidance formulations compared, and should be addressed before this framework is used for higher-precision relaxation-rate comparisons.
+
+\section{Conclusion}
+
+We have shown that representing the wavefunction phase as a unit rotor in geometric algebra, and differentiating that rotor directly, yields a guidance-equation discretization that is analytically identical to the standard de~Broglie--Bohm guidance equation in flat space and offers a modest, real constant-factor accuracy advantage away from wavefunction nodes when compared honestly against the standard current form — not the large, node-region advantage reported against a naive $\mathtt{atan2}$ strawman in an earlier version of this analysis. We also corrected a sign-error bug in the associated $H$-theorem relaxation test, caused by a non-mixing static test wavefunction, and confirmed that both the standard and GA-regularized fields correctly relax the coarse-grained $H$-function downward at comparable rates once a genuinely time-dependent, mixing test case is used. The metric-covariant guidance formula composes correctly with parallel transport in the flat and constant-diagonal-metric limits for an analytically supplied phase, though a genuinely curved, numerically-sourced extension has not yet been implemented or tested (\S4.5). All results, including the corrected baselines and the corrected relaxation test, are implemented, tested, and released as open-source software alongside the standard implementation for direct comparison.
+
+\bibliographystyle{plain}
+\begin{thebibliography}{99}
+
+\bibitem{bell1987}
+J.~S.~Bell, ``Speakable and Unspeakable in Quantum Mechanics,'' Cambridge University Press (1987).
+
+\bibitem{towler2011relaxation}
+M.~Towler, N.~Russell, A.~Valentini, ``Time scales for dynamical relaxation to the Born rule,'' \textit{Proc. R. Soc. A} \textbf{468}, 990 (2011). \url{http://royalsocietypublishing.org/rspa/article/468/2140/990-1013/83379}
+
+\bibitem{valentini2005dynamical}
+A.~Valentini, H.~Westman, ``Dynamical Origin of Quantum Probabilities,'' \textit{Proc. R. Soc. A} \textbf{461}, 253--272 (2005), arXiv:quant-ph/0403034. \url{https://arxiv.org/abs/quant-ph/0403034}
+
+\bibitem{valentini2024search}
+A.~Valentini, ``Pilot-wave theory and the search for new physics,'' arXiv:2411.10782 (2024). \url{https://arxiv.org/abs/2411.10782}
+
+\bibitem{hestenes2003sta}
+D.~Hestenes, ``Spacetime physics with geometric algebra,'' \textit{American Journal of Physics} \textbf{71}, 691 (2003). \url{https://pubs.aip.org/ajp/article/71/7/691/310607}
+
+\bibitem{colin2012dirac}
+S.~Colin, ``Relaxation to quantum equilibrium for Dirac fermions in the de~Broglie--Bohm pilot-wave theory,'' \textit{Proc. R. Soc. A} \textbf{468}, 1116 (2012). \url{http://royalsocietypublishing.org/rspa/article/468/2140/1116-1135/83361}
+
+\bibitem{pilotwavelib}
+G.~Utama, \texttt{contact-thermodynamics} (open-source software repository). \url{https://github.com/gutama/contact-thermodynamics}
+
+\end{thebibliography}
+
+\end{document}
